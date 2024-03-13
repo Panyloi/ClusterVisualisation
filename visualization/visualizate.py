@@ -1,8 +1,8 @@
+from ..algorithms.convex_hull import convex_hull
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
-from convex_hull import grahamAlgorithmUpgrade
 
 def get_cmap(n, name='hsv'):
     cols = (plt.cm.get_cmap(name)
@@ -36,14 +36,23 @@ np.random.shuffle(cmap)
 for i in range(len(categorized_names)):
     zipped_points = list(zip(gruped_points[categorized_names[i]]["x"], gruped_points[categorized_names[i]]["y"]))
 
-    convex_hull_points = grahamAlgorithmUpgrade(zipped_points)
+    # convex_hull_points = grahamAlgorithmUpgrade(zipped_points)
+    convex_hull_points, edge_points = convex_hull.concave_hull(zipped_points, alpha=0.6)
 
     if len(convex_hull_points) < 3:
         continue
 
-    line_to_plot = [(convex_hull_points[j%len(convex_hull_points)], convex_hull_points[(j+1)%len(convex_hull_points)]) 
-                    for j in range(len(convex_hull_points))]
-    line_segments = LineCollection(segments = line_to_plot, colors = cmap[i])
+    # line_to_plot = [(convex_hull_points[j%len(convex_hull_points)], convex_hull_points[(j+1)%len(convex_hull_points)]) 
+    #                 for j in range(len(convex_hull_points))]
+    # line_segments = LineCollection(segments = line_to_plot, colors = cmap[i])
+    # ax.add_collection(line_segments)
+    xx, yy = convex_hull_points.exterior.coords.xy
+    x, y = xx.tolist(), yy.tolist()
+    line_of_polygon = list(zip(x, y))
+    line_to_plot = [(line_of_polygon[j%len(line_of_polygon)], line_of_polygon[(j+1)%len(line_of_polygon)]) 
+                    for j in range(len(line_of_polygon))]
+
+    line_segments = LineCollection(segments = line_to_plot)
     ax.add_collection(line_segments)
 
 plt.show()
