@@ -1,8 +1,9 @@
-from ..algorithms.convex_hull import convex_hull
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
+from algorithms.convex_hull import concave_hull
 
 def get_cmap(n, name='hsv'):
     cols = (plt.cm.get_cmap(name)
@@ -37,7 +38,7 @@ for i in range(len(categorized_names)):
     zipped_points = list(zip(gruped_points[categorized_names[i]]["x"], gruped_points[categorized_names[i]]["y"]))
 
     # convex_hull_points = grahamAlgorithmUpgrade(zipped_points)
-    convex_hull_points, edge_points = convex_hull.concave_hull(zipped_points, alpha=0.6)
+    convex_hull_points, edge_points = concave_hull(zipped_points, alpha=0.6)
 
     if len(convex_hull_points) < 3:
         continue
