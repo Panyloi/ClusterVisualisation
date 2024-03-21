@@ -59,7 +59,7 @@ class Label:
         self.t_point = self.get_tpoint()
 
     def get_err(self):
-        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
+        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2 + (self.rp_x - self.x)**2 + (self.rp_y - self.y)**2)
     
     def get_mpoint(self):
         return self.x, (self.y - self.height/2) + self.width/2
@@ -186,7 +186,7 @@ def calc(grouped_points: dict, convex_points: list):
 
     # calculate
     start = time.time()
-    res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), maxiter=300)
+    res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), maxiter=1000, initial_temp=10000, visit=2.9)
     end = time.time()
     print(end-start)
     print(res)
