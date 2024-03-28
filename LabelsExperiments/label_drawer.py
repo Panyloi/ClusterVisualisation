@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
-from triesv2.kdt_c import calc
+# from triesv2.kdt_c import calc
+from triesv2.greedy_kdt import calc
 
 # ---------------------------------------------------------------------------- #
 #                                GRAHAM ALGIRTHM                               #
