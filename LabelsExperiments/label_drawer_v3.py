@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
 # from triesv2.kdt_c import calc
-from triesv2.greedy_kdt import calc
+# from triesv2.greedy_kdt import calc
+from triesv2.greedy_lossv2_kdt import calc
 
 # ---------------------------------------------------------------------------- #
 #                                GRAHAM ALGIRTHM                               #
@@ -112,14 +113,20 @@ line_to_plot = [(convex_hull_points[j%len(convex_hull_points)], convex_hull_poin
 line_segments = LineCollection(segments = line_to_plot)
 ax.add_collection(line_segments)
 
-res = calc(gruped_points, convex_hull_points)
+# calculation and printin
+SIZE = 20
+
+res = calc(gruped_points, convex_hull_points, SIZE)
 for set_name in res.keys():
     sres = res[set_name]
     pts = sres['points']
     pts.append(pts[0])
     x, y = zip(*pts)
-    plt.plot(x, y)
-
+    plt.plot(x, y, color='black')
     plt.plot([sres['tpoint'][0], sres['rpoint'][0]], [sres['tpoint'][1], sres['rpoint'][1]], color='black')
+    plt.text(sres['mpoint'][0], sres['mpoint'][1], set_name, size=sres['height']/10,
+         ha="center", va="center",
+         bbox=dict(boxstyle="round", ec=(0, 0, 0), fc=(1, 1, 1))
+         )
 
 plt.show()

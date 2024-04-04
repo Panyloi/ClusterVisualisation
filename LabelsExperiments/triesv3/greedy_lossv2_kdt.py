@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
 import numpy as np
 from scipy.optimize import dual_annealing, basinhopping
 import time
@@ -34,6 +35,8 @@ class Label:
         self.rp_y = root_point[1]
         self.width = width
         self.height = height
+        self.x0_x = None
+        self.x0_y = None
 
         # refreshable
         self.points = [tuple_add((x, y), (-self.width/2, self.height/2)),
@@ -43,16 +46,6 @@ class Label:
         
         self.t_point = self.get_tpoint()
     
-    def get_tpoint(self):
-        if self.t // 1 == 0:
-            return tuple_add(self.points[0], (self.width*(self.t % 1), 0))
-        elif self.t // 1 == 1:
-            return tuple_add(self.points[1], (0, -self.height*(self.t % 1)))
-        elif self.t // 1 == 2:
-            return tuple_add(self.points[2], (-self.width*(self.t % 1), 0))
-        else:
-            return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
-
     def update_params(self, x, y, t):
         self.x = x
         self.y = y
@@ -63,8 +56,20 @@ class Label:
         self.t = t
         self.t_point = self.get_tpoint()
 
+    def get_tpoint(self):
+        if self.t // 1 == 0:
+            return tuple_add(self.points[0], (self.width*(self.t % 1), 0))
+        elif self.t // 1 == 1:
+            return tuple_add(self.points[1], (0, -self.height*(self.t % 1)))
+        elif self.t // 1 == 2:
+            return tuple_add(self.points[2], (-self.width*(self.t % 1), 0))
+        else:
+            return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
+
     def get_err(self):
-        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
+        mpoint = self.get_mpoint()
+        return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + \
+               np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2))/100
     
     def get_mpoint(self):
         return self.x, (self.y - self.height/2) + self.width/2
@@ -75,15 +80,15 @@ class Label:
     def get_result(self):
         result = {'points': self.points,
                   'tpoint': self.t_point,
-                  'rpoint': (self.rp_x, self.rp_y)}
+                  'rpoint': (self.rp_x, self.rp_y),
+                  'mpoint': (self.x, self.y),
+                  'width' : self.width,
+                  'height': self.height}
         return result
     
-    @classmethod
-    def ll_set(cls, ll, x):
-        for i, label in enumerate(ll):
-            px, py = x[i*2], x[i*2+1]
-            label.update_params(px, py, x[len(ll)*2+i])
-
+    def set_x0(self, x0_x, x0_y):
+        self.x0_x, self.x0_y = x0_x, x0_y
+    
     @classmethod
     def ll_get(cls, ll):
         res = []
@@ -93,6 +98,19 @@ class Label:
         for label in ll:
             res.append(label.t)
         return np.array(res)
+    
+    @classmethod
+    def ll_set(cls, ll, x: np.ndarray)-> None:
+        for i, label in enumerate(ll):
+            px, py = x[i*2], x[i*2+1]
+            label.update_params(px, py, x[len(ll)*2+i])
+
+    @classmethod
+    def ll_set_x0(cls, ll, x0: np.ndarray) -> None:
+        for i, label in enumerate(ll):
+            px, py = x0[i*2], x0[i*2+1]
+            label.update_params(px, py, x0[len(ll)*2+i])
+            label.set_x0(px, py)
         
 # ---------------------------------------------------------------------------- #
 #                                   MAIN SET                                   #
@@ -252,7 +270,7 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
-def calc(grouped_points: dict, convex_points: list):
+def calc(grouped_points: dict, convex_points: list, SIZE: float):
     mset     = MainSet(convex_points)
     ll       = []
     ul_point = (min(convex_points, key=lambda x: x[0])[0], max(convex_points, key=lambda x: x[1])[1])
@@ -261,6 +279,13 @@ def calc(grouped_points: dict, convex_points: list):
     yw       = (ul_point[1] - dr_point[1])*0.1
 
     for label_name in grouped_points.keys():
+        # create temporary box with gived SIZE(height) and check it's width
+        # bbox = plt.text(0, 0, label.text, size=SIZE,
+        #                 ha="center", va="center",
+        #                 bbox=dict(boxstyle="round", ec=(0, 0, 0), fc=(1, 1, 1))
+        #                 )
+        # bbox.
+
         ref_point = (grouped_points[label_name]['x'][0], grouped_points[label_name]['y'][0])
         ll.append(Label(label_name, 0, 0, len(label_name)*yw*0.4/1.6, yw*0.4, ref_point))
 
@@ -268,10 +293,12 @@ def calc(grouped_points: dict, convex_points: list):
     labels_bounds.extend([(0, 4)]*len(ll))
 
     # calculate
-    start = time.time()
     x0 = greedy((0, 0), ll, mset)
     # res = basinhopping(loss, x0, minimizer_kwargs={"args" : (ll, mset)})
-    res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=100, initial_temp=3000, visit=1.65)
+    Label.ll_set_x0(ll, x0)
+    start = time.time()
+    # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=100, initial_temp=3000, visit=1.65)
+    res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=2, visit=2.2)
     end = time.time()
     print(end-start)
     print(res)
