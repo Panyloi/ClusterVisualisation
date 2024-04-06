@@ -2,9 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
-# from triesv2.kdt_c import calc
-# from triesv2.greedy_kdt import calc
-from triesv2.greedy_lossv2_kdt import calc
+from triesv3.greedy_lossv2_kdt import calc
+from scaler import scale
 
 # ---------------------------------------------------------------------------- #
 #                                GRAHAM ALGIRTHM                               #
@@ -91,6 +90,9 @@ def get_cmap(n, name='hsv'):
 
 df = pd.read_csv("./points/kk_swap_2d.csv", sep=';')
 
+scale(df)
+exit(0)
+
 df["instance_id"] = df["instance_id"].apply(lambda x: x.split(sep="_")[0])
 
 x_points = df["x"].to_numpy()
@@ -124,7 +126,7 @@ for set_name in res.keys():
     x, y = zip(*pts)
     plt.plot(x, y, color='black')
     plt.plot([sres['tpoint'][0], sres['rpoint'][0]], [sres['tpoint'][1], sres['rpoint'][1]], color='black')
-    plt.text(sres['mpoint'][0], sres['mpoint'][1], set_name, size=sres['height']/10,
+    plt.text(sres['mpoint'][0], sres['mpoint'][1], set_name, size=sres['height'],
          ha="center", va="center",
          bbox=dict(boxstyle="round", ec=(0, 0, 0), fc=(1, 1, 1))
          )

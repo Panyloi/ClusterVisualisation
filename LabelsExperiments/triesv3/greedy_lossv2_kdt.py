@@ -275,8 +275,25 @@ def calc(grouped_points: dict, convex_points: list, SIZE: float):
     ll       = []
     ul_point = (min(convex_points, key=lambda x: x[0])[0], max(convex_points, key=lambda x: x[1])[1])
     dr_point = (max(convex_points, key=lambda x: x[0])[0], min(convex_points, key=lambda x: x[1])[1])
-    xw       = (dr_point[0] - ul_point[0])*0.1
-    yw       = (ul_point[1] - dr_point[1])*0.1
+
+    # scaling - all values are prescaled base on the upper-left and lower-right points soo that they
+    # fit a square of bounds (-100, 100). The proportions should be kept
+    dx       = (dr_point[0] - ul_point[0])
+    dy       = (ul_point[1] - dr_point[1])
+    sunit    = None
+    wshift   = None # shift of the shorter orientation((max-d)/2)
+    x_orient = None
+    
+    # unit calculation based on which orientation is wider
+    if dx >= dy:
+        sunit = dx/200
+        wshift = (dx - dy)/2
+        x_orient = True
+    else:
+        sunit = dy/200
+        wshift = (dy - dx)/2
+        x_orient = False
+
 
     for label_name in grouped_points.keys():
         # create temporary box with gived SIZE(height) and check it's width
@@ -287,14 +304,13 @@ def calc(grouped_points: dict, convex_points: list, SIZE: float):
         # bbox.
 
         ref_point = (grouped_points[label_name]['x'][0], grouped_points[label_name]['y'][0])
-        ll.append(Label(label_name, 0, 0, len(label_name)*yw*0.4/1.6, yw*0.4, ref_point))
+        ll.append(Label(label_name, 0, 0, len(label_name)*SIZE*0.4/2.6, SIZE*0.4, ref_point))
 
-    labels_bounds = [(ul_point[0]-xw, dr_point[0]+xw), (dr_point[1]-yw, ul_point[1]+yw)]*len(ll)
+    labels_bounds = [(ul_point[0]-xh, dr_point[0]+xh), (dr_point[1]-yh, ul_point[1]+yh)]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
 
     # calculate
     x0 = greedy((0, 0), ll, mset)
-    # res = basinhopping(loss, x0, minimizer_kwargs={"args" : (ll, mset)})
     Label.ll_set_x0(ll, x0)
     start = time.time()
     # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=100, initial_temp=3000, visit=1.65)
