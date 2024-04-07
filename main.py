@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib.collections import LineCollection
 from scipy import interpolate
 from copy import deepcopy
+from random import random
 
 from concave_hull import concave_hull, concave_hull_indexes
 
@@ -26,14 +27,24 @@ def interpolate_points(points, num=100):
     new_points = interpolate.splev(u3, tck)
     return list(zip(new_points[0], new_points[1]))
 
-def convert_points(points, flag_radious):
+def convert_points(points, flag_radious, num_of_points = 20):
     points_copy = deepcopy(points)
 
+    # only for points
+    # for point in points_copy:
+    #     points.append((point[0], point[1] + flag_radious))
+    #     points.append((point[0], point[1] - flag_radious))
+    #     points.append((point[0] - flag_radious, point[1]))
+    #     points.append((point[0] + flag_radious, point[1]))
+
+    # circle
+    angles = np.linspace(0, 2*np.pi, num_of_points, endpoint=False)
+
     for point in points_copy:
-        points.append((point[0], point[1] + flag_radious))
-        points.append((point[0], point[1] - flag_radious))
-        points.append((point[0] - flag_radious, point[1]))
-        points.append((point[0] + flag_radious, point[1]))
+        for angle in angles:   
+            x = point[0] + flag_radious * np.cos(angle)
+            y = point[1] + flag_radious * np.sin(angle)
+            points.append((x, y))
 
     return np.array(points)
 
@@ -47,8 +58,9 @@ def visualizate_points(categorized_names, gruped_points, ax, with_iterpolation =
         zipped_points = np.hstack((gruped_points[categorized_names[i]]["x"].reshape(-1,1),
                                     gruped_points[categorized_names[i]]["y"].reshape(-1,1)))
         
-        zipped_points = convert_points(list(zipped_points), 10**6)
-        # zipped_points = convert_points(list(zipped_points), 10)
+        # zipped_points = convert_points(list(zipped_points), 20, num_of_points=4)
+        # zipped_points = convert_points(list(zipped_points), 10**6)
+        # zipped_points = convert_points(list(zipped_points), 0.01)
 
         # compute concave hull
         # change :param concavity: to add more or less points to concave hull
@@ -60,8 +72,22 @@ def visualizate_points(categorized_names, gruped_points, ax, with_iterpolation =
 
         _idx_points = [zipped_points[idxes[i]] for i in range(len(idxes))]
 
-        # interpolate given points of hull
-        new_points = interpolate_points(_idx_points, 1000)
+        # NEW
+        # zipped_points = convert_points(_idx_points, 20, num_of_points=10)
+        zipped_points = convert_points(_idx_points, 10**6)
+        # zipped_points = convert_points(_idx_points, 0.02)
+
+        idxes = concave_hull_indexes(
+            zipped_points[:, :2],
+            concavity=2,
+            length_threshold=20,
+        )
+
+        _idx_points = [zipped_points[idxes[i]] for i in range(len(idxes))]
+        # END_NEW
+
+
+        new_points = interpolate_points(_idx_points, 10)
 
         if with_iterpolation:
             line_to_plot = [
@@ -80,6 +106,7 @@ def main():
     # prepare given points
     # df = pd.read_csv("./points/kk_swap_2d.csv", sep=';')
     df = pd.read_csv("./points/kamada_l1-mutual_attraction_2d.csv", sep=';')
+    # df = pd.read_csv("./points/prefsynth_dataset/coordinates/mds_dapl2_2d.csv", sep=';')
 
     df["instance_id"] = df["instance_id"].apply(lambda x: x.split(sep="_")[0])
 
@@ -96,10 +123,10 @@ def main():
                                                "y": selected_points["y"].to_numpy()}
 
     fig, ax = plt.subplots()
-    ax.scatter(x_points, y_points, s=10)
+    ax.scatter(x_points, y_points, s=20)
     ax.set_title('Simple plot')
 
-    visualizate_points(categorized_names, gruped_points, ax, with_iterpolation=True)
+    visualizate_points(categorized_names, gruped_points, ax, with_iterpolation=False)
     
     plt.show()
 
