@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+**__pycache__
 *.py[cod]
 *$py.class
 
@@ -110,7 +111,7 @@ ipython_config.py
 .pdm.toml
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+**__pypackages__/
 
 # Celery stuff
 celerybeat-schedule
@@ -120,13 +121,13 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+**.env
+**.venv
+**env/
+**venv/
+**ENV/
+**env.bak/
+**venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -158,3 +159,6 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# IDE's
+**.vscode

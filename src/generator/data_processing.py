@@ -1,0 +1,182 @@
+import pandas as pd
+import numpy as np
+from mapel.core.objects.Experiment import Experiment
+from typing import Union
+
+def parse_data(data: Union[str, Experiment], delim=';') -> dict:
+    """ Parse the input data into universal dataframe
+
+    Parameters
+    ----------
+    data: str or Experiment
+        Either string with path to the csv file or an instance of mapel...Experiment.
+    delim: str
+        If data is a csv file the delim is used as input delimeter.
+
+    Raises
+    ------
+    TODO: what exceptions are thrown by parsing methodes
+    
+    Returns
+    -------
+    dict:
+        Resulting universal dict for generator.
+    
+    """
+
+    if type(data) is str:
+        return _parse_csv(data, delim=delim)
+    elif type(data) is Experiment:
+        return _parse_experiment(data)
+    else:
+        raise(TypeError)
+
+
+def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
+    """ Normalizes the data into given square bounds
+    
+    Parameters
+    ----------
+    data: dict
+        The data to normalize.
+    lb: int
+        Lower bound.
+    ub: int
+        Upper bound.
+
+    Returns
+    -------
+    dict:
+        Reference to data
+
+    """
+
+    spread = ub - lb
+    x_points = None
+    y_points = None
+    for category_data in data.values():
+
+        if x_points is None or y_points is None:
+            x_points = category_data['x']
+            y_points = category_data['y']
+            continue
+
+        x_points = np.concatenate((x_points, category_data['x']))
+        y_points = np.concatenate((y_points, category_data['y']))
+
+
+    ul_point = (np.min(x_points), np.max(y_points))
+    dr_point = (np.max(x_points), np.min(y_points))
+
+    # scaling - all values are prescaled base on the upper-left and lower-right points soo that they
+    # fit a square of bounds (lb, up). The proportions should be kept
+    dx       = (dr_point[0] - ul_point[0])
+    dy       = (ul_point[1] - dr_point[1])
+    d        = max(dx, dy)
+    x_shift  = None # shift are counted from left/down
+    y_shift  = None #
+    
+    # unit calculation based on which orientation is wider
+    if dx >= dy:
+        x_shift = 0
+        y_shift = (dx - dy)/2
+    else:
+        x_shift = (dx - dy)/2
+        y_shift = 0
+
+    for category_name in data.keys():
+        for i in range(len(data[category_name]['x'])):
+
+            rx = data[category_name]['x'][i]
+            ry = data[category_name]['y'][i]
+
+            nx = lb + (rx - ul_point[0] + x_shift)*spread/d
+            ny = lb + (ry - dr_point[1] + y_shift)*spread/d
+
+            data[category_name]['x'][i] = nx
+            data[category_name]['y'][i] = ny
+
+    return data
+
+
+def editor_format(data: dict) -> dict:
+    """ Formats the data to editor readable format
+    
+    Parameters
+    ----------
+    data: dict
+        The data to format.
+
+    Returns
+    -------
+    dict:
+        Reference to data
+
+    """
+
+    data = {"data": data,
+            "cluster_data": {},
+            "convex_data": {},
+            "labels_data": {}}
+    
+    return data
+
+
+def _parse_csv(path: str, delim=';') -> dict:
+    """ Parse method for csv files
+
+    Parameters
+    ----------
+    path: str
+        Path to the csv.
+    delim: str
+        Delimeter for csv parsing.
+
+    Raises
+    ------
+    IOError:
+        When any file operations fail.
+
+    Returns
+    -------
+    dict:
+        Resulting universal dict.
+        
+    """
+
+    df  = pd.read_csv(path, sep=delim)
+    ids = df.columns[0]
+
+    df[ids] = df[ids].apply(lambda x: x.split(sep="_")[0])
+
+    categorized_names = df[ids].unique()
+    gruped_points = {}
+
+    for category in categorized_names:
+        selected_points = df.loc[df[ids] == category]
+        gruped_points[category] = {"x": selected_points["x"].to_numpy(),
+                                   "y": selected_points["y"].to_numpy()}
+
+    return gruped_points
+
+
+def _parse_experiment(exp: Experiment) -> dict:
+    """ Parse method for Experiment obj
+
+    Parameters
+    ----------
+    exp: Experiment
+        The experiment object
+
+    Raises
+    ------
+    TODO: what raises?
+        
+    Returns
+    -------
+    dict:
+        Resulting universal dict.
+        
+    """
+
+    raise(NotImplementedError)
