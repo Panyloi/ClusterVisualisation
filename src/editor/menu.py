@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import numpy as np
+from copy import deepcopy
 
 class Button_Manager:
     def __init__(self, fig, ax,  points) -> None:
@@ -15,6 +16,8 @@ class Button_Manager:
         self.bprev = None
         self.badd_points = None
         self.bdone = None
+
+        self.axadd_points = None
 
         self.fig.canvas.mpl_connect('button_press_event', self.menu.on_click)
 
@@ -74,11 +77,12 @@ class Button_Manager:
 
     def _delete_buttons(self) -> None:
         for bax in self.baxes:
-            bax.remove()
-            print(bax)
-
+            self.fig.delaxes(bax)
+            
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
         self.baxes = []
-                
+                        
 
     def show_buttons_menu(self) -> None:
         self._delete_buttons()
