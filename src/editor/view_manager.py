@@ -49,6 +49,7 @@ class ViewButton(ViewElement):
         self.button_ref.disconnect_events()      
         self.pv.vm.fig.delaxes(self.button_ax)
 
+# ------------------------------ OUTPUT CLASSES ------------------------------ #
 
 class ChangeViewButton(ViewButton):
     
