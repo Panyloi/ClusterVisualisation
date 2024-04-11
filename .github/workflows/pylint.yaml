@@ -29,8 +29,8 @@ jobs:
           SCORE=$(grep 'Your code has been rated at ' pylint_output.txt | cut -d' ' -f6 | xargs)
           echo "Pylint Score: $SCORE" > pylint_score.txt
 
+      - uses: actions/github-script@v4
       - name: Post Pylint score as a pull request review comment
-        uses: actions/github-script@v4
         with:
           script: |
             const fs = require('fs');
