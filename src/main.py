@@ -1,7 +1,10 @@
 from .generator import *
+from .editor import *
 
 from typing import Optional, Union
 from mapel.core.objects.Experiment import Experiment
+import sys
+import logging
 
 
 def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Optional[dict]:
@@ -95,5 +98,9 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
         If raw_data is a csv file the delim is used as input delimeter.
     
     """
-    pass
-
+    
+    data = draw_maps(raw_data, None)
+    FORMAT = '%(asctime)s %(message)s'
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
+    editor = Editor(data)
+    editor.run()

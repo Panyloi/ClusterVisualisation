@@ -1,15 +1,60 @@
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-import numpy as np
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
-import sys
 
 
 class ViewsEnum(Enum):
     HOME  = 0
     ADDP  = 1
+
+
+class ViewElement(ABC):
+    
+    def __init__(self) -> None:
+        logging.info(f"{self.__class__} is createing.")
+    
+    def remove(self) -> None:
+        logging.info(f"{self.__class__} is removeing.")
+        
+        
+class ViewElementManager:
+    
+    def __init__(self) -> None:
+        self.elements: list[ViewElement] = []
+
+    def add(self, el: ViewElement):
+        self.elements.append(el)
+        
+    def deconstruct(self):
+        for view_element in self.elements:
+            view_element.remove()
+
+
+class ViewButton(ViewElement):
+    
+    def __init__(self, parent_view, axes, label: str, callback: callable) -> None:
+        super().__init__()
+        self.pv         = parent_view
+        self.button_ax  = parent_view.vm.fig.add_axes(axes)
+        self.button_ref = Button(self.button_ax, label)
+        self.button_ref.on_clicked(callback)
+        
+    @abstractmethod
+    def remove(self):
+        super().remove()
+        self.button_ref.disconnect_events()      
+        self.pv.vm.fig.delaxes(self.button_ax)
+
+
+class ChangeViewButton(ViewButton):
+    
+    def __init__(self, parent_view, axes, label: str, new_view: ViewsEnum) -> None:
+        super().__init__(parent_view, axes, label, lambda ev: parent_view.change_view(new_view, ev))
+        
+    def remove(self):
+        super().remove()
 
 
 class ViewManager:
@@ -31,19 +76,17 @@ class ViewManager:
 
 
 class View(ABC):
-
-    name = "AbstractView"
     
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
 
     @abstractmethod
     def undraw(self) -> None:
-        logging.info(f"{self.name} is undrawing.")
+        logging.info(f"{self.__class__} is undrawing.")
 
     @abstractmethod
     def draw(self) -> None:
-        logging.info(f"{self.name} is drawing.")
+        logging.info(f"{self.__class__} is drawing.")
 
     def change_view(self, view_id: ViewsEnum, event):
         self.undraw()
@@ -51,48 +94,44 @@ class View(ABC):
 
 
 class Home(View):
-
-    name = "HomeView"
     
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
 
     def draw(self) -> None:
         super().draw()
-        self.vm.ax.scatter(self.vm.data[:, 0], self.vm.data[:, 1], color="blue")
+        for culture_name in self.vm.data['data'].keys():
+            self.vm.ax.scatter(self.vm.data['data'][culture_name]['x'], self.vm.data['data'][culture_name]['y'], color="blue")
 
-        self.axhome = self.vm.fig.add_axes([0.1, 0.05, 0.05, 0.05])
-        self.bhome = Button(self.axhome, "H")
-        self.bhome.on_clicked(lambda ev : self.change_view(ViewsEnum.HOME, ev))
-
-        self.axtmp = self.vm.fig.add_axes([0.81, 0.05, 0.1, 0.075])
-        self.btmp = Button(self.axtmp, "Add")
-        self.btmp.on_clicked(lambda ev : self.change_view(ViewsEnum.ADDP, ev))
+        self.vem = ViewElementManager()
+        
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.05, 0.05], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.81, 0.05, 0.1, 0.075], "Add", ViewsEnum.ADDP))
 
         plt.draw()
     
     def undraw(self) -> None:
         super().undraw()
-        self.vm.fig.delaxes(self.axhome)
-        self.vm.fig.delaxes(self.axtmp)
+        
+        self.vem.deconstruct()
+        
         self.vm.ax.clear()
         self.vm.fig.canvas.flush_events()
 
 
 class AddPoints(View):
 
-    name = "AddPointsView"
-
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
 
     def draw(self) -> None:
         super().draw()
-        self.vm.ax.scatter(self.vm.data[:, 0], self.vm.data[:, 1], color="black")
+        for culture_name in self.vm.data['data'].keys():
+            self.vm.ax.scatter(self.vm.data['data'][culture_name]['x'], self.vm.data['data'][culture_name]['y'], color="black")
 
-        self.axhome = self.vm.fig.add_axes([0.1, 0.05, 0.05, 0.05])
-        self.bhome = Button(self.axhome, "H")
-        self.bhome.on_clicked(lambda ev : self.change_view(ViewsEnum.HOME, ev))
+        self.vem = ViewElementManager()
+        
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.05, 0.05], "Home", ViewsEnum.HOME))
 
         self.bpe = self.vm.fig.canvas.mpl_connect('button_press_event', lambda ev : self.add_point_event(ev))
 
@@ -100,21 +139,21 @@ class AddPoints(View):
         
     def undraw(self) -> None:
         super().undraw()
-        self.vm.fig.delaxes(self.axhome)
-        self.vm.ax.clear()
+        
+        self.vem.deconstruct()
+        
         self.vm.fig.canvas.mpl_disconnect(self.bpe)
+               
+        self.vm.ax.clear()
         self.vm.fig.canvas.flush_events()
-
-    #CUSTOM
 
     def add_point_event(self, event):
         logging.info(f"{self.name} EVENT: {event}")
 
 
 class Editor:
-    def __init__(self, data_path: str) -> None:
-        # ./points/kamada_l1-mutual_attraction_2d.csv
-        self.data_path = data_path
+    def __init__(self, data) -> None:
+        self.data = data
     
     def run(self) -> None:
 
@@ -122,19 +161,9 @@ class Editor:
         fig.add_axes(ax)
         fig.subplots_adjust(bottom=0.2)
 
-        # test data
-        rnd_points = np.random.uniform(0, 10, (10, 2))
-        vm = ViewManager(fig, ax, rnd_points)
+        vm = ViewManager(fig, ax, self.data)
         vm.register_views([Home(vm), AddPoints(vm)]) # must be the same as ViewsEnum
         vm.run()
 
         # dispalay
         plt.show()
-
-
-if __name__ == "__main__":
-    FORMAT = '%(asctime)s %(message)s'
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
-    editor = Editor("kk_swap_2d.csv")
-    editor.run()
-
