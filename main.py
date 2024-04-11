@@ -101,7 +101,7 @@ def greedy_selecting(points):
                (orient(current_point, last_point, points_union[i]) == 0 and distance(last_point, current_point) < distance(current_point, points_union[i])):
                 last_point = points_union[i]
 
-    
+            
 
 
 def jarvisAlgorithmUpgrade(points_pass):
