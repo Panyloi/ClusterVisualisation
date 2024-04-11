@@ -33,9 +33,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            content=$(cat pylint_score.txt)
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: pylint_score.txt
+              body: content
             })
