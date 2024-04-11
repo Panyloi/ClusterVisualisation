@@ -4,6 +4,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 import logging
 
+# ----------------------------- TOP LEVEL CLASSES ---------------------------- #
 
 class ViewsEnum(Enum):
     HOME  = 0
