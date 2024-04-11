@@ -27,7 +27,7 @@ jobs:
 
       - name: Extract score
         run: |
-          SCORE=$(grep 'Your code has been rated at ' pylint_output.txt | cut -d' ' -f6 | xargs)
+          SCORE=$(grep 'Your code has been rated at ' pylint_output.txt | cut -d' ' -f7 | xargs)
           echo "Pylint Score: $SCORE" > pylint_score.txt
 
       - name: Post Pylint score as a pull request review comment
