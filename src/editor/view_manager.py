@@ -1,72 +1,46 @@
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, TextBox
+from matplotlib.figure import Figure
+from matplotlib.axes._axes import Axes
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
 
+class State:
+    """ Wrapper class for editor data and editor state. Made for providing getters, setters and options storage """
+
+    def __init__(self, data: dict) -> None:
+        """ Data init
+        
+        Parameters
+        ----------
+        data: dict
+            Data in proper editor format
+        
+        """
+        
+        self.data = data
+
+    def get_raw(self) -> dict:
+        return self.data
+    
+    def set_raw(self) -> None:
+        return self.data
+
 # ----------------------------- TOP LEVEL CLASSES ---------------------------- #
+
 
 class ViewsEnum(Enum):
     HOME  = 0
     ADDP  = 1
 
 
-class ViewElement(ABC):
-    
-    def __init__(self) -> None:
-        logging.info(f"{self.__class__} is createing.")
-    
-    def remove(self) -> None:
-        logging.info(f"{self.__class__} is removeing.")
-        
-        
-class ViewElementManager:
-    
-    def __init__(self) -> None:
-        self.elements: list[ViewElement] = []
-
-    def add(self, el: ViewElement):
-        self.elements.append(el)
-        
-    def deconstruct(self):
-        for view_element in self.elements:
-            view_element.remove()
-
-# --------------------------- MIDDLE LEVEL CLASSES --------------------------- #
-
-class ViewButton(ViewElement):
-    
-    def __init__(self, parent_view, axes, label: str, callback: callable) -> None:
-        super().__init__()
-        self.pv         = parent_view
-        self.button_ax  = parent_view.vm.fig.add_axes(axes)
-        self.button_ref = Button(self.button_ax, label)
-        self.button_ref.on_clicked(callback)
-        
-    @abstractmethod
-    def remove(self):
-        super().remove()
-        self.button_ref.disconnect_events()      
-        self.pv.vm.fig.delaxes(self.button_ax)
-
-# ------------------------------ OUTPUT CLASSES ------------------------------ #
-
-class ChangeViewButton(ViewButton):
-    
-    def __init__(self, parent_view, axes, label: str, new_view: ViewsEnum) -> None:
-        super().__init__(parent_view, axes, label, lambda ev: parent_view.change_view(new_view, ev))
-        
-    def remove(self):
-        super().remove()
-
-
 class ViewManager:
 
-    def __init__(self, fig, ax, data) -> None:
-        self.fig   = fig
-        self.ax    = ax
-        self.data  = data
-        self.views = []
+    def __init__(self, fig: Figure, ax: Axes) -> None:
+        self.fig = fig
+        self.ax  = ax
+        self.views: list[View] = []
     
     def register_views(self, views: list) -> None:
         self.views = views
@@ -79,6 +53,8 @@ class ViewManager:
 
 
 class View(ABC):
+
+    state: State = None
     
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
@@ -91,9 +67,102 @@ class View(ABC):
     def draw(self) -> None:
         logging.info(f"{self.__class__} is drawing.")
 
-    def change_view(self, view_id: ViewsEnum, event):
+    def change_view(self, view_id: ViewsEnum, *args):
         self.undraw()
         self.vm.get_view(view_id).draw()
+
+    @classmethod
+    def link_state(cls, lstate: State) -> None:
+        cls.state = lstate
+
+
+class ViewElement(ABC):
+
+    state: State = None
+
+    def __init__(self) -> None:
+        logging.info(f"{self.__class__} is createing.")
+    
+    @abstractmethod
+    def remove(self) -> None:
+        logging.info(f"{self.__class__} is removeing.")
+
+    @abstractmethod
+    def refresh(self) -> None:
+        logging.info(f"{self.__class__} is refreshing.")
+
+    @classmethod
+    def link_state(cls, lstate: State) -> None:
+        cls.state = lstate
+        
+        
+class ViewElementManager:
+    
+    def __init__(self) -> None:
+        self.elements: list[ViewElement] = []
+
+    def add(self, el: ViewElement) -> None:
+        self.elements.append(el)
+
+    def refresh(self) -> None:
+        for view_element in self.elements:
+            view_element.refresh()
+        
+    def deconstruct(self) -> None:
+        for view_element in self.elements:
+            view_element.remove()
+
+# --------------------------- MIDDLE LEVEL CLASSES --------------------------- #
+
+class ViewButton(ViewElement):
+    
+    def __init__(self, parent_view: View, axes: list[float], label: str, callback: callable) -> None:
+        super().__init__()
+        self.pv         = parent_view
+        self.button_ax  = parent_view.vm.fig.add_axes(axes)
+        self.button_ref = Button(self.button_ax, label)
+        self.button_ref.on_clicked(callback)
+        
+    @abstractmethod
+    def remove(self):
+        super().remove()
+        self.button_ref.disconnect_events()     
+        self.pv.vm.fig.delaxes(self.button_ax)
+
+    @abstractmethod
+    def refresh(self) -> None:
+        return super().refresh()
+
+
+class ViewTextBox(ViewElement):
+
+    def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+        super().__init__()
+        self.pv        = parent_view
+        self.label_ax  = parent_view.vm.fig.add_axes(axes)
+        self.label_ref = TextBox(self.label_ax, label)
+
+    @abstractmethod
+    def remove(self):
+        super().remove() 
+        self.pv.vm.fig.delaxes(self.label_ax)
+
+    @abstractmethod
+    def refresh(self) -> None:
+        return super().refresh()
+
+# ------------------------------ OUTPUT CLASSES ------------------------------ #
+
+class ChangeViewButton(ViewButton):
+    
+    def __init__(self, parent_view: View, axes: list[float], label: str, new_view: ViewsEnum) -> None:
+        super().__init__(parent_view, axes, label, lambda ev: parent_view.change_view(new_view, ev))
+        
+    def remove(self):
+        return super().remove()
+
+    def refresh(self) -> None:
+        return super().refresh()
 
 
 class Home(View):
@@ -103,8 +172,8 @@ class Home(View):
 
     def draw(self) -> None:
         super().draw()
-        for culture_name in self.vm.data['data'].keys():
-            self.vm.ax.scatter(self.vm.data['data'][culture_name]['x'], self.vm.data['data'][culture_name]['y'], color="blue")
+        for culture_name in self.state.get_raw()['data'].keys():
+            self.vm.ax.scatter(self.state.get_raw()['data'][culture_name]['x'], self.state.get_raw()['data'][culture_name]['y'], color="blue")
 
         self.vem = ViewElementManager()
         
@@ -129,8 +198,8 @@ class AddPoints(View):
 
     def draw(self) -> None:
         super().draw()
-        for culture_name in self.vm.data['data'].keys():
-            self.vm.ax.scatter(self.vm.data['data'][culture_name]['x'], self.vm.data['data'][culture_name]['y'], color="black")
+        for culture_name in self.state.get_raw()['data'].keys():
+            self.vm.ax.scatter(self.state.get_raw()['data'][culture_name]['x'], self.state.get_raw()['data'][culture_name]['y'], color="black")
 
         self.vem = ViewElementManager()
         
@@ -156,8 +225,12 @@ class AddPoints(View):
 # -------------------------------- MAIN EDITOR ------------------------------- #
 
 class Editor:
-    def __init__(self, data) -> None:
-        self.data = data
+    def __init__(self, state: State) -> None:
+        self.state = state
+
+        # make injections
+        View.link_state(state)
+        ViewElement.link_state(state)
     
     def run(self) -> None:
 
@@ -165,7 +238,7 @@ class Editor:
         fig.add_axes(ax)
         fig.subplots_adjust(bottom=0.2)
 
-        vm = ViewManager(fig, ax, self.data)
+        vm = ViewManager(fig, ax)
         vm.register_views([Home(vm), AddPoints(vm)]) # must be the same as ViewsEnum
         vm.run()
 

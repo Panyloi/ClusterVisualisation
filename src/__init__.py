@@ -1,2 +1,1 @@
-from . import generator
-from .main import draw_maps, draw_maps_editor
+__all__ = ['draw_maps', 'draw_maps_editor']

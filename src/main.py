@@ -1,5 +1,5 @@
-from .generator import *
-from .editor import *
+from .generator.data_processing import *
+from .editor.view_manager import *
 
 from typing import Optional, Union
 from mapel.core.objects.Experiment import Experiment
@@ -7,7 +7,7 @@ import sys
 import logging
 
 
-def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Optional[dict]:
+def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
@@ -80,11 +80,11 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
 
     parsed_data     = parse_data(raw_data)
     normalized_data = normalize(parsed_data)
-    data            = editor_format(normalized_data)
+    state_dict      = editor_format(normalized_data)
 
     # TODO: generate the map
 
-    return data
+    return State(state_dict)
 
 
 def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
@@ -99,8 +99,10 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
     
     """
     
-    data = draw_maps(raw_data, None)
+    state = draw_maps(raw_data, None)
+
+    
     FORMAT = '%(asctime)s %(message)s'
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
-    editor = Editor(data)
+    editor = Editor(state)
     editor.run()
