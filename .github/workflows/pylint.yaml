@@ -33,7 +33,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const content = require('child_process').execSync('cat path/to/your/file.txt').toString();
+            const content = require('child_process').execSync('cat pylint_score.txt').toString();
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
