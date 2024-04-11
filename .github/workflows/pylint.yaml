@@ -1,0 +1,49 @@
+name: Pylint
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+    
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Analysing the code with pylint
+        run: |
+          pylint --disable=C,R src > pylint_output.txt || true
+
+      - name: Extract score
+        run: |
+          SCORE=$(grep 'Your code has been rated at ' pylint_output.txt | cut -d' ' -f6 | xargs)
+          echo "Pylint Score: $SCORE" > pylint_score.txt
+
+      - name: Post Pylint score as a pull request review comment
+        uses: actions/github-script@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const score = fs.readFileSync('pylint_score.txt', 'utf8').trim();
+            const context = github.context;
+            const octokit = new github.GitHub(process.env.GITHUB_TOKEN);
+            octokit.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: 'COMMENT',
+              body: `${score}`
+            });
