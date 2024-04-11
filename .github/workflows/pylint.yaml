@@ -34,7 +34,6 @@ jobs:
       - name: Post Pylint score as a pull request review comment
         uses: actions/github-script@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const score = fs.readFileSync('pylint_score.txt', 'utf8').trim();
