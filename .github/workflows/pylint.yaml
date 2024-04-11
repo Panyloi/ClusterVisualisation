@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
@@ -21,6 +20,7 @@ jobs:
           pip install pylint
 
       - name: Analysing the code with pylint
+        uses: actions/checkout@v3
         run: |
           pylint --disable=C,R src > pylint_output.txt || true
 
@@ -29,8 +29,9 @@ jobs:
           SCORE=$(grep 'Your code has been rated at ' pylint_output.txt | cut -d' ' -f6 | xargs)
           echo "Pylint Score: $SCORE" > pylint_score.txt
 
-      - uses: actions/github-script@v4
       - name: Post Pylint score as a pull request review comment
+        uses: actions/checkout@v3
+        uses: actions/github-script@v4
         with:
           script: |
             const fs = require('fs');
