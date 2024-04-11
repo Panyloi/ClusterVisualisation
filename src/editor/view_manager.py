@@ -153,6 +153,7 @@ class AddPoints(View):
     def add_point_event(self, event):
         logging.info(f"{self.__class__} EVENT: {event}")
 
+# -------------------------------- MAIN EDITOR ------------------------------- #
 
 class Editor:
     def __init__(self, data) -> None:
