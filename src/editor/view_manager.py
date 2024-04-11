@@ -148,7 +148,7 @@ class AddPoints(View):
         self.vm.fig.canvas.flush_events()
 
     def add_point_event(self, event):
-        logging.info(f"{self.name} EVENT: {event}")
+        logging.info(f"{self.__class__} EVENT: {event}")
 
 
 class Editor:
