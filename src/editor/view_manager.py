@@ -32,6 +32,7 @@ class ViewElementManager:
         for view_element in self.elements:
             view_element.remove()
 
+# --------------------------- MIDDLE LEVEL CLASSES --------------------------- #
 
 class ViewButton(ViewElement):
     
