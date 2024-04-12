@@ -163,5 +163,6 @@ cython_debug/
 # IDE's
 **.vscode
 
-# Custom
-**.dot
+# Docs
+docs/
+!docs/docsgen.sh
