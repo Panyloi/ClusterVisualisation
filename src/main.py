@@ -101,7 +101,6 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
     
     state = draw_maps(raw_data, None)
 
-    
     FORMAT = '%(asctime)s %(message)s'
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
     editor = Editor(state)
