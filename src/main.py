@@ -67,11 +67,18 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
 
         labels_data:
         {
-            "cluster_name":
+            "label_id":
             {
-                // TODO: data for labels?
+                'text': str
+                'x': float
+                'y': float
+                'ref_points': list[tuple(float)]
+                'ref_point_vals': list[str]
+                'ref_point_val_visible': bool
+                'visible': bool
+                'line_visible': bool
             },
-            "seccond_cluster_name":
+            "seccond_label_id":
             ...
         }
     }
