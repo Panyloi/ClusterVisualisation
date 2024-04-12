@@ -164,5 +164,5 @@ cython_debug/
 **.vscode
 
 # Docs
-docs/
+docs/*
 !docs/docsgen.sh
