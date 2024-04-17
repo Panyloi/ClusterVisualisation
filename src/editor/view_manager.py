@@ -48,8 +48,9 @@ class State:
 
 
 class ViewsEnum(Enum):
-    HOME  = 0
-    ADDP  = 1
+    HOME   = 0
+    ADDP   = 1
+    LABELS = 2
 
 
 class ViewManager:
@@ -207,8 +208,9 @@ class Home(View):
 
         self.vem = ViewElementManager()
         
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.05, 0.05], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.81, 0.05, 0.1, 0.075], "Add", ViewsEnum.ADDP))
+        self.vem.add(ChangeViewButton(self, [0.10, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.80, 0.05, 0.1, 0.075], "Add", ViewsEnum.ADDP))
+        self.vem.add(ChangeViewButton(self, [0.70, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
 
         plt.draw()
     
@@ -229,7 +231,7 @@ class AddPoints(View):
         self.vem = ViewElementManager()
         self.cem = CanvasEventManager(self.vm.fig.canvas)
 
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.05, 0.05], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.10, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
 
         self.cem.add(self.vm.fig.canvas.mpl_connect('button_press_event', lambda ev : self.press_event(ev)))
         self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', lambda ev : self.pick_event(ev)))
@@ -246,6 +248,37 @@ class AddPoints(View):
     def press_event(self, event) -> None:
         logging.info(f"{self.__class__} EVENT: {event}")
 
+    def pick_event(self, event) -> None:
+        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist}")
+
+    def release_event(self, event) -> None:
+        logging.info(f"{self.__class__} EVENT: {event}")
+        
+        
+class LabelsView(View):
+
+    def __init__(self, view_manager: ViewManager) -> None:
+        super().__init__(view_manager)
+        
+    def draw(self) -> None:
+        super().draw()
+        
+        self.vem = ViewElementManager()
+        self.cem = CanvasEventManager(self.vm.fig.canvas)
+
+        self.vem.add(ChangeViewButton(self, [0.10, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+
+        self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', lambda ev : self.pick_event(ev)))
+        self.cem.add(self.vm.fig.canvas.mpl_connect('button_release_event', lambda ev : self.release_event(ev)))
+
+        plt.draw()
+    
+    def undraw(self) -> None:
+        super().undraw()
+        self.vem.deconstruct()
+        self.cem.disconnect()
+        self.vm.fig.canvas.flush_events()
+        
     def pick_event(self, event) -> None:
         logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist}")
 
@@ -269,7 +302,7 @@ class Editor:
         fig.subplots_adjust(bottom=0.2)
 
         vm = ViewManager(fig, ax)
-        vm.register_views([Home(vm), AddPoints(vm)]) # must be the same as ViewsEnum
+        vm.register_views([Home(vm), AddPoints(vm), LabelsView(vm)]) # must be the same as ViewsEnum
         vm.run()
 
         # dispalay
