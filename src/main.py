@@ -72,11 +72,12 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
                 'text': str
                 'x': float
                 'y': float
-                'ref_points': list[tuple(float)]
+                'ref_points': list[tuple[float]]
+                'att_points': list[tuple[float]]
                 'ref_point_vals': list[str]
-                'ref_point_val_visible': bool
+                'ref_point_val_visible': list[bool]
+                'line_visible': list[bool]
                 'visible': bool
-                'line_visible': bool
             },
             "seccond_label_id":
             ...
@@ -90,6 +91,25 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
     state_dict      = editor_format(normalized_data)
 
     # TODO: generate the map
+    # add tmp labels
+    state_dict['labels_data'][0] = {'text': "tlabel", 
+                                      'x': 60, 
+                                      'y': 60, 
+                                      'ref_points': [(0, 0), (-10, 10)], 
+                                      'att_points': [(5, 2), (5, 2)],
+                                      'ref_points_vals': ["0.2", "0.3"],
+                                      'ref_points_val_visible': [True, True],
+                                      'visible': True,
+                                      'line_visible': [True]}
+    state_dict['labels_data'][1] = {'text': "another", 
+                                      'x': -70, 
+                                      'y': -70, 
+                                      'ref_points': [(30, -30), (-5, -10)],
+                                      'att_points': [(5, 2), (5, 2)],
+                                      'ref_points_vals': ["a", "b"],
+                                      'ref_points_val_visible': [True, True],
+                                      'visible': True,
+                                      'line_visible': [True]}
 
     return State(state_dict)
 
