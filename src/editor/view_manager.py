@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
 from matplotlib.figure import Figure
+from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.axes._axes import Axes
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -20,6 +21,22 @@ class State:
         """
         
         self.data = data
+
+    def draw(self, ax: Axes) -> None:
+        # draw points
+        for culture_name in self.data['data'].keys():
+            ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
+
+        # draw labels
+        for label_id in self.data['labels_data'].keys():
+            label_data: dict = self.data['labels_data'][label_id]
+
+            if label_data['visible']:
+                ax.text(label_data['x'], label_data['y'], label_data['text'], picker=True)
+
+                if label_data['line_visible']:
+                    # TODO draw lines
+                    pass
 
     def get_raw(self) -> dict:
         return self.data
@@ -50,6 +67,7 @@ class ViewManager:
     
     def run(self) -> None:
         self.views[ViewsEnum.HOME.value].draw()
+        self.views[ViewsEnum.HOME.value].state.draw(self.ax)
 
 
 class View(ABC):
@@ -112,6 +130,20 @@ class ViewElementManager:
         for view_element in self.elements:
             view_element.remove()
 
+class CanvasEventManager:
+
+    def __init__(self, canvas: FigureCanvasBase) -> None:
+        self.canvas = canvas
+        self.events: list[int] = []
+
+    def add(self, ev_id: int) -> None:
+        self.events.append(ev_id)
+
+    def disconnect(self) -> None:
+        for ev_id in self.events:
+            self.canvas.mpl_disconnect(ev_id)
+
+
 # --------------------------- MIDDLE LEVEL CLASSES --------------------------- #
 
 class ViewButton(ViewElement):
@@ -172,8 +204,6 @@ class Home(View):
 
     def draw(self) -> None:
         super().draw()
-        for culture_name in self.state.get_raw()['data'].keys():
-            self.vm.ax.scatter(self.state.get_raw()['data'][culture_name]['x'], self.state.get_raw()['data'][culture_name]['y'], color="blue")
 
         self.vem = ViewElementManager()
         
@@ -184,10 +214,7 @@ class Home(View):
     
     def undraw(self) -> None:
         super().undraw()
-        
         self.vem.deconstruct()
-        
-        self.vm.ax.clear()
         self.vm.fig.canvas.flush_events()
 
 
@@ -198,28 +225,31 @@ class AddPoints(View):
 
     def draw(self) -> None:
         super().draw()
-        for culture_name in self.state.get_raw()['data'].keys():
-            self.vm.ax.scatter(self.state.get_raw()['data'][culture_name]['x'], self.state.get_raw()['data'][culture_name]['y'], color="black")
 
         self.vem = ViewElementManager()
-        
+        self.cem = CanvasEventManager(self.vm.fig.canvas)
+
         self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.05, 0.05], "Home", ViewsEnum.HOME))
 
-        self.bpe = self.vm.fig.canvas.mpl_connect('button_press_event', lambda ev : self.add_point_event(ev))
+        self.cem.add(self.vm.fig.canvas.mpl_connect('button_press_event', lambda ev : self.press_event(ev)))
+        self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', lambda ev : self.pick_event(ev)))
+        self.cem.add(self.vm.fig.canvas.mpl_connect('button_release_event', lambda ev : self.release_event(ev)))
 
         plt.draw()
         
     def undraw(self) -> None:
         super().undraw()
-        
         self.vem.deconstruct()
-        
-        self.vm.fig.canvas.mpl_disconnect(self.bpe)
-               
-        self.vm.ax.clear()
+        self.cem.disconnect()
         self.vm.fig.canvas.flush_events()
 
-    def add_point_event(self, event):
+    def press_event(self, event) -> None:
+        logging.info(f"{self.__class__} EVENT: {event}")
+
+    def pick_event(self, event) -> None:
+        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist}")
+
+    def release_event(self, event) -> None:
         logging.info(f"{self.__class__} EVENT: {event}")
 
 # -------------------------------- MAIN EDITOR ------------------------------- #
