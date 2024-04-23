@@ -1,5 +1,6 @@
 from .generator.data_processing import *
 from .editor.view_manager import *
+from .editor.views import *
 
 from typing import Optional, Union
 from mapel.core.objects.Experiment import Experiment

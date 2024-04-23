@@ -162,9 +162,9 @@ class LabelArtist(Text, StateLinker):
         self.arrows = {}
         for arrow_id in range(self.state.get_label_number_of_lines(self.id)):
             arrow_data = self.state.get_label_arrow_data(self.id, arrow_id)
-            atx, aty = arrow_data['att_points']
+            sx, sy = arrow_data['att_points']
             rfx, rfy = arrow_data['ref_points']
-            self.arrows[arrow_id] = FancyArrow(atx, aty, rfx-atx, rfy-aty)
+            self.arrows[arrow_id] = FancyArrow(x+sx, y+sx, rfx-(x+sx), rfy-(y+sy))
             ax.add_patch(self.arrows[arrow_id])
 
     def set_position(self, xy) -> None:
@@ -172,13 +172,27 @@ class LabelArtist(Text, StateLinker):
 
         # arrows update
         x, y = xy
+        for arrow_id in self.arrows.keys():
+            arrow = self.arrows[arrow_id]
+            arrow_data = self.state.get_label_arrow_data(self.id, arrow_id)
+            sx, sy = arrow_data['att_points']
+            rfx, rfy = arrow._dx + arrow._x, arrow._dy + arrow._y
+            arrow.set_data(x=x+sx, y=y+sy, dx=rfx-(x+sx), dy=rfy-(y+sy))
+
+    def set_text(self, new_text):
+        super().set_text(new_text)
+        self.state.set_label_text(self.id, new_text)
+
+    def get_shifts(self) -> tuple[float]:
+        pass
+
+    def remove(self) -> None:
+        super().remove()
         for arrow in self.arrows.values():
-            atx, aty = arrow._x, arrow._y
-            rfx, rfy = arrow._dx + atx, arrow._dy + aty
-            arrow.set_data(x=x, y=y, dx=rfx-x, dy=rfy-y)
+            arrow.remove()
     
     @staticmethod
-    def text(ax, id, **kwargs):
+    def text(ax: Axes, id, **kwargs) -> 'LabelArtist':
         effective_kwargs = {
             'verticalalignment': 'baseline',
             'horizontalalignment': 'left',
@@ -190,6 +204,21 @@ class LabelArtist(Text, StateLinker):
         t.set_clip_path(ax.patch)
         ax._add_text(t)
         return t
+    
+    @staticmethod
+    def get_by_id(ax: Axes, id) -> 'LabelArtist':
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, LabelArtist):
+                if child.id == id:
+                    return child
+
+    def get_state(self) -> tuple:
+        return self.id, self.get_position()
+
+    def set_state(self, s) -> None:
+        return self.set_position(*s)
+
 
 # ----------------------------- TOP LEVEL CLASSES ---------------------------- #
 
@@ -233,6 +262,7 @@ class ViewElementManager:
     def deconstruct(self) -> None:
         for view_element in self.elements:
             view_element.remove()
+        self.elements.clear()
 
 
 class CanvasEventManager:
@@ -247,20 +277,26 @@ class CanvasEventManager:
     def disconnect(self) -> None:
         for ev_id in self.events:
             self.canvas.mpl_disconnect(ev_id)
+        self.events.clear()
 
 
 class View(ABC, StateLinker):
     
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
-
-    @abstractmethod
-    def undraw(self) -> None:
-        logging.info(f"{self.__class__} is undrawing.")
+        self.vem = ViewElementManager()
+        self.cem = CanvasEventManager(self.vm.fig.canvas)
 
     @abstractmethod
     def draw(self) -> None:
         logging.info(f"{self.__class__} is drawing.")
+
+    @abstractmethod
+    def undraw(self) -> None:
+        logging.info(f"{self.__class__} is undrawing.")
+        self.vem.deconstruct()
+        self.cem.disconnect()
+        self.vm.fig.canvas.flush_events()
 
     def change_view(self, view_id: ViewsEnum, *args):
         self.undraw()
@@ -350,122 +386,14 @@ class NormalButton(ViewButton):
 # move to observer pattern?
 class UpdateableTextBox(ViewTextBox):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, update: callable, submit: callable) -> None:
         super().__init__(parent_view, axes, label)
+        self.update = update
+        self.box_ref.on_submit(submit)
 
     def remove(self) -> None:
         return super().remove()
     
     def refresh(self) -> None:
-        return super().refresh()
-    
-    def update(self, new_label) -> None:
-        self.box_ref.set_val(new_label)
-
-# ----------------------------------- VIEWS ---------------------------------- #
-
-class Home(View):
-    
-    def __init__(self, view_manager: ViewManager) -> None:
-        super().__init__(view_manager)
-
-    def draw(self) -> None:
-        super().draw()
-
-        self.vem = ViewElementManager()
-        
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.85, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
-
-        plt.draw()
-    
-    def undraw(self) -> None:
-        super().undraw()
-        self.vem.deconstruct()
-        self.vm.fig.canvas.flush_events()
-        
-        
-class LabelsView(View):
-
-    def __init__(self, view_manager: ViewManager) -> None:
-        super().__init__(view_manager)
-        self.dragged_item: LabelArtist = None
-        self.picked_item: LabelArtist  = None
-        
-    def draw(self) -> None:
-        super().draw()
-        
-        self.vem = ViewElementManager()
-        self.cem = CanvasEventManager(self.vm.fig.canvas)
-
-        # buttons
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "+", lambda : self.add_label()))
-        self.vem.add(NormalButton(self, [0.20, 0.05, 0.05, 0.075], "-", lambda : self.add_label()))
-
-        # displays
-        self.lnb = self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "..."))
-
-        self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', lambda ev : self.pick_event(ev)))
-        self.cem.add(self.vm.fig.canvas.mpl_connect('button_release_event', lambda ev : self.release_event(ev)))
-
-        plt.draw()
-    
-    def undraw(self) -> None:
-        super().undraw()
-        self.vem.deconstruct()
-        self.cem.disconnect()
-        self.vm.fig.canvas.flush_events()
-        
-    def pick_event(self, event: PickEvent) -> None:
-        if isinstance(event.artist, LabelArtist):
-            logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}")
-            self.dragged_item = event.artist
-            self.picked_item  = event.artist
-            self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
-
-            # update fields
-            self.lnb.update(self.picked_item.get_text())
-
-    def release_event(self, event: MouseEvent) -> None:
-        if self.dragged_item is not None:
-            logging.info(f"{self.__class__} EVENT: {event} ID: {self.dragged_item.id}")
-            old_pos = self.dragged_item.get_position()
-            new_pos = (old_pos[0] + event.xdata - self.pick_pos[0],
-                       old_pos[1] + event.ydata - self.pick_pos[1])
-            self.dragged_item.set_position(new_pos)
-
-            # update state info
-            self.state.set_label_pos(self.dragged_item.id, new_pos[0], new_pos[1])
-
-            self.dragged_item = None
-            plt.draw()
-
-    def add_label(self) -> None:
-        pass
-
-    def delete_label(self) -> None:
-        pass
-            
-
-# -------------------------------- MAIN EDITOR ------------------------------- #
-
-class Editor:
-    def __init__(self, state: State) -> None:
-        self.state = state
-
-        # inject state
-        StateLinker.link_state(state)
-    
-    def run(self) -> None:
-
-        fig, ax = plt.subplots()
-        fig.add_axes(ax)
-        fig.subplots_adjust(bottom=0.2)
-
-        vm = ViewManager(fig, ax)
-        vm.register_views([Home(vm), LabelsView(vm)]) # must be the same as ViewsEnum
-        vm.run()
-
-        # dispalay
-        plt.show()
+        super().refresh()
+        self.box_ref.set_val(self.update())
