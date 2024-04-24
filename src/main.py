@@ -68,19 +68,26 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
 
         labels_data:
         {
-            "label_id":
+            label_id: int:
             {
                 'text': str
                 'x': float
                 'y': float
-                'ref_points': list[tuple[float]]
+                'arrows':
+                {
+                    "arrow_id":
+                    {
+                        'ref_x': float
+                        'ref_y': float
+                        'att_x': float
+                        'att_y': float
+                        'val': str
+                    }
+                }
                 'att_points': list[tuple[float]]
                 'ref_point_vals': list[str]
-                'ref_point_val_visible': list[bool]
-                'line_visible': list[bool]
-                'visible': bool
             },
-            "seccond_label_id":
+            seccond_label_id: int:
             ...
         }
     }
@@ -93,24 +100,52 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
 
     # TODO: generate the map
     # add tmp labels
-    state_dict['labels_data'][0] = {'text': "tlabel", 
+    state_dict['labels_data'][0] =  {'text': "tlabel", 
                                       'x': 60, 
-                                      'y': 60, 
-                                      'ref_points': [(0, 0), (-10, 10)], 
-                                      'att_points': [(5, 2), (5, 2)],
-                                      'ref_points_vals': ["0.2", "0.3"],
-                                      'ref_points_val_visible': [True, True],
-                                      'visible': True,
-                                      'line_visible': [True]}
-    state_dict['labels_data'][1] = {'text': "another", 
+                                      'y': 60,
+                                      'arrows': 
+                                      {
+                                        0:
+                                        {
+                                            'ref_x': 0,
+                                            'ref_y': 0,
+                                            'att_x': 55,
+                                            'att_y': 58,
+                                            'val': "0.2"
+                                        },
+                                        1:
+                                        {
+                                            'ref_x': -10,
+                                            'ref_y': 10,
+                                            'att_x': 55,
+                                            'att_y': 58,
+                                            'val': "0.3"
+                                        }
+                                      }
+                                    }
+    state_dict['labels_data'][1] =  {'text': "another", 
                                       'x': -70, 
-                                      'y': -70, 
-                                      'ref_points': [(30, -30), (-5, -10)],
-                                      'att_points': [(5, 2), (5, 2)],
-                                      'ref_points_vals': ["a", "b"],
-                                      'ref_points_val_visible': [True, True],
-                                      'visible': True,
-                                      'line_visible': [True]}
+                                      'y': -70,
+                                      'arrows': 
+                                      {
+                                        0:
+                                        {
+                                            'ref_x': 30,
+                                            'ref_y': -30,
+                                            'att_x': -65,
+                                            'att_y': -68,
+                                            'val': "a"
+                                        },
+                                        1:
+                                        {
+                                            'ref_x': -4,
+                                            'ref_y': -10,
+                                            'att_x': -65,
+                                            'att_y': -68,
+                                            'val': "b"
+                                        }
+                                      }
+                                    }
 
     return State(state_dict)
 

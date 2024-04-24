@@ -1,3 +1,4 @@
+from matplotlib._enums import CapStyle, JoinStyle
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
 from matplotlib.figure import Figure
@@ -5,14 +6,18 @@ from matplotlib.backend_bases import FigureCanvasBase, PickEvent, MouseEvent
 from matplotlib.axes._axes import Axes
 from matplotlib.text import Text
 from matplotlib.patches import FancyArrow
+from matplotlib.lines import Line2D
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
+from typing import Literal, Callable, Type, TypeVar, ParamSpec
 
+T = TypeVar('T')
+P = ParamSpec('P')
 
-def KeyErrorWrap(default):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 result = func(*args, **kwargs)
                 return result
@@ -22,9 +27,7 @@ def KeyErrorWrap(default):
         return wrapper
     return decorator
 
-
 # ----------------------------------- STATE ---------------------------------- #
-
 
 class State:
     """ Wrapper class for editor data and editor state. Made for providing getters, setters and options storage """
@@ -48,54 +51,72 @@ class State:
 
         # draw labels
         for label_id in self.data['labels_data'].keys():
-            label_data: dict = self.data['labels_data'][label_id]
+            LabelArtist.text(ax, label_id)
 
-            if label_data['visible']:
-                LabelArtist.text(ax, label_id, picker=True)
+    # ---------------------------------- GETTERS --------------------------------- #
+
+    @KeyErrorWrap("")
+    def get_label_text(self, label_id: int) -> str:
+        return self.data['labels_data'][label_id]['text']
+    
+    @KeyErrorWrap((0, 0))
+    def get_label_pos(self, label_id: int) -> tuple[float, float]:
+        return self.data['labels_data'][label_id]['x'], self.data['labels_data'][label_id]['y']
+    
+    @KeyErrorWrap({})
+    def get_label_arrows(self, label_id: int) -> dict:
+        return self.data['labels_data'][label_id]['arrows']
+    
+    @KeyErrorWrap({})
+    def get_label_arrow(self, label_id: int, arrow_id: int) -> dict:
+        return self.data['labels_data'][label_id]['arrows'][arrow_id]
+    
+    @KeyErrorWrap((0, 0))
+    def get_arrow_ref_point(self, label_id: int, arrow_id: int) -> tuple[float, float]:
+        return self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_x'],\
+               self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_y']
 
     @KeyErrorWrap((0, 0))
-    def get_label_pos(self, id: int) -> tuple[float]:
-        return self.data['labels_data'][id]['x'], self.data['labels_data'][id]['y']
+    def get_arrow_att_point(self, label_id: int, arrow_id: int) -> tuple[float, float]:
+        return self.data['labels_data'][label_id]['arrows'][arrow_id]['att_x'],\
+               self.data['labels_data'][label_id]['arrows'][arrow_id]['att_y']
     
     @KeyErrorWrap("")
-    def get_label_text(self, id: int) -> str:
-        return self.data['labels_data'][id]['text']
-        
-    @KeyErrorWrap(0)
-    def get_label_number_of_lines(self, id: int) -> int:
-        return len(self.data['labels_data'][id]['ref_points'])
-        
-    @KeyErrorWrap({})
-    def get_label_arrow_data(self, id: int, arrow_id: int) -> dict:
-        ret = {
-            'ref_points': self.data['labels_data'][id]['ref_points'][arrow_id],
-            'att_points': self.data['labels_data'][id]['att_points'][arrow_id],
-            'ref_points_vals': self.data['labels_data'][id]['ref_points_vals'][arrow_id],
-        }
-        return ret
-        
-    @KeyErrorWrap({})
-    def get_label_visibilities(self, id: int) -> dict:
-        ret = {
-            'visible': self.data['labels_data'][id]['visible'],
-            'line_visible': self.data['labels_data'][id]['line_visible'],
-            'ref_points_val_visible': self.data['labels_data'][id]['ref_points_val_visible']
-        }
-        
-    @KeyErrorWrap(None)
-    def set_label_pos(self, id: int, x: float, y: float) -> None:
-        self.data['labels_data'][id]['x'] = x
-        self.data['labels_data'][id]['y'] = y
+    def get_arrow_val(self, label_id: int, arrow_id: int) -> str:
+        return self.data['labels_data'][label_id]['arrows'][arrow_id]['val']
+    
+    # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
-    def set_label_text(self, id: int, text: str) -> None:
-        self.data['labels_data'][id]['text'] = text
+    def set_label_text(self, label_id: int, text: str) -> None:
+        self.data['labels_data'][label_id]['text'] = text
+        
+    @KeyErrorWrap(None)
+    def set_label_pos(self, label_id: int, x: float, y: float) -> None:
+        self.data['labels_data'][label_id]['x'] = x
+        self.data['labels_data'][label_id]['y'] = y
+
+    @KeyErrorWrap(None)
+    def set_arrow_att_pos(self, label_id: int, arrow_id: int, att_x: float, att_y: float) -> None:
+        self.data['labels_data'][label_id]['arrows'][arrow_id]['att_x'] = att_x
+        self.data['labels_data'][label_id]['arrows'][arrow_id]['att_y'] = att_y
+
+    @KeyErrorWrap(None)
+    def set_arrow_ref_pos(self, label_id: int, arrow_id: int, ref_x: float, ref_y: float) -> None:
+        self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_x'] = ref_x
+        self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_y'] = ref_y
+
+    @KeyErrorWrap(None)
+    def set_arrow_val(self, label_id: int, arrow_id: int, val: str) -> None:
+        self.data['labels_data'][label_id]['arrows'][arrow_id]['val'] = val
+
+    # ----------------------------------- MISC ----------------------------------- #
 
     def get_raw(self) -> dict:
         return self.data
     
-    def set_raw(self) -> None:
-        return self.data
+    def set_raw(self, data) -> None:
+        self.data = data
 
 
 class StateLinker:
@@ -106,7 +127,7 @@ class StateLinker:
 
     """
 
-    state: State = None
+    state: State
 
     @classmethod
     def link_state(cls, lstate):
@@ -115,10 +136,54 @@ class StateLinker:
 
 # ---------------------------- ARTIST DERIVIATIONS --------------------------- #
 
+class ArrowArtist(Line2D, StateLinker):
+
+    def __init__(self, id: int, x: float, y: float, rfx: float, rfy: float, shx: float, shy: float, 
+                 parent_label: 'LabelArtist', val: str, **kwargs) -> None:
+        
+        # custom init
+        self.id = id
+        self.val = val
+        self.parent_label = parent_label
+        self.x = x
+        self.y = y
+        self.rfx = rfx
+        self.rfy = rfy
+        self.shx = shx
+        self.shy = shy
+
+        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, **kwargs)
+        
+    def set(self, *, x: float | None = None, y: float | None = None, 
+                 rfx: float | None = None, rfy: float | None = None,
+                 shx: float | None = None, shy: float | None = None,
+                 val: str | None = None):
+
+        self.x = x if x is not None else self.x
+        self.y = y if y is not None else self.y
+        self.rfx = rfx if rfx is not None else self.rfx
+        self.rfy = rfy if rfy is not None else self.rfy
+        self.shx = shx if shx is not None else self.shx
+        self.shy = shy if shy is not None else self.shy
+        self.val = val if val is not None else self.val
+
+        self._update_state()
+
+        return super().set(xdata=[self.x + self.shx, self.rfx], ydata=[self.y + self.shy, self.rfy])
+        
+    def get_shs(self) -> tuple[float, float]:
+        return self.shx, self.shy
+    
+    def _update_state(self) -> None:
+        self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
+        self.state.set_arrow_att_pos(self.parent_label.id, self.id, self.x+self.shx, self.y+self.shy)
+        self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
+
+plt.quiver
 
 class LabelArtist(Text, StateLinker):
 
-    def __init__(self, ax, id: int, x=0, y=0, text='', color=None,
+    def __init__(self, ax: Axes, id: int, x=0, y=0, text='', color=None,
                  verticalalignment='baseline', 
                  horizontalalignment='left', 
                  multialignment=None,
@@ -156,35 +221,31 @@ class LabelArtist(Text, StateLinker):
                          wrap, 
                          transform_rotates_text, 
                          parse_math=parse_math, 
+                         picker=True,
                          **kwargs)
         
-        # line artists
-        self.arrows = {}
-        for arrow_id in range(self.state.get_label_number_of_lines(self.id)):
-            arrow_data = self.state.get_label_arrow_data(self.id, arrow_id)
-            sx, sy = arrow_data['att_points']
-            rfx, rfy = arrow_data['ref_points']
-            self.arrows[arrow_id] = FancyArrow(x+sx, y+sx, rfx-(x+sx), rfy-(y+sy))
-            ax.add_patch(self.arrows[arrow_id])
+        # arrow artists
+        self.arrows: dict[int, ArrowArtist] = {}
+        for arrow_id in self.state.get_label_arrows(self.id):
+            atx, aty = self.state.get_arrow_att_point(self.id, arrow_id)
+            rfx, rfy = self.state.get_arrow_ref_point(self.id, arrow_id)
+            val = self.state.get_arrow_val(self.id, arrow_id)
+            self.arrows[arrow_id] = ArrowArtist(arrow_id, x, y, rfx, rfy, atx-x, aty-y, self, val)
+            self.ax.add_line(self.arrows[arrow_id])
 
     def set_position(self, xy) -> None:
         super().set_position(xy)
 
         # arrows update
         x, y = xy
-        for arrow_id in self.arrows.keys():
-            arrow = self.arrows[arrow_id]
-            arrow_data = self.state.get_label_arrow_data(self.id, arrow_id)
-            sx, sy = arrow_data['att_points']
-            rfx, rfy = arrow._dx + arrow._x, arrow._dy + arrow._y
-            arrow.set_data(x=x+sx, y=y+sy, dx=rfx-(x+sx), dy=rfy-(y+sy))
+        for arrow in self.arrows.values():
+            arrow.set(x=x, y=y)
+
+        self.state.set_label_pos(self.id, x, y)
 
     def set_text(self, new_text):
         super().set_text(new_text)
         self.state.set_label_text(self.id, new_text)
-
-    def get_shifts(self) -> tuple[float]:
-        pass
 
     def remove(self) -> None:
         super().remove()
@@ -206,7 +267,7 @@ class LabelArtist(Text, StateLinker):
         return t
     
     @staticmethod
-    def get_by_id(ax: Axes, id) -> 'LabelArtist':
+    def get_by_id(ax: Axes, id: int) -> 'None | LabelArtist':
         children = ax.get_children()
         for child in children:
             if isinstance(child, LabelArtist):
@@ -226,6 +287,7 @@ class LabelArtist(Text, StateLinker):
 class ViewsEnum(Enum):
     HOME   = 0
     LABELS = 1
+    ARROWS = 2
 
 
 class ViewManager:
@@ -288,7 +350,7 @@ class View(ABC, StateLinker):
         self.cem = CanvasEventManager(self.vm.fig.canvas)
 
     @abstractmethod
-    def draw(self) -> None:
+    def draw(self, *args, **kwargs) -> None:
         logging.info(f"{self.__class__} is drawing.")
 
     @abstractmethod
@@ -298,9 +360,9 @@ class View(ABC, StateLinker):
         self.cem.disconnect()
         self.vm.fig.canvas.flush_events()
 
-    def change_view(self, view_id: ViewsEnum, *args):
+    def change_view(self, view_id: ViewsEnum, *args, **kwargs):
         self.undraw()
-        self.vm.get_view(view_id).draw()
+        self.vm.get_view(view_id).draw(*args, **kwargs)
 
 
 class ViewElement(ABC, StateLinker):
@@ -322,7 +384,7 @@ class ViewElement(ABC, StateLinker):
 
 class ViewButton(ViewElement):
     
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
         super().__init__()
         self.pv         = parent_view
         self.button_ax  = parent_view.vm.fig.add_axes(axes)
@@ -373,7 +435,7 @@ class ChangeViewButton(ViewButton):
 
 class NormalButton(ViewButton):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
         super().__init__(parent_view, axes, label, lambda ev: callback())
 
     def remove(self):
@@ -386,7 +448,7 @@ class NormalButton(ViewButton):
 # move to observer pattern?
 class UpdateableTextBox(ViewTextBox):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, update: callable, submit: callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, update: Callable, submit: Callable) -> None:
         super().__init__(parent_view, axes, label)
         self.update = update
         self.box_ref.on_submit(submit)

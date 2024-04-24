@@ -15,7 +15,7 @@ class EmptyView(View):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
 
-    def draw(self) -> None:
+    def draw(self, *args, **kwargs) -> None:
         return super().draw()
     
     def undraw(self) -> None:
@@ -28,7 +28,7 @@ For View to be reachable it needs to create it's own enum in ViewsEnum. After th
 ## 3. Populate the class
 For example lets say we want to add an button and an event. Adding a button would look like this
 ```python
-def draw(self) -> None:
+def draw(self, *args, **kwargs) -> None:
     super().draw()
     
     self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
@@ -37,7 +37,7 @@ def draw(self) -> None:
 ```
 The button needs to deriviate directly or not from ViewElement base class. Adding event is very similar but we use canvas event manager instead.
 ```python
-def draw(self) -> None:
+def draw(self, *args, **kwargs) -> None:
     super().draw()
     
     self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
@@ -49,3 +49,17 @@ Both events and view elements will be automaticly disconnected and eraseed from 
 
 ## 4. Refreshing
 vem class implements additional refresh method. This will call refresh on all the connected view element objects. If an object is created in such way that it can refresh simple calling `self.vem.refresh()` will do the job.
+
+## 5. Starting arguments
+If needed a view can be drawn with some arguments(preferably kwargs). It is not possible to achieve this with a change view button! While directly calling `view.change_view` just add needed kwargs, for example
+```python
+self.change_view(ViewsEnum.ARROWS, picked_item=event.artist)
+```
+Than in the draw methode of drawed view the retrival looks something like this
+```python
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+
+        # get picked arrow if exists
+        self.picked_item = kwargs.get('picked_item', None)
+```
