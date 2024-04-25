@@ -2,6 +2,7 @@ from src.editor.view_manager import ViewManager
 from .view_manager import *
 
 import matplotlib.pyplot as plt
+import matplotlib.artist as artist
 from matplotlib.backend_bases import FigureCanvasBase, PickEvent, MouseEvent, KeyEvent
 
 class Home(View):
@@ -40,6 +41,7 @@ class LabelsView(View):
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "+", self.add_label))
         self.vem.add(NormalButton(self, [0.20, 0.05, 0.05, 0.075], "-", self.delete_label))
+        self.vem.add(NormalButton(self, [0.50, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
 
         # displays
         self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", self.label_name_update, self.label_name_submit))
@@ -64,7 +66,15 @@ class LabelsView(View):
 
             # update fields
             self.vem.refresh()
+            
         if isinstance(event.artist, ArrowArtist):
+            # check if click overlaps with other artists
+            artists = get_artists_by_type(self.vm.ax, LabelArtist)
+            for artist in artists:
+                if artist.contains(event.mouseevent)[0]:
+                    logging.info(f"{self.__class__} EVENT: {event} canceled due to overlapping Label: {artist}")
+                    return
+            
             # pass current artist as kwarg for new view to start initiated
             return self.change_view(ViewsEnum.ARROWS, picked_item=event.artist)
 
@@ -79,7 +89,20 @@ class LabelsView(View):
             plt.draw()
 
     def add_label(self) -> None:
-        pass
+        nid = self.state.add_empty_label()
+        LabelArtist.text(self.vm.ax, nid)
+        plt.draw()
+        
+    def add_arrow(self) -> None:
+        nid = self.state.add_empty_arrow(self.picked_item.id)
+        
+        x, y = self.state.get_label_pos(self.picked_item.id)
+        atx, aty = self.state.get_arrow_att_point(self.picked_item.id, nid)
+        rfx, rfy = self.state.get_arrow_ref_point(self.picked_item.id, nid)
+        val = self.state.get_arrow_val(self.picked_item.id, nid)
+        self.picked_item.arrows[nid] = ArrowArtist.arrow(self.vm.ax, nid, x, y, rfx, rfy, atx-x, aty-y, self.picked_item, val)
+        
+        plt.draw()
 
     def delete_label(self) -> None:
         self.picked_item.remove()
@@ -177,12 +200,14 @@ class ArrowsView(View):
             return self.change_view(ViewsEnum.LABELS, picked_item=event.artist)
 
     def delete_arrow(self) -> None:
-        pass
+        self.picked_item.remove()
+        self.picked_item = None
+        self.vem.refresh()
 
     def point_picker(self) -> None:
         pass
 
-    
+        
 
 # -------------------------------- MAIN EDITOR ------------------------------- #
 

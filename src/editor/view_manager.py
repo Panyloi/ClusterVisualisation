@@ -26,6 +26,14 @@ def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
                 return default
         return wrapper
     return decorator
+  
+def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
+    children = ax.get_children()
+    artists = []
+    for child in children:
+        if isinstance(child, artist_type):
+            artists.append(child)
+    return artists
 
 # ----------------------------------- STATE ---------------------------------- #
 
@@ -109,6 +117,46 @@ class State:
     @KeyErrorWrap(None)
     def set_arrow_val(self, label_id: int, arrow_id: int, val: str) -> None:
         self.data['labels_data'][label_id]['arrows'][arrow_id]['val'] = val
+        
+    # ------------------------------------ ADD ----------------------------------- #
+    
+    @KeyErrorWrap(-1)
+    def add_empty_label(self) -> int:
+        nid = max(self.data['labels_data'].keys()) + 1
+        self.data['labels_data'][nid] = \
+        {
+            'text': "...",
+            'x': 0,
+            'y': 0,
+            'arrows': {}
+        }
+        return nid
+    
+    @KeyErrorWrap(-1)
+    def add_empty_arrow(self, label_id: int) -> int:
+        if self.get_label_arrows(label_id):
+            nid = max(self.get_label_arrows(label_id).keys()) + 1
+        else:
+            nid = 0
+        self.data['labels_data'][label_id]['arrows'][nid] = \
+        {
+            'ref_x': 0,
+            'ref_y': 0,
+            'att_x': self.get_label_pos(label_id)[0],
+            'att_y': self.get_label_pos(label_id)[1],
+            'val': ""
+        }
+        return nid
+    
+    # ---------------------------------- DELETE ---------------------------------- #
+    
+    @KeyErrorWrap(None)
+    def delete_label(self, label_id: int) -> None:
+        self.data['labels_data'].pop(label_id)
+        
+    @KeyErrorWrap(None)
+    def delete_arrow(self, label_id: int, arrow_id: int) -> None:
+        self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
 
     # ----------------------------------- MISC ----------------------------------- #
 
@@ -138,29 +186,30 @@ class StateLinker:
 
 class ArrowArtist(Line2D, StateLinker):
 
-    def __init__(self, id: int, x: float, y: float, rfx: float, rfy: float, shx: float, shy: float, 
+    def __init__(self, ax: Axes, id: int, x: float, y: float, rfx: float, rfy: float, shx: float, shy: float, 
                  parent_label: 'LabelArtist', val: str, **kwargs) -> None:
         
         # custom init
-        self.id = id
-        self.val = val
+        self.ax           = ax
+        self.id           = id
+        self.val          = val
         self.parent_label = parent_label
-        self.x = x
-        self.y = y
-        self.rfx = rfx
-        self.rfy = rfy
-        self.shx = shx
-        self.shy = shy
+        self.x            = x
+        self.y            = y
+        self.rfx          = rfx
+        self.rfy          = rfy
+        self.shx          = shx
+        self.shy          = shy
 
-        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, **kwargs)
+        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, zorder=70, **kwargs)
         
     def set(self, *, x: float | None = None, y: float | None = None, 
                  rfx: float | None = None, rfy: float | None = None,
                  shx: float | None = None, shy: float | None = None,
                  val: str | None = None):
 
-        self.x = x if x is not None else self.x
-        self.y = y if y is not None else self.y
+        self.x   = x if   x   is not None else self.x
+        self.y   = y if   y   is not None else self.y
         self.rfx = rfx if rfx is not None else self.rfx
         self.rfy = rfy if rfy is not None else self.rfy
         self.shx = shx if shx is not None else self.shx
@@ -178,25 +227,26 @@ class ArrowArtist(Line2D, StateLinker):
         self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
         self.state.set_arrow_att_pos(self.parent_label.id, self.id, self.x+self.shx, self.y+self.shy)
         self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
+        
+    def remove(self) -> None:
+        super().remove()
+        
+        # delete arrow from parent label
+        self.parent_label.arrows.pop(self.id)
 
-plt.quiver
+        # delete arrow from state
+        self.state.delete_arrow(self.parent_label.id, self.id)
+        
+    @staticmethod
+    def arrow(ax: Axes, *args, **kwargs) -> 'ArrowArtist':
+        la = ArrowArtist(ax, *args, **kwargs)
+        ax.add_line(la)
+        return la
+
 
 class LabelArtist(Text, StateLinker):
 
-    def __init__(self, ax: Axes, id: int, x=0, y=0, text='', color=None,
-                 verticalalignment='baseline', 
-                 horizontalalignment='left', 
-                 multialignment=None,
-                 fontproperties=None,
-                 rotation=None, 
-                 linespacing=None, 
-                 rotation_mode=None, 
-                 usetex=None, 
-                 wrap=False, 
-                 transform_rotates_text=False, 
-                 *, 
-                 parse_math=None, 
-                 **kwargs) -> None:
+    def __init__(self, ax: Axes, id: int, x=0, y=0, text='', **kwargs) -> None:
         
         # label dict id
         self.id = id
@@ -208,20 +258,9 @@ class LabelArtist(Text, StateLinker):
 
         super().__init__(x,
                          y, 
-                         text, 
-                         color,
-                         verticalalignment, 
-                         horizontalalignment, 
-                         multialignment, 
-                         fontproperties, 
-                         rotation, 
-                         linespacing, 
-                         rotation_mode, 
-                         usetex, 
-                         wrap, 
-                         transform_rotates_text, 
-                         parse_math=parse_math, 
+                         text,
                          picker=True,
+                         zorder=100,
                          **kwargs)
         
         # arrow artists
@@ -230,8 +269,7 @@ class LabelArtist(Text, StateLinker):
             atx, aty = self.state.get_arrow_att_point(self.id, arrow_id)
             rfx, rfy = self.state.get_arrow_ref_point(self.id, arrow_id)
             val = self.state.get_arrow_val(self.id, arrow_id)
-            self.arrows[arrow_id] = ArrowArtist(arrow_id, x, y, rfx, rfy, atx-x, aty-y, self, val)
-            self.ax.add_line(self.arrows[arrow_id])
+            self.arrows[arrow_id] = ArrowArtist.arrow(ax, arrow_id, x, y, rfx, rfy, atx-x, aty-y, self, val)
 
     def set_position(self, xy) -> None:
         super().set_position(xy)
@@ -249,14 +287,15 @@ class LabelArtist(Text, StateLinker):
 
     def remove(self) -> None:
         super().remove()
+        self.state.delete_label(self.id)
         for arrow in self.arrows.values():
             arrow.remove()
     
     @staticmethod
     def text(ax: Axes, id, **kwargs) -> 'LabelArtist':
         effective_kwargs = {
-            'verticalalignment': 'baseline',
-            'horizontalalignment': 'left',
+            'verticalalignment': 'center',
+            'horizontalalignment': 'center',
             'transform': ax.transData,
             'clip_on': False,
             **kwargs,
