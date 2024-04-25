@@ -7,6 +7,7 @@ from matplotlib.axes._axes import Axes
 from matplotlib.text import Text
 from matplotlib.patches import FancyArrow
 from matplotlib.lines import Line2D
+from matplotlib.widgets import RadioButtons, Slider
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
@@ -178,8 +179,7 @@ class ArrowArtist(Line2D, StateLinker):
         self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
         self.state.set_arrow_att_pos(self.parent_label.id, self.id, self.x+self.shx, self.y+self.shy)
         self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
-
-plt.quiver
+        
 
 class LabelArtist(Text, StateLinker):
 
@@ -288,6 +288,7 @@ class ViewsEnum(Enum):
     HOME   = 0
     LABELS = 1
     ARROWS = 2
+    CLUSTER = 3
 
 
 class ViewManager:
@@ -459,3 +460,40 @@ class UpdateableTextBox(ViewTextBox):
     def refresh(self) -> None:
         super().refresh()
         self.box_ref.set_val(self.update())
+
+
+class ViewRadioButtons(ViewElement):
+
+    def __init__(self, parent_view: View, axes: list[float], labels: list[str], callback: callable) -> None:
+        super().__init__()
+        self.pv = parent_view
+        self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
+        self.ref = RadioButtons(self.ax, labels=labels, active=0)
+        self.ref.on_clicked(callback)
+
+    def remove(self):
+        super().remove()
+        self.ref.disconnect_events()
+        self.pv.vm.fig.delaxes(self.ax)
+
+    def refresh(self) -> None:
+        return super().refresh()
+
+
+class ViewSlider(ViewElement):
+
+    def __init__(self, parent_view: View, axes: list[float], label: str,
+                 valmin: float, valmax: float, callback: callable) -> None:
+        super().__init__()
+        self.pv = parent_view
+        self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
+        self.ref = Slider(ax=self.ax, label=label, valmin=valmin, valmax=valmax, initcolor=None)
+        self.ref.on_changed(callback)
+
+    def remove(self):
+        super().remove()
+        self.ref.disconnect_events()
+        self.pv.vm.fig.delaxes(self.ax)
+
+    def refresh(self) -> None:
+        return super().refresh()

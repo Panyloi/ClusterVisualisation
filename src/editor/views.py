@@ -4,6 +4,10 @@ from .view_manager import *
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import FigureCanvasBase, PickEvent, MouseEvent, KeyEvent
 
+from sklearn.cluster import AgglomerativeClustering
+import numpy as np
+
+
 class Home(View):
     
     def __init__(self, view_manager: ViewManager) -> None:
@@ -13,7 +17,8 @@ class Home(View):
         super().draw()
         
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.85, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, [0.25, 0.05, 0.1, 0.075], "Cluster", ViewsEnum.CLUSTER))
 
         plt.draw()
     
@@ -183,6 +188,136 @@ class ArrowsView(View):
         pass
 
     
+class ClusterView(View):
+
+    def __init__(self, view_manager: ViewManager) -> None:
+        super().__init__(view_manager)
+        self.type = None
+        self.linkage = None
+        self.scalar = None
+        self.clusters = {}
+        self.cmap = plt.cm.get_cmap("hsv", len(self.state.get_raw()['data'].keys()))
+        self.removed = {"x": [], "y": []}
+
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+        for culture_name in self.state.get_raw()['data'].keys():
+            self.vm.ax.scatter(
+                self.state.get_raw()['data'][culture_name]['x'],
+                self.state.get_raw()['data'][culture_name]['y'],
+                color="blue", s=3
+            )
+
+        self.widgetType    = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75], sorted(list(self.state.get_raw()['data'].keys())), self._update_args)
+        self.widgetLinkage = ViewRadioButtons(self, [0.4, 0.15, 0.1, 0.1], ["ward", "complete", "average", "single"], self._update_args)
+        self.widgetScalar  = ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self._update_args)
+
+        self.type    = self.widgetType.ref.value_selected
+        self.linkage = self.widgetLinkage.ref.value_selected
+        self.scalar  = self.widgetScalar.ref.val
+
+        self.vem.add(self.widgetType)
+        self.vem.add(self.widgetLinkage)
+        self.vem.add(self.widgetScalar)
+
+        self.toggle()
+        self.toggle()
+
+        self.vem.add(NormalButton(self, [0.1, 0.05, 0.17, 0.075], "Toggle options", self.toggle))
+        self.vem.add(NormalButton(self, [0.28, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        self.vem.add(NormalButton(self, [0.44, 0.05, 0.17, 0.075], "Remove points", self.remove_points))
+        self.vem.add(NormalButton(self, [0.62, 0.05, 0.09, 0.075], "Reset", self.reset))
+        self.vem.add(ChangeViewButton(self, [0.85, 0.05, 0.09, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.75, 0.05, 0.09, 0.075], "Save", ViewsEnum.CLUSTER))
+
+        self.draw_cluster()
+
+    def undraw(self) -> None:
+        super().undraw()
+        plt.subplots_adjust(bottom=0.2)
+        plt.subplots_adjust(left=0.125)
+
+    def _update_args(self, *args, **kwargs):
+            self.type = self.widgetType.ref.value_selected
+            self.linkage = self.widgetLinkage.ref.value_selected
+            self.scalar = self.widgetScalar.ref.val
+            self.draw_cluster()
+
+    def toggle(self, *args, **kwargs) -> None:
+        if self.widgetType.ax.get_visible():
+            self.widgetType.ref._buttons.set_visible(False)
+            self.widgetLinkage.ref._buttons.set_visible(False)
+            self.widgetType.ax.set_visible(False)
+            self.widgetLinkage.ax.set_visible(False)
+            self.widgetScalar.ax.set_visible(False)
+            plt.subplots_adjust(bottom=0.2)
+            plt.subplots_adjust(left=0.125)
+        else:
+            self.widgetType.ref._buttons.set_visible(True)
+            self.widgetLinkage.ref._buttons.set_visible(True)
+            self.widgetType.ax.set_visible(True)
+            self.widgetLinkage.ax.set_visible(True)
+            self.widgetScalar.ax.set_visible(True)
+            plt.subplots_adjust(bottom=0.3)
+            plt.subplots_adjust(left=0.4)
+
+        plt.draw()
+
+    def draw_cluster(self):
+        if self.type is None or self.linkage is None or self.scalar is None: return
+        cluster = self.state.get_raw()['data'][self.type]
+        sth = np.column_stack([cluster["x"], cluster["y"]])
+        if len(cluster["x"]) > 1:
+            dist = AgglomerativeClustering(n_clusters=1, compute_distances=True).fit(sth).distances_
+            mean = np.mean(dist)
+            clustering = AgglomerativeClustering(n_clusters=None, linkage=self.linkage, distance_threshold=mean * self.scalar).fit(sth)
+            color = clustering.labels_
+        else:
+            color = 'k'
+
+        self.vm.ax.clear()
+        for culture_name in self.state.get_raw()['data'].keys():
+            self.vm.ax.scatter(
+                self.state.get_raw()['data'][culture_name]['x'],
+                self.state.get_raw()['data'][culture_name]['y'],
+                color="blue", s=3
+            )
+        self.show_clusters()
+        self.vm.ax.scatter(cluster["x"], cluster["y"], c=color)
+        plt.draw()
+
+    def save_cluster(self, *args, **kwargs):
+        self.clusters[self.type] = (self.linkage, self.scalar, self.cmap(list(self.state.get_raw()['data'].keys()).index(self.type)))
+        print(self.clusters)
+
+    def show_clusters(self, *args, **kwargs):
+        for key, value in self.clusters.items():
+            self.vm.ax.scatter(
+                self.state.get_raw()['data'][key]['x'],
+                self.state.get_raw()['data'][key]['y'],
+                color=value[2], s=10
+            )
+        for i in range(len(self.removed["x"])):
+            self.vm.ax.annotate("x", (self.removed["x"][i]-3, self.removed["y"][i]-3))
+
+    def reset(self, *args, **kwargs):
+        self.clusters = {}
+        self.removed = {"x": [], "y": []}
+        self.draw_cluster()
+
+    def remove_points(self, *args, **kwargs):
+        if self.type in self.clusters.keys():
+            cluster = self.state.get_raw()['data'][self.type]
+            sth = np.column_stack([cluster["x"], cluster["y"]])
+            dist = AgglomerativeClustering(n_clusters=1, compute_distances=True).fit(sth).distances_
+            mean = np.mean(dist)
+            clustering = AgglomerativeClustering(n_clusters=None, linkage=self.linkage,
+                                                 distance_threshold=mean * self.scalar).fit(sth)
+            for i in range(len(clustering.labels_)):
+                if clustering.labels_[i] != 0:
+                    self.removed["x"].append(cluster["x"][i])
+                    self.removed["y"].append(cluster["y"][i])
+            print(self.removed)
 
 # -------------------------------- MAIN EDITOR ------------------------------- #
 
@@ -200,7 +335,7 @@ class Editor:
         fig.subplots_adjust(bottom=0.2)
 
         vm = ViewManager(fig, ax)
-        vm.register_views([Home(vm), LabelsView(vm), ArrowsView(vm)]) # must be the same as ViewsEnum
+        vm.register_views([Home(vm), LabelsView(vm), ArrowsView(vm), ClusterView(vm)]) # must be the same as ViewsEnum
         vm.run()
 
         # dispalay
