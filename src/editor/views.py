@@ -1,9 +1,7 @@
-from src.editor.view_manager import ViewManager
 from .view_manager import *
 
 import matplotlib.pyplot as plt
-import matplotlib.artist as artist
-from matplotlib.backend_bases import FigureCanvasBase, PickEvent, MouseEvent, KeyEvent
+from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent
 
 from sklearn.cluster import AgglomerativeClustering
 import numpy as np
