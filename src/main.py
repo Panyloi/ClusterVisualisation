@@ -8,7 +8,7 @@ import sys
 import logging
 
 
-def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Optional[State]:
+def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
@@ -150,7 +150,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str, delim=';') -> Opt
     return State(state_dict)
 
 
-def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
+def draw_maps_editor(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> None:
     """ Interactive matplotlib editor for creating maps
     
     Parameters
@@ -163,6 +163,7 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
     """
     
     state = draw_maps(raw_data, None)
+    assert state is not None # editor needs init state for now (might use deafult cache later)
 
     FORMAT = '%(asctime)s %(message)s'
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)

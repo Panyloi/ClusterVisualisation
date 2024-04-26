@@ -11,7 +11,7 @@ from matplotlib.widgets import RadioButtons, Slider
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
-from typing import Literal, Callable, Type, TypeVar, ParamSpec
+from typing import Literal, Callable, Type, TypeVar, ParamSpec, Union, Concatenate
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -35,6 +35,15 @@ def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
         if isinstance(child, artist_type):
             artists.append(child)
     return artists
+
+def subtract_with_default(value1: Union[T, None], value2: Union[T, None], default: T) -> T:
+    if value1 is not None and value2 is not None:
+        if isinstance(value1, (int, float)) and isinstance(value2, (int, float)):
+            return value1 - value2
+        else:
+            raise ValueError("Unsupported types for subtraction")
+    else:
+        return default
 
 # ----------------------------------- STATE ---------------------------------- #
 
@@ -202,7 +211,7 @@ class ArrowArtist(Line2D, StateLinker):
         self.shx          = shx
         self.shy          = shy
 
-        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, zorder=70, **kwargs)
+        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, zorder=70, color='black', **kwargs)
         
     def set(self, *, x: float | None = None, y: float | None = None, 
                  rfx: float | None = None, rfy: float | None = None,
@@ -220,9 +229,15 @@ class ArrowArtist(Line2D, StateLinker):
         self._update_state()
 
         return super().set(xdata=[self.x + self.shx, self.rfx], ydata=[self.y + self.shy, self.rfy])
+    
+    def set_sh_by_raw(self, rx: float, ry: float):
+        self.set(shx=rx-self.x, shy=ry-self.y)
         
     def get_shs(self) -> tuple[float, float]:
         return self.shx, self.shy
+    
+    def get_rfs(self) -> tuple[float, float]:
+        return self.rfx, self.rfy
     
     def _update_state(self) -> None:
         self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
@@ -263,6 +278,8 @@ class LabelArtist(Text, StateLinker):
                          picker=True,
                          zorder=100,
                          **kwargs)
+        
+        self.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black'))
         
         # arrow artists
         self.arrows: dict[int, ArrowArtist] = {}
@@ -372,15 +389,163 @@ class CanvasEventManager:
 
     def __init__(self, canvas: FigureCanvasBase) -> None:
         self.canvas = canvas
-        self.events: list[int] = []
+        self.events_stack: list['Event'] = []
 
-    def add(self, ev_id: int) -> None:
-        self.events.append(ev_id)
+    def add(self, event: 'UniqueEvent | SharedEvent | GlobalEvent | EmptyEvent') -> None:
+
+        if isinstance(event, UniqueEvent):
+            # disconnect all previous events
+            for sevent in self.events_stack:
+                if not isinstance(sevent, GlobalEvent):
+                    sevent.disconnect()
+
+        if isinstance(event, SharedEvent):
+            # disconnect all events starting from first met non shared event
+            fm = False
+            for sevent in self.events_stack[::-1]:
+                if not isinstance(sevent, SharedEvent):
+                    fm = True
+                if fm:
+                    if not isinstance(sevent, GlobalEvent):
+                        sevent.disconnect()
+
+        if isinstance(event, GlobalEvent):
+            # globals dont disconnect anything but they are inserted under the stack
+            self.events_stack.insert(0, event)
+            return
+
+        self.events_stack.append(event)
+
+    def _reconect_events(self) -> None:
+        # find next event group to activate
+        shared_group = False
+        for event in self.events_stack[::-1]:
+
+            if isinstance(event, EmptyEvent):
+                break
+
+            # if no shared gourp activate just this event
+            if isinstance(event, UniqueEvent):
+                if not shared_group:
+                    event.reconnect()
+                    return
+                else:
+                    # end of shared group
+                    break
+
+            # start or continue the shared group
+            if isinstance(event, SharedEvent):
+                # find other shared events
+                shared_group = True
+                event.reconnect()
+
+    def _clear_empty_events(self) -> None:
+        while self.events_stack:
+            if isinstance(self.events_stack[-1], EmptyEvent):
+                self.events_stack.pop()
+                continue
+            return
+
+    def disconnect_unique(self) -> None:
+
+        if not self.events_stack:
+            return
+
+        # if not maching just call disconnect
+        if not isinstance(self.events_stack[-1], UniqueEvent):
+            return self.disconnect()
+        
+        self.events_stack.pop().disconnect()
+        self._clear_empty_events()
+        self._reconect_events()
+
+    def disconnect_shared(self) -> None:
+
+        if not self.events_stack:
+            return
+        
+        if not isinstance(self.events_stack[-1], SharedEvent):
+            return self.disconnect()
+        
+        while self.events_stack:
+            if isinstance(self.events_stack[-1], SharedEvent):
+                self.events_stack.pop().disconnect()
+                continue
+            break
+
+        self._clear_empty_events()
+        self._reconect_events()
 
     def disconnect(self) -> None:
-        for ev_id in self.events:
-            self.canvas.mpl_disconnect(ev_id)
-        self.events.clear()
+        for event in self.events_stack:
+            event.disconnect()
+        self.events_stack.clear()
+
+
+class Event(ABC):
+
+    canvas: FigureCanvasBase
+
+    @abstractmethod
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        self.ev_type = ev_type
+        self.ev_callback = ev_callback
+        self.id = self.canvas.mpl_connect(ev_type, ev_callback)
+
+    @classmethod
+    def set_canvas(cls, canvas: FigureCanvasBase) -> None:
+        cls.canvas = canvas
+
+    def reconnect(self) -> None:
+        self.canvas.mpl_disconnect(self.id) # source code says there is no error if self.id does not exist c:
+        self.id = self.canvas.mpl_connect(self.ev_type, self.ev_callback)
+
+    def disconnect(self) -> None:
+        if self.canvas is None:
+            return
+        self.canvas.mpl_disconnect(self.id)
+
+
+class GlobalEvent(Event):
+    """
+    GlobalEvent is not disconnectable by other event types
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+
+class UniqueEvent(Event):
+    """
+    UniqueEvent desconnects all other events
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+
+class SharedEvent(Event):
+    """
+    SharedEvent disconnects all previous events that don't belong to this event shared group
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+    
+class EmptyEvent(Event):
+    """
+    EmptyEvent does nothing. It's used to divide SharedEvent groups
+    """
+
+    def __init__(self) -> None:
+        pass
+
+    def reconnect(self) -> None:
+        pass
+
+    def disconnect(self) -> None:
+        pass
 
 
 class View(ABC, StateLinker):
@@ -430,7 +595,7 @@ class ViewButton(ViewElement):
         self.pv         = parent_view
         self.button_ax  = parent_view.vm.fig.add_axes(axes)
         self.button_ref = Button(self.button_ax, label)
-        self.button_ref.on_clicked(callback)
+        self.button_cid = self.button_ref.on_clicked(callback)
         
     @abstractmethod
     def remove(self):
@@ -486,7 +651,26 @@ class NormalButton(ViewButton):
         return super().refresh()
     
 
-# move to observer pattern?
+class BlockingButton(ViewButton):
+
+    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable[[Callable[..., None]], None]) -> None:
+
+        def reconnect_callback(*args, **kwargs):
+            self.button_cid = self.button_ref.on_clicked(blocking_callback)
+
+        def blocking_callback(*args, **kwargs):
+            self.button_ref.disconnect(self.button_cid)
+            callback(reconnect_callback)
+
+        super().__init__(parent_view, axes, label, blocking_callback)
+
+    def remove(self):
+        return super().remove()
+    
+    def refresh(self) -> None:
+        return super().refresh()
+    
+
 class UpdateableTextBox(ViewTextBox):
 
     def __init__(self, parent_view: View, axes: list[float], label: str, update: Callable, submit: Callable) -> None:
@@ -504,7 +688,7 @@ class UpdateableTextBox(ViewTextBox):
 
 class ViewRadioButtons(ViewElement):
 
-    def __init__(self, parent_view: View, axes: list[float], labels: list[str], callback: callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], labels: list[str], callback: Callable) -> None:
         super().__init__()
         self.pv = parent_view
         self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
@@ -523,7 +707,7 @@ class ViewRadioButtons(ViewElement):
 class ViewSlider(ViewElement):
 
     def __init__(self, parent_view: View, axes: list[float], label: str,
-                 valmin: float, valmax: float, callback: callable) -> None:
+                 valmin: float, valmax: float, callback: Callable) -> None:
         super().__init__()
         self.pv = parent_view
         self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)

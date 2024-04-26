@@ -31,8 +31,8 @@ class LabelsView(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.dragged_item: LabelArtist = None
-        self.picked_item: LabelArtist  = None
+        self.dragged_item: LabelArtist | None = None
+        self.picked_item:  LabelArtist | None = None
         self.events_stack = []
         
     def draw(self, *args, **kwargs) -> None:
@@ -51,9 +51,9 @@ class LabelsView(View):
         # displays
         self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", self.label_name_update, self.label_name_submit))
 
-        self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', self.pick_event))
-        self.cem.add(self.vm.fig.canvas.mpl_connect('button_release_event', self.release_event))
-        self.cem.add(self.vm.fig.canvas.mpl_connect('key_press_event', self.key_press_event))
+        self.cem.add(SharedEvent('pick_event', self.pick_event))
+        self.cem.add(SharedEvent('button_release_event', self.release_event))
+        self.cem.add(SharedEvent('key_press_event', self.key_press_event))
 
         self.vem.refresh()
         plt.draw()
@@ -62,7 +62,7 @@ class LabelsView(View):
         super().undraw()
         
     def pick_event(self, event: PickEvent) -> None:
-        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}")
+        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {getattr(event.artist, 'id', None)}")
         if isinstance(event.artist, LabelArtist):
             self.events_stack.append(event.artist.get_state())
             self.dragged_item = event.artist
@@ -87,8 +87,8 @@ class LabelsView(View):
         if self.dragged_item is not None:
             logging.info(f"{self.__class__} EVENT: {event} ID: {self.dragged_item.id}")
             old_pos = self.dragged_item.get_position()
-            new_pos = (old_pos[0] + event.xdata - self.pick_pos[0],
-                       old_pos[1] + event.ydata - self.pick_pos[1])
+            new_pos = (old_pos[0] + subtract_with_default(event.xdata, self.pick_pos[0], 0),
+                       old_pos[1] + subtract_with_default(event.ydata, self.pick_pos[1], 0))
             self.dragged_item.set_position(new_pos)
             self.dragged_item = None
             plt.draw()
@@ -99,8 +99,13 @@ class LabelsView(View):
         plt.draw()
         
     def add_arrow(self) -> None:
+        if self.picked_item is None:
+            return
+        
+        # create empty arrow in state and get it's id
         nid = self.state.add_empty_arrow(self.picked_item.id)
         
+        # create artist and place arrow on plot
         x, y = self.state.get_label_pos(self.picked_item.id)
         atx, aty = self.state.get_arrow_att_point(self.picked_item.id, nid)
         rfx, rfy = self.state.get_arrow_ref_point(self.picked_item.id, nid)
@@ -110,6 +115,9 @@ class LabelsView(View):
         plt.draw()
 
     def delete_label(self) -> None:
+        if self.picked_item is None:
+            return
+        
         self.picked_item.remove()
         self.picked_item = None
         self.vem.refresh()
@@ -117,7 +125,9 @@ class LabelsView(View):
     def ctrlz(self) -> None:
         if self.events_stack:
             id, *state = self.events_stack.pop()
-            LabelArtist.get_by_id(self.vm.ax, id).set_state(state)
+            l = LabelArtist.get_by_id(self.vm.ax, id)
+            if l is not None:
+                l.set_state(state)
             plt.draw()
 
     def key_press_event(self, event: KeyEvent):
@@ -141,7 +151,7 @@ class ArrowsView(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.picked_item: ArrowArtist  = None
+        self.picked_item: ArrowArtist | None = None
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
@@ -152,13 +162,16 @@ class ArrowsView(View):
         # buttons
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "-", self.delete_arrow))
-        self.vem.add(NormalButton(self, [0.60, 0.05, 0.05, 0.075], "p", self.point_picker))
+        self.vem.add(BlockingButton(self, [0.50, 0.05, 0.05, 0.075], "p", self.sh_point_picker))
+        self.vem.add(BlockingButton(self, [0.80, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
 
         # displays
-        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", self.arrow_shx_update, self.arrow_shx_submit))
-        self.vem.add(UpdateableTextBox(self, [0.45, 0.05, 0.15, 0.075], "...", self.arrow_shy_update, self.arrow_shy_submit))
+        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.10, 0.075], "...", self.arrow_shx_update, self.arrow_shx_submit))
+        self.vem.add(UpdateableTextBox(self, [0.40, 0.05, 0.10, 0.075], "...", self.arrow_shy_update, self.arrow_shy_submit))
+        self.vem.add(UpdateableTextBox(self, [0.60, 0.05, 0.10, 0.075], "...", self.arrow_rfx_update, self.arrow_rfx_submit))
+        self.vem.add(UpdateableTextBox(self, [0.70, 0.05, 0.10, 0.075], "...", self.arrow_rfy_update, self.arrow_rfy_submit))
 
-        self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', self.pick_event))
+        self.cem.add(SharedEvent('pick_event', self.pick_event))
         # self.cem.add(self.vm.fig.canvas.mpl_connect('key_press_event', self.key_press_event))
 
         self.vem.refresh()
@@ -169,7 +182,7 @@ class ArrowsView(View):
     
     def arrow_shx_update(self) -> float:
         if self.picked_item is None:
-            return "..."
+            return 0
         return self.picked_item.get_shs()[0]
 
     def arrow_shx_submit(self, nshx) -> None:
@@ -183,7 +196,7 @@ class ArrowsView(View):
     
     def arrow_shy_update(self) -> float:
         if self.picked_item is None:
-            return "..."
+            return 0
         return self.picked_item.get_shs()[1]
 
     def arrow_shy_submit(self, nshy) -> None:
@@ -195,7 +208,35 @@ class ArrowsView(View):
         except ValueError:
             pass
 
-    def pick_event(self, event) -> None:
+    def arrow_rfx_update(self) -> float:
+        if self.picked_item is None:
+            return 0
+        return self.picked_item.get_rfs()[0]
+
+    def arrow_rfx_submit(self, nrfx) -> None:
+        if self.picked_item is None:
+            return
+        try:
+            self.picked_item.set(rfx=float(nrfx))
+            plt.draw()
+        except ValueError:
+            pass
+    
+    def arrow_rfy_update(self) -> float:
+        if self.picked_item is None:
+            return 0
+        return self.picked_item.get_rfs()[1]
+
+    def arrow_rfy_submit(self, nrfy) -> None:
+        if self.picked_item is None:
+            return
+        try:
+            self.picked_item.set(rfy=float(nrfy))
+            plt.draw()
+        except ValueError:
+            pass
+
+    def pick_event(self, event, *args, **kwargs) -> None:
         logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}")
         if isinstance(event.artist, ArrowArtist):
             self.picked_item  = event.artist
@@ -204,13 +245,42 @@ class ArrowsView(View):
         if isinstance(event.artist, LabelArtist):
             return self.change_view(ViewsEnum.LABELS, picked_item=event.artist)
 
-    def delete_arrow(self) -> None:
+    def delete_arrow(self, *args, **kwargs) -> None:
+        if self.picked_item is None:
+            return
+        
         self.picked_item.remove()
         self.picked_item = None
         self.vem.refresh()
 
-    def point_picker(self) -> None:
-        pass
+    def sh_point_picker(self, reconect_callback: Callable[..., None], *args, **kwargs) -> None:
+        self.cem.add(UniqueEvent('button_press_event', lambda event, *args, **kwargs : self.sh_point_pick_event(reconect_callback, event, *args, **kwargs)))
+
+    def sh_point_pick_event(self, reconect_callback: Callable[..., None], event: MouseEvent, *args, **kwargs) -> None:
+        if event.inaxes is not self.vm.ax:
+            logging.info(f"Point pick event out of chart.")
+            return
+
+        self.picked_item.set_sh_by_raw(event.xdata, event.ydata)
+        
+        self.cem.disconnect_unique()
+        reconect_callback()
+        self.vem.refresh()
+
+    def rf_point_picker(self, reconect_callback: Callable[..., None], *args, **kwargs) -> None:
+        self.cem.add(UniqueEvent('button_press_event', lambda event, *args, **kwargs : self.rf_point_pick_event(reconect_callback, event, *args, **kwargs)))
+
+    def rf_point_pick_event(self, reconect_callback: Callable[..., None], event: MouseEvent, *args, **kwargs) -> None:
+        if event.inaxes is not self.vm.ax:
+            logging.info(f"Point pick event out of chart.")
+            return
+
+        self.picked_item.set(rfx=event.xdata, rfy=event.ydata)
+        
+        self.cem.disconnect_unique()
+        reconect_callback()
+        self.vem.refresh()
+
 
     
 class ClusterView(View):
@@ -358,6 +428,9 @@ class Editor:
         fig, ax = plt.subplots()
         fig.add_axes(ax)
         fig.subplots_adjust(bottom=0.2)
+
+        # init event canvas
+        Event.set_canvas(fig.canvas)
 
         vm = ViewManager(fig, ax)
         vm.register_views([Home(vm), LabelsView(vm), ArrowsView(vm), ClusterView(vm)]) # must be the same as ViewsEnum
