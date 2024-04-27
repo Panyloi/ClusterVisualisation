@@ -15,6 +15,9 @@ from .artists import *
 
 
 class ViewsEnum(Enum):
+    """
+    Enumeration of different views in the application.
+    """
     HOME   = 0
     LABELS = 1
     ARROWS = 2
@@ -22,49 +25,110 @@ class ViewsEnum(Enum):
 
 
 class ViewManager:
+    """
+    Manages different views in the application.
+    """
 
     def __init__(self, fig: Figure, ax: Axes) -> None:
         self.fig = fig
         self.ax  = ax
         self.views: list[View] = []
     
-    def register_views(self, views: list) -> None:
+    def register_views(self, views: list['View']) -> None:
+        """
+        Registers views with the manager.
+
+        Parameters
+        ----------
+        views : list
+            List of View objects to register.
+        """
         self.views = views
 
     def get_view(self, view_id: ViewsEnum) -> 'View':
+        """
+        Gets a specific view by its ID.
+
+        Parameters
+        ----------
+        view_id : ViewsEnum
+            The ID of the view to retrieve.
+
+        Returns
+        -------
+        View
+            The requested view object.
+        """
         return self.views[view_id.value]
     
     def run(self) -> None:
+        """
+        Runs the application, displaying the initial view.
+        """
         self.views[ViewsEnum.HOME.value].draw()
         self.views[ViewsEnum.HOME.value].state.draw(self.ax)
 
 
 class ViewElementManager:
+    """
+    Manages view elements within a view.
+    """
     
     def __init__(self) -> None:
         self.elements: list['ViewElement'] = []
 
     def add(self, el: 'ViewElement') -> 'ViewElement':
+        """
+        Adds a view element to the manager.
+
+        Parameters
+        ----------
+        el : ViewElement
+            The view element to add.
+
+        Returns
+        -------
+        ViewElement
+            The added view element.
+        """
         self.elements.append(el)
         return el
 
     def refresh(self) -> None:
+        """
+        Refreshes all view elements.
+        """
         for view_element in self.elements:
             view_element.refresh()
         
     def deconstruct(self) -> None:
+        """
+        Removes all view elements from the manager.
+        """
         for view_element in self.elements:
             view_element.remove()
         self.elements.clear()
 
 
 class CanvasEventManager:
+    """
+    Manages events on the canvas.
+    """
 
     def __init__(self, canvas: FigureCanvasBase) -> None:
         self.canvas = canvas
         self.events_stack: list['Event'] = []
 
     def add(self, event: 'UniqueEvent | SharedEvent | GlobalEvent | EmptyEvent') -> None:
+        """
+        Adds an event to the event stack. Disables previous event group based
+        on the new event type.
+
+        Parameters
+        ----------
+        event : Union[UniqueEvent, SharedEvent, GlobalEvent, EmptyEvent]
+            The event to add.
+        """
 
         if isinstance(event, UniqueEvent):
             # disconnect all previous events
@@ -119,6 +183,9 @@ class CanvasEventManager:
             return
 
     def disconnect_unique(self) -> None:
+        """
+        Disconnects latest unique event and reconnects next event group.
+        """
 
         if not self.events_stack:
             return None
@@ -132,6 +199,9 @@ class CanvasEventManager:
         self._reconect_events()
 
     def disconnect_shared(self) -> None:
+        """
+        Disconnects latest shared event group and reconnects next event group.
+        """
 
         if not self.events_stack:
             return None
@@ -149,12 +219,18 @@ class CanvasEventManager:
         self._reconect_events()
 
     def disconnect(self) -> None:
+        """
+        Disconnects all events.
+        """
         for event in self.events_stack:
             event.disconnect()
         self.events_stack.clear()
 
 
 class Event(ABC):
+    """
+    Base class for canvas events.
+    """
 
     canvas: FigureCanvasBase
 
@@ -166,14 +242,28 @@ class Event(ABC):
 
     @classmethod
     def set_canvas(cls, canvas: FigureCanvasBase) -> None:
+        """
+        Sets the canvas for the event class.
+
+        Parameters
+        ----------
+        canvas : FigureCanvasBase
+            The canvas to set.
+        """
         cls.canvas = canvas
 
     def reconnect(self) -> None:
+        """
+        Reconnects the event.
+        """
          # source code says there is no error if self.id does not exist c:
         self.canvas.mpl_disconnect(self.id)
         self.id = self.canvas.mpl_connect(self.ev_type, self.ev_callback)
 
     def disconnect(self) -> None:
+        """
+        Disconnects the event.
+        """
         if self.canvas is None:
             return
         self.canvas.mpl_disconnect(self.id)
@@ -222,6 +312,9 @@ class EmptyEvent(Event):
 
 
 class View(ABC, StateLinker):
+    """
+    Base class for views.
+    """
     
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
@@ -230,31 +323,63 @@ class View(ABC, StateLinker):
 
     @abstractmethod
     def draw(self, *args, **kwargs) -> None:
+        """
+        Draws the view.
+
+        Parameters
+        ----------
+        args : tuple
+            Additional arguments.
+        kwargs : dict
+            Additional keyword arguments.
+
+        """
         logging.info(f"{self.__class__} is drawing.")
 
     @abstractmethod
     def undraw(self) -> None:
+        """
+        Undraws the view.
+        """
         logging.info(f"{self.__class__} is undrawing.")
         self.vem.deconstruct()
         self.cem.disconnect()
         self.vm.fig.canvas.flush_events()
 
     def change_view(self, view_id: ViewsEnum, *args, **kwargs):
+        """
+        Changes the current view.
+
+        Parameters
+        ----------
+        view_id : ViewsEnum
+            The ID of the view to change to.
+        args : tuple
+            Additional arguments.
+        kwargs : dict
+            Additional keyword arguments.
+        """
         self.undraw()
         self.vm.get_view(view_id).draw(*args, **kwargs)
 
 
 class ViewElement(ABC, StateLinker):
+    """
+    Abstract base class representing a generic view element.
+    """
 
     def __init__(self) -> None:
+        """Initialize the ViewElement."""
         logging.info(f"{self.__class__} is createing.")
     
     @abstractmethod
     def remove(self) -> None:
+        """Abstract method to remove the view element from the display."""
         logging.info(f"{self.__class__} is removeing.")
 
     @abstractmethod
     def refresh(self) -> None:
+        """Abstract method to refresh the view element."""
         logging.info(f"{self.__class__} is refreshing.")
 
 
@@ -262,9 +387,25 @@ class ViewElement(ABC, StateLinker):
 
 
 class ViewButton(ViewElement):
+    """
+    Class representing an abstract button view element.
+    """
     
     def __init__(self, parent_view: View, axes: list[float], 
                  label: str, callback: Callable) -> None:
+        """Initialize the ViewButton.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the button belongs.
+        axes: list[float]
+            The position of the button on the view.
+        label: str
+            The label text of the button.
+        callback: Callable
+            The callback function to be executed when the button is clicked.
+        """
         super().__init__()
         self.pv         = parent_view
         self.button_ax  = parent_view.vm.fig.add_axes(axes)
@@ -273,18 +414,34 @@ class ViewButton(ViewElement):
         
     @abstractmethod
     def remove(self):
+        """Remove the button from the display."""
         super().remove()
         self.button_ref.disconnect_events()     
         self.pv.vm.fig.delaxes(self.button_ax)
 
     @abstractmethod
     def refresh(self) -> None:
+        """Refresh the button."""
         return super().refresh()
 
 
 class ViewTextBox(ViewElement):
+    """
+    Class representing an abstract text box view element.
+    """
 
     def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+        """Initialize the ViewTextBox.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the text box belongs.
+        axes: list[float]
+            The position of the text box on the view.
+        label: str
+            The label text of the text box.
+        """
         super().__init__()
         self.pv       = parent_view
         self.label_ax = parent_view.vm.fig.add_axes(axes)
@@ -292,47 +449,100 @@ class ViewTextBox(ViewElement):
 
     @abstractmethod
     def remove(self):
+        """Remove the text box from the display."""
         super().remove() 
         self.pv.vm.fig.delaxes(self.label_ax)
 
     @abstractmethod
     def refresh(self) -> None:
+        """Refresh the text box."""
         return super().refresh()
 
 # ------------------------------ OUTPUT CLASSES ------------------------------ #
 
 class ChangeViewButton(ViewButton):
+    """Class representing a button for changing views."""
     
     def __init__(self, parent_view: View, axes: list[float], 
                  label: str, new_view: ViewsEnum) -> None:
+        """Initialize the ChangeViewButton.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the button belongs.
+        axes: list[float]
+            The position of the button on the view.
+        label: str
+            The label text of the button.
+        new_view: ViewsEnum
+            The new view to switch to when the button is clicked.
+        """
         super().__init__(parent_view, axes, label, 
                          lambda ev: parent_view.change_view(new_view, ev))
         
     def remove(self):
+        """Remove the button from the display."""
         return super().remove()
 
     def refresh(self) -> None:
+        """Refresh the button."""
         return super().refresh()
     
 
 class NormalButton(ViewButton):
+    """
+    A standard button for user interaction in a graphical view.
+    """
 
     def __init__(self, parent_view: View, axes: list[float], 
                  label: str, callback: Callable) -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the button belongs.
+        axes : list[float]
+            The position of the button in normalized coordinates [left, bottom, width, height].
+        label : str
+            The text displayed on the button.
+        callback : Callable
+            The function to be called when the button is clicked.
+        
+        """
         super().__init__(parent_view, axes, label, 
                          lambda ev: callback())
 
     def remove(self):
+        """Remove the button from the view."""
         return super().remove()
     
     def refresh(self) -> None:
+        """Refresh the appearance of the button."""
         return super().refresh()
     
 
 class BlockingButton(ViewButton):
+    """
+    A button that blocks other interactions with itself until its action is completed.
+    """
 
     def __init__(self, parent_view: View, axes: list[float], label: str, 
                  callback: Callable[[Callable[..., None]], None]) -> None:
+        """init
+
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the button belongs.
+        axes : list[float]
+            The position of the button in normalized coordinates [left, bottom, width, height].
+        label : str
+            The text displayed on the button.
+        callback : Callable[[Callable[..., None]], None]
+            The function to be called when the button is clicked, with an argument to reconnect the button.
+        """
 
         def reconnect_callback():
             self.button_cid = self.button_ref.on_clicked(blocking_callback)
@@ -344,24 +554,45 @@ class BlockingButton(ViewButton):
         super().__init__(parent_view, axes, label, blocking_callback)
 
     def remove(self):
+        """Remove the button from the view."""
         return super().remove()
     
     def refresh(self) -> None:
+        """Refresh the appearance of the button."""
         return super().refresh()
     
 
 class UpdateableTextBox(ViewTextBox):
+    """A text box that can be updated dynamically."""
 
     def __init__(self, parent_view: View, axes: list[float], 
                  label: str, update: Callable, submit: Callable) -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the text box belongs.
+        axes : list[float]
+            The position of the text box in normalized coordinates [left, bottom, width, height].
+        label : str
+            The label of the text box.
+        update : Callable
+            The function to update the content of the text box.
+        submit : Callable
+            The function to be called when text is submitted.
+
+        """
         super().__init__(parent_view, axes, label)
         self.update = update
         self.box_ref.on_submit(submit)
 
     def remove(self) -> None:
+        """Remove the text box from the view."""
         return super().remove()
     
     def refresh(self) -> None:
+        """Refresh the content of the text box."""
         super().refresh()
         self.box_ref.set_val(self.update())
 
