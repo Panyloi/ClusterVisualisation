@@ -1,10 +1,9 @@
-from .view_manager import *
-
 import matplotlib.pyplot as plt
-from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent
-
+from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent, ResizeEvent
 from sklearn.cluster import AgglomerativeClustering
 import numpy as np
+
+from .view_manager import *
 
 
 class Home(View):
@@ -31,6 +30,7 @@ class LabelsView(View):
         super().__init__(view_manager)
         self.dragged_item: LabelArtist | None = None
         self.picked_item:  LabelArtist | None = None
+        self.pick_pos: tuple[float, float] | None = None
         self.events_stack = []
         
     def draw(self, *args, **kwargs) -> None:
@@ -38,7 +38,10 @@ class LabelsView(View):
         self.events_stack.clear()
 
         # get picked arrow if exists
+        event = kwargs.get('event', None)
         self.picked_item = kwargs.get('picked_item', None)
+        if event is not None:
+            self.pick_event(event)
 
         # buttons
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
@@ -47,7 +50,8 @@ class LabelsView(View):
         self.vem.add(NormalButton(self, [0.50, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
 
         # displays
-        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", self.label_name_update, self.label_name_submit))
+        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", 
+                                       self.label_name_update, self.label_name_submit))
 
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_release_event', self.release_event))
@@ -60,7 +64,8 @@ class LabelsView(View):
         super().undraw()
         
     def pick_event(self, event: PickEvent) -> None:
-        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {getattr(event.artist, 'id', None)}")
+        logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
+ID: {getattr(event.artist, 'id', None)}""")
         if isinstance(event.artist, LabelArtist):
             self.events_stack.append(event.artist.get_state())
             self.dragged_item = event.artist
@@ -75,11 +80,12 @@ class LabelsView(View):
             artists = get_artists_by_type(self.vm.ax, LabelArtist)
             for artist in artists:
                 if artist.contains(event.mouseevent)[0]:
-                    logging.info(f"{self.__class__} EVENT: {event} canceled due to overlapping Label: {artist}")
+                    logging.info(f"""{self.__class__} EVENT: {event} 
+canceled due to overlapping Label: {artist}""")
                     return
             
             # pass current artist as kwarg for new view to start initiated
-            return self.change_view(ViewsEnum.ARROWS, picked_item=event.artist)
+            self.change_view(ViewsEnum.ARROWS, picked_item=event.artist)
 
     def release_event(self, event: MouseEvent) -> None:
         if self.dragged_item is not None:
@@ -108,7 +114,8 @@ class LabelsView(View):
         atx, aty = self.state.get_arrow_att_point(self.picked_item.id, nid)
         rfx, rfy = self.state.get_arrow_ref_point(self.picked_item.id, nid)
         val = self.state.get_arrow_val(self.picked_item.id, nid)
-        self.picked_item.arrows[nid] = ArrowArtist.arrow(self.vm.ax, nid, x, y, rfx, rfy, atx-x, aty-y, self.picked_item, val)
+        self.picked_item.arrows[nid] = ArrowArtist.arrow(self.vm.ax, nid, x, y, rfx, rfy, 
+                                                         atx-x, aty-y, self.picked_item, val)
         
         plt.draw()
 
@@ -122,16 +129,16 @@ class LabelsView(View):
 
     def ctrlz(self) -> None:
         if self.events_stack:
-            id, *state = self.events_stack.pop()
-            l = LabelArtist.get_by_id(self.vm.ax, id)
+            sid, *state = self.events_stack.pop()
+            l = LabelArtist.get_by_id(self.vm.ax, sid)
             if l is not None:
                 l.set_state(state)
             plt.draw()
 
-    def key_press_event(self, event: KeyEvent):
+    def key_press_event(self, event: KeyEvent) -> None:
         logging.info(f"KEY PRESS: {event.key}")
         if event.key == "ctrl+z":
-            return self.ctrlz()
+            self.ctrlz()
         
     def label_name_update(self) -> str:
         if self.picked_item is None:
@@ -143,6 +150,9 @@ class LabelsView(View):
             return
         self.picked_item.set_text(nname)
         plt.draw()
+
+    def resize_label_update(self, event: ResizeEvent) -> None:
+        ...
 
 
 class ArrowsView(View):
@@ -164,10 +174,14 @@ class ArrowsView(View):
         self.vem.add(BlockingButton(self, [0.80, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
 
         # displays
-        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.10, 0.075], "...", self.arrow_shx_update, self.arrow_shx_submit))
-        self.vem.add(UpdateableTextBox(self, [0.40, 0.05, 0.10, 0.075], "...", self.arrow_shy_update, self.arrow_shy_submit))
-        self.vem.add(UpdateableTextBox(self, [0.60, 0.05, 0.10, 0.075], "...", self.arrow_rfx_update, self.arrow_rfx_submit))
-        self.vem.add(UpdateableTextBox(self, [0.70, 0.05, 0.10, 0.075], "...", self.arrow_rfy_update, self.arrow_rfy_submit))
+        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_shx_update, self.arrow_shx_submit))
+        self.vem.add(UpdateableTextBox(self, [0.40, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_shy_update, self.arrow_shy_submit))
+        self.vem.add(UpdateableTextBox(self, [0.60, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_rfx_update, self.arrow_rfx_submit))
+        self.vem.add(UpdateableTextBox(self, [0.70, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_rfy_update, self.arrow_rfy_submit))
 
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         # self.cem.add(self.vm.fig.canvas.mpl_connect('key_press_event', self.key_press_event))
@@ -234,16 +248,26 @@ class ArrowsView(View):
         except ValueError:
             pass
 
-    def pick_event(self, event, *args, **kwargs) -> None:
-        logging.info(f"{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}")
+    def pick_event(self, event: PickEvent) -> None:
+        logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
+ID: {event.artist.id}""")
         if isinstance(event.artist, ArrowArtist):
+
+            artists = get_artists_by_type(self.vm.ax, LabelArtist)
+            for artist in artists:
+                if artist.contains(event.mouseevent)[0]:
+                    logging.info(f"""{self.__class__} EVENT: {event} 
+canceled due to overlapping Label: {artist}""")
+                    return
+
             self.picked_item  = event.artist
             self.vem.refresh()
 
         if isinstance(event.artist, LabelArtist):
-            return self.change_view(ViewsEnum.LABELS, picked_item=event.artist)
+            self.change_view(ViewsEnum.LABELS, picked_item=event.artist, event=event)
+            return
 
-    def delete_arrow(self, *args, **kwargs) -> None:
+    def delete_arrow(self) -> None:
         if self.picked_item is None:
             return
         
@@ -251,12 +275,16 @@ class ArrowsView(View):
         self.picked_item = None
         self.vem.refresh()
 
-    def sh_point_picker(self, reconect_callback: Callable[..., None], *args, **kwargs) -> None:
-        self.cem.add(UniqueEvent('button_press_event', lambda event, *args, **kwargs : self.sh_point_pick_event(reconect_callback, event, *args, **kwargs)))
+    def sh_point_picker(self, reconect_callback: Callable[..., None]) -> None:
+        self.cem.add(UniqueEvent('button_press_event', 
+                                 lambda event, *args, **kwargs : self.sh_point_pick_event(
+                                     reconect_callback, event, *args, **kwargs)))
 
-    def sh_point_pick_event(self, reconect_callback: Callable[..., None], event: MouseEvent, *args, **kwargs) -> None:
+    def sh_point_pick_event(self, 
+                            reconect_callback: Callable[..., None], 
+                            event: MouseEvent) -> None:
         if event.inaxes is not self.vm.ax:
-            logging.info(f"Point pick event out of chart.")
+            logging.info("Point pick event out of chart.")
             return
 
         self.picked_item.set_sh_by_raw(event.xdata, event.ydata)
@@ -265,12 +293,16 @@ class ArrowsView(View):
         reconect_callback()
         self.vem.refresh()
 
-    def rf_point_picker(self, reconect_callback: Callable[..., None], *args, **kwargs) -> None:
-        self.cem.add(UniqueEvent('button_press_event', lambda event, *args, **kwargs : self.rf_point_pick_event(reconect_callback, event, *args, **kwargs)))
+    def rf_point_picker(self, reconect_callback: Callable[..., None]) -> None:
+        self.cem.add(UniqueEvent('button_press_event', lambda event, *args, **kwargs : \
+                                 self.rf_point_pick_event(reconect_callback, 
+                                                          event, *args, **kwargs)))
 
-    def rf_point_pick_event(self, reconect_callback: Callable[..., None], event: MouseEvent, *args, **kwargs) -> None:
+    def rf_point_pick_event(self, 
+                            reconect_callback: Callable[..., None], 
+                            event: MouseEvent) -> None:
         if event.inaxes is not self.vm.ax:
-            logging.info(f"Point pick event out of chart.")
+            logging.info("Point pick event out of chart.")
             return
 
         self.picked_item.set(rfx=event.xdata, rfy=event.ydata)
@@ -288,6 +320,9 @@ class ClusterView(View):
         self.type = None
         self.linkage = None
         self.scalar = None
+        self.widget_type = None
+        self.widget_linkage = None
+        self.widget_scalar = None
         self.clusters = {}
         self.cmap = plt.cm.get_cmap("hsv", len(self.state.get_raw()['data'].keys()))
         self.removed = {"x": [], "y": []}
@@ -301,27 +336,38 @@ class ClusterView(View):
                 color="blue", s=3
             )
 
-        self.widgetType    = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75], sorted(list(self.state.get_raw()['data'].keys())), self._update_args)
-        self.widgetLinkage = ViewRadioButtons(self, [0.4, 0.15, 0.1, 0.1], ["ward", "complete", "average", "single"], self._update_args)
-        self.widgetScalar  = ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self._update_args)
+        self.widget_type    = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75], 
+                                              sorted(list(self.state.get_raw()['data'].keys())), 
+                                              self._update_args)
+        self.widget_linkage = ViewRadioButtons(self, [0.4, 0.15, 0.1, 0.1], 
+                                              ["ward", "complete", "average", "single"], 
+                                              self._update_args)
+        self.widget_scalar  = ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, 
+                                        self._update_args)
 
-        self.type    = self.widgetType.ref.value_selected
-        self.linkage = self.widgetLinkage.ref.value_selected
-        self.scalar  = self.widgetScalar.ref.val
+        self.type    = self.widget_type.ref.value_selected
+        self.linkage = self.widget_linkage.ref.value_selected
+        self.scalar  = self.widget_scalar.ref.val
 
-        self.vem.add(self.widgetType)
-        self.vem.add(self.widgetLinkage)
-        self.vem.add(self.widgetScalar)
+        self.vem.add(self.widget_type)
+        self.vem.add(self.widget_linkage)
+        self.vem.add(self.widget_scalar)
 
         self.toggle()
         self.toggle()
 
-        self.vem.add(NormalButton(self, [0.1, 0.05, 0.17, 0.075], "Toggle options", self.toggle))
-        self.vem.add(NormalButton(self, [0.28, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
-        self.vem.add(NormalButton(self, [0.44, 0.05, 0.17, 0.075], "Remove points", self.remove_points))
-        self.vem.add(NormalButton(self, [0.62, 0.05, 0.09, 0.075], "Reset", self.reset))
-        self.vem.add(ChangeViewButton(self, [0.85, 0.05, 0.09, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.75, 0.05, 0.09, 0.075], "Save", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.1, 0.05, 0.17, 0.075], 
+                                  "Toggle options", self.toggle))
+        self.vem.add(NormalButton(self, [0.28, 0.05, 0.15, 0.075], 
+                                  "Save cluster", self.save_cluster))
+        self.vem.add(NormalButton(self, [0.44, 0.05, 0.17, 0.075], 
+                                  "Remove points", self.remove_points))
+        self.vem.add(NormalButton(self, [0.62, 0.05, 0.09, 0.075], 
+                                  "Reset", self.reset))
+        self.vem.add(ChangeViewButton(self, [0.85, 0.05, 0.09, 0.075], 
+                                      "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.75, 0.05, 0.09, 0.075], 
+                                      "Save", ViewsEnum.CLUSTER))
 
         self.draw_cluster()
 
@@ -330,27 +376,27 @@ class ClusterView(View):
         plt.subplots_adjust(bottom=0.2)
         plt.subplots_adjust(left=0.125)
 
-    def _update_args(self, *args, **kwargs):
-            self.type = self.widgetType.ref.value_selected
-            self.linkage = self.widgetLinkage.ref.value_selected
-            self.scalar = self.widgetScalar.ref.val
-            self.draw_cluster()
+    def _update_args(self):
+        self.type = self.widget_type.ref.value_selected
+        self.linkage = self.widget_linkage.ref.value_selected
+        self.scalar = self.widget_scalar.ref.val
+        self.draw_cluster()
 
-    def toggle(self, *args, **kwargs) -> None:
-        if self.widgetType.ax.get_visible():
-            self.widgetType.ref._buttons.set_visible(False)
-            self.widgetLinkage.ref._buttons.set_visible(False)
-            self.widgetType.ax.set_visible(False)
-            self.widgetLinkage.ax.set_visible(False)
-            self.widgetScalar.ax.set_visible(False)
+    def toggle(self) -> None:
+        if self.widget_type.ax.get_visible():
+            self.widget_type.ref._buttons.set_visible(False)
+            self.widget_linkage.ref._buttons.set_visible(False)
+            self.widget_type.ax.set_visible(False)
+            self.widget_linkage.ax.set_visible(False)
+            self.widget_scalar.ax.set_visible(False)
             plt.subplots_adjust(bottom=0.2)
             plt.subplots_adjust(left=0.125)
         else:
-            self.widgetType.ref._buttons.set_visible(True)
-            self.widgetLinkage.ref._buttons.set_visible(True)
-            self.widgetType.ax.set_visible(True)
-            self.widgetLinkage.ax.set_visible(True)
-            self.widgetScalar.ax.set_visible(True)
+            self.widget_type.ref._buttons.set_visible(True)
+            self.widget_linkage.ref._buttons.set_visible(True)
+            self.widget_type.ax.set_visible(True)
+            self.widget_linkage.ax.set_visible(True)
+            self.widget_scalar.ax.set_visible(True)
             plt.subplots_adjust(bottom=0.3)
             plt.subplots_adjust(left=0.4)
 
@@ -363,7 +409,9 @@ class ClusterView(View):
         if len(cluster["x"]) > 1:
             dist = AgglomerativeClustering(n_clusters=1, compute_distances=True).fit(sth).distances_
             mean = np.mean(dist)
-            clustering = AgglomerativeClustering(n_clusters=None, linkage=self.linkage, distance_threshold=mean * self.scalar).fit(sth)
+            clustering = AgglomerativeClustering(n_clusters=None, 
+                                                 linkage=self.linkage, 
+                                                 distance_threshold=mean * self.scalar).fit(sth)
             color = clustering.labels_
         else:
             color = 'k'
@@ -379,11 +427,14 @@ class ClusterView(View):
         self.vm.ax.scatter(cluster["x"], cluster["y"], c=color)
         plt.draw()
 
-    def save_cluster(self, *args, **kwargs):
-        self.clusters[self.type] = (self.linkage, self.scalar, self.cmap(list(self.state.get_raw()['data'].keys()).index(self.type)))
+    def save_cluster(self):
+        self.clusters[self.type] = (self.linkage, 
+                                    self.scalar, 
+                                    self.cmap(list(self.state.get_raw()['data'].keys())
+                                              .index(self.type)))
         print(self.clusters)
 
-    def show_clusters(self, *args, **kwargs):
+    def show_clusters(self):
         for key, value in self.clusters.items():
             self.vm.ax.scatter(
                 self.state.get_raw()['data'][key]['x'],
@@ -393,12 +444,12 @@ class ClusterView(View):
         for i in range(len(self.removed["x"])):
             self.vm.ax.annotate("x", (self.removed["x"][i]-3, self.removed["y"][i]-3))
 
-    def reset(self, *args, **kwargs):
+    def reset(self):
         self.clusters = {}
         self.removed = {"x": [], "y": []}
         self.draw_cluster()
 
-    def remove_points(self, *args, **kwargs):
+    def remove_points(self):
         if self.type in self.clusters.keys():
             cluster = self.state.get_raw()['data'][self.type]
             sth = np.column_stack([cluster["x"], cluster["y"]])
@@ -431,7 +482,10 @@ class Editor:
         Event.set_canvas(fig.canvas)
 
         vm = ViewManager(fig, ax)
-        vm.register_views([Home(vm), LabelsView(vm), ArrowsView(vm), ClusterView(vm)]) # must be the same as ViewsEnum
+        vm.register_views([Home(vm), 
+                           LabelsView(vm), 
+                           ArrowsView(vm), 
+                           ClusterView(vm)]) # must be the same as ViewsEnum
         vm.run()
 
         # dispalay

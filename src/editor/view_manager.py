@@ -1,11 +1,12 @@
-from matplotlib.figure import Figure
-from matplotlib.backend_bases import FigureCanvasBase
-from matplotlib.axes._axes import Axes
-from matplotlib.widgets import RadioButtons, Slider, Button, TextBox
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
 from typing import Callable
+
+from matplotlib.figure import Figure
+from matplotlib.backend_bases import FigureCanvasBase
+from matplotlib.axes._axes import Axes
+from matplotlib.widgets import RadioButtons, Slider, Button, TextBox
 
 from .artists import *
 
@@ -101,9 +102,8 @@ class CanvasEventManager:
                 if not shared_group:
                     event.reconnect()
                     return
-                else:
-                    # end of shared group
-                    break
+                # end of shared group
+                break
 
             # start or continue the shared group
             if isinstance(event, SharedEvent):
@@ -121,7 +121,7 @@ class CanvasEventManager:
     def disconnect_unique(self) -> None:
 
         if not self.events_stack:
-            return
+            return None
 
         # if not maching just call disconnect
         if not isinstance(self.events_stack[-1], UniqueEvent):
@@ -134,7 +134,7 @@ class CanvasEventManager:
     def disconnect_shared(self) -> None:
 
         if not self.events_stack:
-            return
+            return None
         
         if not isinstance(self.events_stack[-1], SharedEvent):
             return self.disconnect()
@@ -169,7 +169,8 @@ class Event(ABC):
         cls.canvas = canvas
 
     def reconnect(self) -> None:
-        self.canvas.mpl_disconnect(self.id) # source code says there is no error if self.id does not exist c:
+         # source code says there is no error if self.id does not exist c:
+        self.canvas.mpl_disconnect(self.id)
         self.id = self.canvas.mpl_connect(self.ev_type, self.ev_callback)
 
     def disconnect(self) -> None:
@@ -262,7 +263,8 @@ class ViewElement(ABC, StateLinker):
 
 class ViewButton(ViewElement):
     
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, callback: Callable) -> None:
         super().__init__()
         self.pv         = parent_view
         self.button_ax  = parent_view.vm.fig.add_axes(axes)
@@ -301,8 +303,10 @@ class ViewTextBox(ViewElement):
 
 class ChangeViewButton(ViewButton):
     
-    def __init__(self, parent_view: View, axes: list[float], label: str, new_view: ViewsEnum) -> None:
-        super().__init__(parent_view, axes, label, lambda ev: parent_view.change_view(new_view, ev))
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, new_view: ViewsEnum) -> None:
+        super().__init__(parent_view, axes, label, 
+                         lambda ev: parent_view.change_view(new_view, ev))
         
     def remove(self):
         return super().remove()
@@ -313,8 +317,10 @@ class ChangeViewButton(ViewButton):
 
 class NormalButton(ViewButton):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
-        super().__init__(parent_view, axes, label, lambda ev: callback())
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, callback: Callable) -> None:
+        super().__init__(parent_view, axes, label, 
+                         lambda ev: callback())
 
     def remove(self):
         return super().remove()
@@ -325,12 +331,13 @@ class NormalButton(ViewButton):
 
 class BlockingButton(ViewButton):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable[[Callable[..., None]], None]) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, 
+                 callback: Callable[[Callable[..., None]], None]) -> None:
 
-        def reconnect_callback(*args, **kwargs):
+        def reconnect_callback():
             self.button_cid = self.button_ref.on_clicked(blocking_callback)
 
-        def blocking_callback(*args, **kwargs):
+        def blocking_callback():
             self.button_ref.disconnect(self.button_cid)
             callback(reconnect_callback)
 
@@ -345,7 +352,8 @@ class BlockingButton(ViewButton):
 
 class UpdateableTextBox(ViewTextBox):
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, update: Callable, submit: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, update: Callable, submit: Callable) -> None:
         super().__init__(parent_view, axes, label)
         self.update = update
         self.box_ref.on_submit(submit)
@@ -360,7 +368,8 @@ class UpdateableTextBox(ViewTextBox):
 
 class ViewRadioButtons(ViewElement):
 
-    def __init__(self, parent_view: View, axes: list[float], labels: list[str], callback: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], 
+                 labels: list[str], callback: Callable) -> None:
         super().__init__()
         self.pv = parent_view
         self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)

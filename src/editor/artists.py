@@ -6,12 +6,13 @@ from .state import *
 
 class ArrowArtist(Line2D, StateLinker):
 
-    def __init__(self, ax: Axes, id: int, x: float, y: float, rfx: float, rfy: float, shx: float, shy: float, 
+    def __init__(self, ax: Axes, sid: int, x: float, y: float, 
+                 rfx: float, rfy: float, shx: float, shy: float, 
                  parent_label: 'LabelArtist', val: str, **kwargs) -> None:
         
         # custom init
         self.ax           = ax
-        self.id           = id
+        self.id           = sid
         self.val          = val
         self.parent_label = parent_label
         self.x            = x
@@ -21,7 +22,8 @@ class ArrowArtist(Line2D, StateLinker):
         self.shx          = shx
         self.shy          = shy
 
-        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, zorder=70, color='black', **kwargs)
+        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, 
+                         pickradius=5, zorder=70, color='black', **kwargs)
         
     def set(self, *, x: float | None = None, y: float | None = None, 
                  rfx: float | None = None, rfy: float | None = None,
@@ -50,8 +52,10 @@ class ArrowArtist(Line2D, StateLinker):
         return self.rfx, self.rfy
     
     def _update_state(self) -> None:
-        self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
-        self.state.set_arrow_att_pos(self.parent_label.id, self.id, self.x+self.shx, self.y+self.shy)
+        self.state.set_arrow_ref_pos(self.parent_label.id, self.id, 
+                                     self.rfx, self.rfy)
+        self.state.set_arrow_att_pos(self.parent_label.id, self.id, 
+                                     self.x+self.shx, self.y+self.shy)
         self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
         
     def remove(self) -> None:
@@ -72,21 +76,22 @@ class ArrowArtist(Line2D, StateLinker):
 
 class LabelArtist(Text, StateLinker):
 
-    def __init__(self, ax: Axes, id: int, x=0, y=0, text='', **kwargs) -> None:
+    def __init__(self, ax: Axes, sid: int, x=0, y=0, text='', **kwargs) -> None:
         
-        # label dict id
-        self.id = id
+        self.id = sid
         self.ax = ax
 
         # state readout
         x, y = self.state.get_label_pos(self.id)
         text = self.state.get_label_text(self.id)
+        size = self.state.get_label_size()
 
         super().__init__(x,
                          y, 
                          text,
                          picker=True,
                          zorder=100,
+                         size=size,
                          **kwargs)
         
         self.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black'))
@@ -97,7 +102,8 @@ class LabelArtist(Text, StateLinker):
             atx, aty = self.state.get_arrow_att_point(self.id, arrow_id)
             rfx, rfy = self.state.get_arrow_ref_point(self.id, arrow_id)
             val = self.state.get_arrow_val(self.id, arrow_id)
-            self.arrows[arrow_id] = ArrowArtist.arrow(ax, arrow_id, x, y, rfx, rfy, atx-x, aty-y, self, val)
+            self.arrows[arrow_id] = ArrowArtist.arrow(ax, arrow_id, x, y, rfx, rfy, 
+                                                      atx-x, aty-y, self, val)
 
     def set_position(self, xy) -> None:
         super().set_position(xy)
@@ -112,6 +118,15 @@ class LabelArtist(Text, StateLinker):
     def set_text(self, new_text):
         super().set_text(new_text)
         self.state.set_label_text(self.id, new_text)
+
+    def update_size(self, size):
+        self.set(size=size)
+
+    def update_all_labels_size(self, size):
+        for child in self.ax.get_children():
+            if isinstance(child, LabelArtist):
+                child._update_size(size)
+        self.state.set_label_size(size)
 
     def remove(self) -> None:
         super().remove()
@@ -134,12 +149,13 @@ class LabelArtist(Text, StateLinker):
         return t
     
     @staticmethod
-    def get_by_id(ax: Axes, id: int) -> 'None | LabelArtist':
+    def get_by_id(ax: Axes, sid: int) -> 'None | LabelArtist':
         children = ax.get_children()
         for child in children:
             if isinstance(child, LabelArtist):
-                if child.id == id:
+                if child.id == sid:
                     return child
+        return None
 
     def get_state(self) -> tuple:
         return self.id, self.get_position()
@@ -151,12 +167,13 @@ class LabelArtist(Text, StateLinker):
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
-        # draw points
-        for culture_name in self.data['data'].keys():
-            ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
+    # draw points
+    for culture_name in self.data['data'].keys():
+        ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
 
-        # draw labels
-        for label_id in self.data['labels_data'].keys():
+    # draw labels
+    for label_id in self.data['labels_data'].keys():
+        if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
 
 State.draw = draw

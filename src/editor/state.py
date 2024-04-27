@@ -1,11 +1,16 @@
-from matplotlib.axes._axes import Axes
 import logging
 from typing import Callable, Type, TypeVar, ParamSpec, Union
+
+from matplotlib.axes._axes import Axes
 
 T = TypeVar('T')
 P = ParamSpec('P')
 
 def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """
+    Wrapper for default value return on KeyError exception.
+    """
+
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
@@ -29,14 +34,16 @@ def subtract_with_default(value1: Union[T, None], value2: Union[T, None], defaul
     if value1 is not None and value2 is not None:
         if isinstance(value1, (int, float)) and isinstance(value2, (int, float)):
             return value1 - value2
-        else:
-            raise ValueError("Unsupported types for subtraction")
+        raise ValueError("Unsupported types for subtraction")
     else:
         return default
 
 
 class State:
-    """ Wrapper class for editor data and editor state. Made for providing getters, setters and options storage """
+    """ 
+    Wrapper class for editor data and editor state. 
+    Made for providing getters, setters and options storage 
+    """
 
     def __init__(self, data: dict) -> None:
         """ Data init
@@ -82,6 +89,10 @@ class State:
     def get_arrow_val(self, label_id: int, arrow_id: int) -> str:
         return self.data['labels_data'][label_id]['arrows'][arrow_id]['val']
     
+    @KeyErrorWrap(10)
+    def get_label_size(self) -> float:
+        return self.data['labels_data']['size']
+    
     # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
@@ -106,6 +117,10 @@ class State:
     @KeyErrorWrap(None)
     def set_arrow_val(self, label_id: int, arrow_id: int, val: str) -> None:
         self.data['labels_data'][label_id]['arrows'][arrow_id]['val'] = val
+
+    @KeyErrorWrap(None)
+    def set_label_size(self, size: float) -> None:
+        self.data['labels_data']['size'] = size
         
     # ------------------------------------ ADD ----------------------------------- #
     

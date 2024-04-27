@@ -1,11 +1,11 @@
-from .generator.data_processing import *
-from .editor.view_manager import *
-from .editor.views import *
-
 from typing import Optional, Union
 from mapel.core.objects.Experiment import Experiment
 import sys
 import logging
+
+from .generator.data_processing import *
+from .editor.view_manager import *
+from .editor.views import *
 
 
 def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
@@ -66,7 +66,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             ...
         }
 
-        labels_data:
+        'labels_data':
         {
             label_id: int:
             {
@@ -75,7 +75,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                 'y': float
                 'arrows':
                 {
-                    "arrow_id":
+                    arrow_id: int:
                     {
                         'ref_x': float
                         'ref_y': float
@@ -89,6 +89,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             },
             seccond_label_id: int:
             ...
+            'size': 5.0
         }
     }
 
@@ -100,6 +101,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
 
     # TODO: generate the map
     # add tmp labels
+    state_dict['labels_data']['size'] = 10.0
     state_dict['labels_data'][0] =  {'text': "tlabel", 
                                       'x': 60, 
                                       'y': 60,
