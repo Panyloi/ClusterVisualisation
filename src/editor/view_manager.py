@@ -566,7 +566,7 @@ class ShiftingTextBox(ViewTextBox):
     """A text box that can be updated dynamically."""
 
     def __init__(self, parent_view: View, axes: list[float], 
-                 label: str, update: Callable, submit: Callable, description='') -> None:
+                 update: Callable, submit: Callable, description: str = '', label: str = '') -> None:
         """init
         
         Parameters
@@ -584,8 +584,22 @@ class ShiftingTextBox(ViewTextBox):
 
         """
         super().__init__(parent_view, axes, label, description)
+
+        TextBox._keypress = self._custom_keypress
+        TextBox._click = self._custom_click
+        self.box_ref = TextBox(self.label_ax, description, initial=label)
+        TextBox._keypress = TextBox.__dict__["_keypress"]
+        TextBox._click = TextBox.__dict__["_click"]
+
         self.update = update
         self.box_ref.on_submit(submit)
+
+        # inject custom wrap to disp text
+        self.box_ref.text_disp.set_wrap(True)
+        gwt_type = type(self.box_ref.text_disp._get_wrapped_text)
+        self.box_ref.text_disp._get_wrapped_text = gwt_type(
+            lambda ref: self._custom_get_wrapped_text(ref, self.box_ref.ax), self.box_ref.text_disp
+        )
 
     def remove(self) -> None:
         """Remove the text box from the view."""
@@ -595,6 +609,67 @@ class ShiftingTextBox(ViewTextBox):
         """Refresh the content of the text box."""
         super().refresh()
         self.box_ref.set_val(self.update())
+
+    @staticmethod
+    def _custom_get_wrapped_text(self, ax):
+        # lib
+        if not self.get_wrap():
+            return self.get_text()
+
+        if self.get_usetex():
+            return self.get_text()
+
+        # custom
+        line = self.get_text()
+        line_width = ax.get_window_extent().width - 7 # TODO: make this responsive?
+        current_width = self._get_rendered_text_width(line)
+
+        while current_width > line_width:
+            line = line[1:]
+            current_width = self._get_rendered_text_width(line)
+
+        return line
+    
+    @staticmethod
+    def _custom_keypress(self, event):
+        if self.ignore(event):
+            return
+        if self.capturekeystrokes:
+            key = event.key
+            text = self.text
+            if len(key) == 1:
+                text = (text[:self.cursor_index] + key +
+                        text[self.cursor_index:])
+                self.cursor_index += 1
+            elif key == "end":
+                self.cursor_index = len(text)
+            elif key == "backspace":
+                if self.cursor_index != 0:
+                    text = (text[:self.cursor_index - 1] +
+                            text[self.cursor_index:])
+                    self.cursor_index -= 1
+            self.text_disp.set_text(text)
+            self._rendercursor()
+            if self.eventson:
+                self._observers.process('change', self.text)
+                if key in ["enter", "return"]:
+                    self._observers.process('submit', self.text)
+
+    @staticmethod
+    def _custom_click(self, event):
+        if self.ignore(event):
+            return
+        if event.inaxes != self.ax:
+            self.stop_typing()
+            return
+        if not self.eventson:
+            return
+        if event.canvas.mouse_grabber != self.ax:
+            event.canvas.grab_mouse(self.ax)
+        if not self.capturekeystrokes:
+            self.begin_typing()
+        self.cursor_index = len(self.text_disp.get_text())
+        self._rendercursor()
 
 
 class LimitedTextBox(ViewTextBox):
@@ -621,7 +696,13 @@ class LimitedTextBox(ViewTextBox):
         super().__init__(parent_view, axes, label, description)
         self.update = update
         self.box_ref.on_submit(submit)
-        self.box_ref.on_text_change(self.text_change)
+        
+        # inject custom wrap to disp text
+        self.box_ref.text_disp.set_wrap(True)
+        gwt_type = type(self.box_ref.text_disp._get_wrapped_text)
+        self.box_ref.text_disp._get_wrapped_text = gwt_type(
+            lambda ref: self._custom_get_wrapped_text(ref, self.box_ref.ax), self.box_ref.text_disp
+        )
 
     def remove(self) -> None:
         """Remove the text box from the view."""
@@ -631,16 +712,29 @@ class LimitedTextBox(ViewTextBox):
         """Refresh the content of the text box."""
         super().refresh()
         self.box_ref.set_val(self.update())
-        
-    def text_change(self, event = ...) -> None:
-        text_bbox = self.box_ref.text_disp.get_window_extent()
-        box_bbox = self.box_ref.ax.get_window_extent()
-        
-        text_width = text_bbox.width
-        box_width = box_bbox.width
-        if text_width > box_width-5:
-            print("changed")
-            self.box_ref.set_val(self.box_ref.text[:-1])
+
+    @staticmethod
+    def _custom_get_wrapped_text(self, ax):
+        # lib
+        if not self.get_wrap():
+            return self.get_text()
+
+        if self.get_usetex():
+            return self.get_text()
+
+        # custom
+        line = self.get_text()
+        line_width = ax.get_window_extent().width
+        current_width = self._get_rendered_text_width(line)
+
+        while current_width > line_width:
+            line = line[:-1]
+            current_width = self._get_rendered_text_width(line)
+
+        self.set_text(line)
+
+        return line
+
 
 class ViewRadioButtons(ViewElement):
 

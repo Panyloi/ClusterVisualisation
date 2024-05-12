@@ -95,7 +95,6 @@ class ArrowArtist(Line2D, StateLinker):
         
         """
         
-        # TODO: snap to label outline
         rbbx = self.parent_label.get_window_extent()
         bbx = self.ax.transData.inverted().transform(rbbx)
         x, y = rx, ry
