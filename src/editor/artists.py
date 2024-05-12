@@ -88,9 +88,27 @@ class ArrowArtist(Line2D, StateLinker):
         ----------
         rx, ry: float
             Coordinates of the chart point
+            
+        Notes
+        -----
+        This operation allso snaps the shift to the closes outline of the label.
         
         """
-        self.set(shx=rx-self.x, shy=ry-self.y)
+        
+        # TODO: snap to label outline
+        rbbx = self.parent_label.get_window_extent()
+        bbx = self.ax.transData.inverted().transform(rbbx)
+        x, y = rx, ry
+        if y < bbx[0][1]:
+            y = bbx[0][1]
+        if y > bbx[1][1]:
+            y = bbx[1][1]
+        if x < bbx[0][0]:
+            x = bbx[0][0]
+        if x > bbx[1][0]:
+            x = bbx[1][0]
+        
+        self.set(shx=x-self.x, shy=y-self.y)
         
     def get_shs(self) -> tuple[float, float]:
         """shift point values getter"""

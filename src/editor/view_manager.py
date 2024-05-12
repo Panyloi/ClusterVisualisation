@@ -430,7 +430,7 @@ class ViewTextBox(ViewElement):
     Class representing an abstract text box view element.
     """
 
-    def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, description="") -> None:
         """Initialize the ViewTextBox.
 
         Parameters
@@ -445,7 +445,7 @@ class ViewTextBox(ViewElement):
         super().__init__()
         self.pv       = parent_view
         self.label_ax = parent_view.vm.fig.add_axes(axes)
-        self.box_ref  = TextBox(self.label_ax, '', initial=label)
+        self.box_ref  = TextBox(self.label_ax, description, initial=label)
 
     @abstractmethod
     def remove(self):
@@ -544,10 +544,10 @@ class BlockingButton(ViewButton):
             The function to be called when the button is clicked, with an argument to reconnect the button.
         """
 
-        def reconnect_callback():
+        def reconnect_callback(event = ...):
             self.button_cid = self.button_ref.on_clicked(blocking_callback)
 
-        def blocking_callback():
+        def blocking_callback(event = ...):
             self.button_ref.disconnect(self.button_cid)
             callback(reconnect_callback)
 
@@ -562,11 +562,11 @@ class BlockingButton(ViewButton):
         return super().refresh()
     
 
-class UpdateableTextBox(ViewTextBox):
+class ShiftingTextBox(ViewTextBox):
     """A text box that can be updated dynamically."""
 
     def __init__(self, parent_view: View, axes: list[float], 
-                 label: str, update: Callable, submit: Callable) -> None:
+                 label: str, update: Callable, submit: Callable, description='') -> None:
         """init
         
         Parameters
@@ -583,7 +583,7 @@ class UpdateableTextBox(ViewTextBox):
             The function to be called when text is submitted.
 
         """
-        super().__init__(parent_view, axes, label)
+        super().__init__(parent_view, axes, label, description)
         self.update = update
         self.box_ref.on_submit(submit)
 
@@ -596,6 +596,51 @@ class UpdateableTextBox(ViewTextBox):
         super().refresh()
         self.box_ref.set_val(self.update())
 
+
+class LimitedTextBox(ViewTextBox):
+    """A text box that can be updated dynamically."""
+
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, update: Callable, submit: Callable, description='') -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the text box belongs.
+        axes : list[float]
+            The position of the text box in normalized coordinates [left, bottom, width, height].
+        label : str
+            The label of the text box.
+        update : Callable
+            The function to update the content of the text box.
+        submit : Callable
+            The function to be called when text is submitted.
+
+        """
+        super().__init__(parent_view, axes, label, description)
+        self.update = update
+        self.box_ref.on_submit(submit)
+        self.box_ref.on_text_change(self.text_change)
+
+    def remove(self) -> None:
+        """Remove the text box from the view."""
+        return super().remove()
+    
+    def refresh(self) -> None:
+        """Refresh the content of the text box."""
+        super().refresh()
+        self.box_ref.set_val(self.update())
+        
+    def text_change(self, event = ...) -> None:
+        text_bbox = self.box_ref.text_disp.get_window_extent()
+        box_bbox = self.box_ref.ax.get_window_extent()
+        
+        text_width = text_bbox.width
+        box_width = box_bbox.width
+        if text_width > box_width-5:
+            print("changed")
+            self.box_ref.set_val(self.box_ref.text[:-1])
 
 class ViewRadioButtons(ViewElement):
 

@@ -50,7 +50,7 @@ class LabelsView(View):
         self.vem.add(NormalButton(self, [0.50, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
 
         # displays
-        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", 
+        self.vem.add(ShiftingTextBox(self, [0.30, 0.05, 0.15, 0.075], "...", 
                                        self.label_name_update, self.label_name_submit))
 
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -174,13 +174,13 @@ class ArrowsView(View):
         self.vem.add(BlockingButton(self, [0.80, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
 
         # displays
-        self.vem.add(UpdateableTextBox(self, [0.30, 0.05, 0.10, 0.075], "...", 
-                                       self.arrow_shx_update, self.arrow_shx_submit))
-        self.vem.add(UpdateableTextBox(self, [0.40, 0.05, 0.10, 0.075], "...", 
+        self.vem.add(LimitedTextBox(self, [0.30, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_shx_update, self.arrow_shx_submit, "Att:"))
+        self.vem.add(LimitedTextBox(self, [0.40, 0.05, 0.10, 0.075], "...", 
                                        self.arrow_shy_update, self.arrow_shy_submit))
-        self.vem.add(UpdateableTextBox(self, [0.60, 0.05, 0.10, 0.075], "...", 
-                                       self.arrow_rfx_update, self.arrow_rfx_submit))
-        self.vem.add(UpdateableTextBox(self, [0.70, 0.05, 0.10, 0.075], "...", 
+        self.vem.add(LimitedTextBox(self, [0.60, 0.05, 0.10, 0.075], "...", 
+                                       self.arrow_rfx_update, self.arrow_rfx_submit, "Ref:"))
+        self.vem.add(LimitedTextBox(self, [0.70, 0.05, 0.10, 0.075], "...", 
                                        self.arrow_rfy_update, self.arrow_rfy_submit))
 
         self.cem.add(SharedEvent('pick_event', self.pick_event))
