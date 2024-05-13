@@ -126,7 +126,8 @@ class State:
     
     @KeyErrorWrap(-1)
     def add_empty_label(self) -> int:
-        nid = max(self.data['labels_data'].keys()) + 1
+        nid = max( filter(lambda x: True if isinstance(x, int) else False,
+                          self.data['labels_data'].keys())) + 1
         self.data['labels_data'][nid] = \
         {
             'text': "...",

@@ -225,22 +225,24 @@ class LabelArtist(Text, StateLinker):
         super().set_text(new_text)
         self.state.set_label_text(self.id, new_text)
 
-    def update_size(self, size):
+    def update_fontsize(self, size: float) -> None:
         """label size local update"""
-        self.set(size=size)
+        self.set(fontsize=size)
 
-    def update_all_labels_size(self, size):
+    @staticmethod
+    def update_all_labels_fontsize(ax: Axes, size: float) -> None:
         """update all labels"""
-        for child in self.ax.get_children():
+        for child in ax.get_children():
             if isinstance(child, LabelArtist):
-                child._update_size(size)
-        self.state.set_label_size(size)
+                child.update_fontsize(size)
+        LabelArtist.state.set_label_size(size)
 
     def remove(self) -> None:
         """removes label and all attached arrows"""
         super().remove()
         self.state.delete_label(self.id)
-        for arrow in self.arrows.values():
+        dict_cpy = list(self.arrows.values()).copy()
+        for arrow in dict_cpy:
             arrow.remove()
     
     @staticmethod

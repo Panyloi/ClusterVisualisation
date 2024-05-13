@@ -47,12 +47,17 @@ class LabelsView(View):
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "+", self.add_label))
         self.vem.add(NormalButton(self, [0.20, 0.05, 0.05, 0.075], "-", self.delete_label))
-        self.vem.add(NormalButton(self, [0.50, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
+        self.vem.add(NormalButton(self, [0.575, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
+        self.vem.add(NormalButton(self, [0.80, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
+        self.vem.add(NormalButton(self, [0.80, 0.05, 0.05, 0.0375], "v", self.font_size_down))
 
         # displays
-        self.vem.add(ShiftingTextBox(self, [0.30, 0.05, 0.15, 0.075], 
-                                       self.label_name_update, self.label_name_submit))
+        self.vem.add(ShiftingTextBox(self, [0.30, 0.05, 0.25, 0.075], 
+                                     self.label_name_update, self.label_name_submit))
+        self.vem.add(LimitedTextBox(self, [0.70, 0.05, 0.10, 0.075],
+                                    self.font_size_update, self.font_size_submit))
 
+        # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_release_event', self.release_event))
         self.cem.add(SharedEvent('key_press_event', self.key_press_event))
@@ -151,6 +156,39 @@ canceled due to overlapping Label: {artist}""")
         if nname != "":
             self.picked_item.set_text(nname)
             plt.draw()
+
+    def font_size_update(self) -> int:
+        return self.state.get_label_size()
+
+    def font_size_submit(self, size: str) -> None:
+        try:
+            fsize = float(size)
+            if not 0 < fsize <= 50:
+                return
+            LabelArtist.update_all_labels_fontsize(self.vm.ax, fsize)
+            plt.draw()
+        except ValueError:
+            return
+
+    def font_size_up(self) -> None:
+        size = self.state.get_label_size()
+        size += 1
+        if not 0 < size <= 50:
+            return
+        self.state.set_label_size(size)
+        LabelArtist.update_all_labels_fontsize(self.vm.ax, size)
+        self.vem.refresh()
+        plt.draw()
+
+    def font_size_down(self) -> None:
+        size = self.state.get_label_size()
+        size -= 1
+        if not 0 < size <= 50:
+            return
+        self.state.set_label_size(size)
+        LabelArtist.update_all_labels_fontsize(self.vm.ax, size)
+        self.vem.refresh()
+        plt.draw()
 
     def resize_label_update(self, event: ResizeEvent) -> None:
         ...

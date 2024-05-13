@@ -585,11 +585,13 @@ class ShiftingTextBox(ViewTextBox):
         """
         super().__init__(parent_view, axes, label, description)
 
+        old_kp = TextBox._keypress
+        old_c = TextBox._click
         TextBox._keypress = self._custom_keypress
         TextBox._click = self._custom_click
         self.box_ref = TextBox(self.label_ax, description, initial=label)
-        TextBox._keypress = TextBox.__dict__["_keypress"]
-        TextBox._click = TextBox.__dict__["_click"]
+        TextBox._keypress = old_kp
+        TextBox._click = old_c
 
         self.update = update
         self.box_ref.on_submit(submit)
@@ -676,7 +678,7 @@ class LimitedTextBox(ViewTextBox):
     """A text box that can be updated dynamically."""
 
     def __init__(self, parent_view: View, axes: list[float], 
-                 label: str, update: Callable, submit: Callable, description='') -> None:
+                 update: Callable, submit: Callable, description = '', label: str = '') -> None:
         """init
         
         Parameters
