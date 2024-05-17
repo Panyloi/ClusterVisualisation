@@ -61,6 +61,13 @@ class LabelsView(View):
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_release_event', self.release_event))
         self.cem.add(SharedEvent('key_press_event', self.key_press_event))
+        self.cem.add(SharedEvent('resize_event', self.resize_label_update))
+
+        # DEBUG
+        for label in LabelArtist.get_all_labels(self.vm.ax):
+            bb = label.get_window_extent()
+            print(self.state.get_label_text(label.id), bb.width, bb.height)
+        # DEBUG END
 
         self.vem.refresh()
         plt.draw()
@@ -191,6 +198,7 @@ canceled due to overlapping Label: {artist}""")
         plt.draw()
 
     def resize_label_update(self, event: ResizeEvent) -> None:
+        # print(self.vm.fig.get_window_extent())
         ...
 
 
@@ -528,4 +536,5 @@ class Editor:
         vm.run()
 
         # dispalay
-        plt.show()
+        # plt.ion()
+        plt.show(block=True)

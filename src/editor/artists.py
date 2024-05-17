@@ -296,6 +296,14 @@ class LabelArtist(Text, StateLinker):
                     return child
         return None
     
+    @staticmethod
+    def get_all_labels(ax: Axes):
+        """label getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, LabelArtist):
+                yield child
+    
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
@@ -308,5 +316,26 @@ def draw(self, ax: Axes) -> None:
     for label_id in self.data['labels_data'].keys():
         if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
+
+    ax.tick_params(
+        axis='x',
+        which='both',
+        bottom=False,
+        top=False,
+        labelbottom=False)
+    ax.tick_params(
+        axis='y',
+        which='both',
+        left=False,
+        right=False,
+        labelleft=False)
+    
+    ax.bbox._bbox.x0 = 0.01
+    ax.bbox._bbox.y0 = 0.15
+    ax.bbox._bbox.x1 = 0.99
+    ax.bbox._bbox.y1 = 0.99
+
+    ax.set_xlim((-150, 150))
+    ax.set_ylim((-150, 150))
 
 State.draw = draw

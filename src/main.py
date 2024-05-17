@@ -6,6 +6,7 @@ import logging
 from .generator.data_processing import *
 from .editor.view_manager import *
 from .editor.views import *
+from .generator.labels_generator import *
 
 
 def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
@@ -95,59 +96,63 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
 
     """
 
-    parsed_data     = parse_data(raw_data)
+    parsed_data = parse_data(raw_data)
     normalized_data = normalize(parsed_data)
-    state_dict      = editor_format(normalized_data)
+    all_points = get_all_points(normalized_data)
+    state_dict = editor_format(normalized_data)
 
-    # TODO: generate the map
-    # add tmp labels
-    state_dict['labels_data']['size'] = 10.0
-    state_dict['labels_data'][0] =  {'text': "tlabel", 
-                                      'x': 60, 
-                                      'y': 60,
-                                      'arrows': 
-                                      {
-                                        0:
-                                        {
-                                            'ref_x': 0,
-                                            'ref_y': 0,
-                                            'att_x': 55,
-                                            'att_y': 58,
-                                            'val': "0.2"
-                                        },
-                                        1:
-                                        {
-                                            'ref_x': -10,
-                                            'ref_y': 10,
-                                            'att_x': 55,
-                                            'att_y': 58,
-                                            'val': "0.3"
-                                        }
-                                      }
-                                    }
-    state_dict['labels_data'][1] =  {'text': "another", 
-                                      'x': -70, 
-                                      'y': -70,
-                                      'arrows': 
-                                      {
-                                        0:
-                                        {
-                                            'ref_x': 30,
-                                            'ref_y': -30,
-                                            'att_x': -65,
-                                            'att_y': -68,
-                                            'val': "a"
-                                        },
-                                        1:
-                                        {
-                                            'ref_x': -4,
-                                            'ref_y': -10,
-                                            'att_x': -65,
-                                            'att_y': -68,
-                                            'val': "b"
-                                        }
-                                      }
-                                    }
+    # labels generation
+    labels = calc(normalized_data, all_points, 10, 2)
+    state_dict = parse_solution_to_editor(labels, state_dict)
+
+    # tmp labels
+    # state_dict['labels_data']['size'] = 10.0
+    # state_dict['labels_data'][0] =  {'text': "tlabel", 
+    #                                   'x': 60, 
+    #                                   'y': 60,
+    #                                   'arrows': 
+    #                                   {
+    #                                     0:
+    #                                     {
+    #                                         'ref_x': 0,
+    #                                         'ref_y': 0,
+    #                                         'att_x': 55,
+    #                                         'att_y': 58,
+    #                                         'val': "0.2"
+    #                                     },
+    #                                     1:
+    #                                     {
+    #                                         'ref_x': -10,
+    #                                         'ref_y': 10,
+    #                                         'att_x': 55,
+    #                                         'att_y': 58,
+    #                                         'val': "0.3"
+    #                                     }
+    #                                   }
+    #                                 }
+    # state_dict['labels_data'][1] =  {'text': "another", 
+    #                                   'x': -70, 
+    #                                   'y': -70,
+    #                                   'arrows': 
+    #                                   {
+    #                                     0:
+    #                                     {
+    #                                         'ref_x': 30,
+    #                                         'ref_y': -30,
+    #                                         'att_x': -65,
+    #                                         'att_y': -68,
+    #                                         'val': "a"
+    #                                     },
+    #                                     1:
+    #                                     {
+    #                                         'ref_x': -4,
+    #                                         'ref_y': -10,
+    #                                         'att_x': -65,
+    #                                         'att_y': -68,
+    #                                         'val': "b"
+    #                                     }
+    #                                   }
+    #                                 }
 
     return State(state_dict)
 
