@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 from scipy.spatial import KDTree, ConvexHull
 from matplotlib.backends.backend_agg import RendererAgg
 from matplotlib.transforms import TransformedBbox, Affine2D, BboxTransform
+from matplotlib.text import Text
 
 CPoint = Tuple[float]
 Point  = List[float]
@@ -75,6 +76,9 @@ class Label:
     
     def get_mpoint(self):
         return self.x, (self.y - self.height/2) + self.width/2
+    
+    def get_position(self):
+        return self.x, self.y
     
     def get_root_point(self) -> CPoint:
         return (self.rp_x, self.rp_y)
@@ -275,7 +279,7 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
-def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_size: float = 10, RADIUS: float = 2):
+def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_size: float = 10, RADIUS: float = 2, optim_kwargs: dict = None):
 
     # Generate main set convex
     hull = ConvexHull(points)
@@ -283,58 +287,6 @@ def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_si
     mset     = MainSet(points[hull.vertices])
     ll       = []
 
-    transform = CompositeGenericTransform(
-        TransformWrapper(
-            BlendedAffine2D(
-                IdentityTransform(),
-                IdentityTransform())),
-        CompositeGenericTransform(
-            BboxTransformFrom(
-                TransformedBbox(
-                    Bbox([[-150.0, -150.0], [150.0, 150.0]]),
-                    TransformWrapper(
-                        BlendedAffine2D(
-                            IdentityTransform(),
-                            IdentityTransform())))),
-            BboxTransformTo(
-                TransformedBbox(
-                    Bbox([[0.01, 0.15], [0.99, 0.99]]),
-                    BboxTransformTo(
-                        TransformedBbox(
-                            Bbox([[0.0, 0.0], [w, h]]),
-                            Affine2D().scale(100.0)))))))
-
-    renderer = RendererAgg(w, h, 100)
-    prop = matplotlib.font_manager.FontProperties(matplotlib.rcParams['font.family'])
-    prop.set_size(font_size)
-    # _, text_h, _ = renderer.get_text_width_height_descent("QWERTYUIOPASDFGHJKLZXCVBNMqwerttyuiopasdfghjklzxcvbnm", prop, False)
-
-    for label_name in data.keys():
-        ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
-
-        text_w, text_h, text_d = renderer.get_text_width_height_descent(label_name, prop, False)
-        text_bbox = Bbox([[0, 0], [text_w, text_h]])
-        transformed_text_bbox = Bbox(transform.inverted().transform(text_bbox))
-
-        ll.append(Label(label_name, 0, 0, transformed_text_bbox.width, transformed_text_bbox.height, ref_point))
-        print(label_name, transformed_text_bbox.width, transformed_text_bbox.height)
-
-    labels_bounds = [(-150, 150), (-150, 150)]*len(ll)
-    labels_bounds.extend([(0, 4)]*len(ll))
-
-    # calculate
-    x0 = greedy((0, 0), ll, mset)
-    Label.ll_set_x0(ll, x0)
-    # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=100, initial_temp=3000, visit=1.65)
-    res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=2, visit=2.2)
-
-    # prep result
-    labels = {}
-    Label.ll_set(ll, res.x)
-    for label in ll:
-        labels[label.text] = label.get_result()
-
-    # DEBUG - draw tmp map
     fig, ax = plt.subplots()
     fig.add_axes(ax)
     fig.subplots_adjust(bottom=0.2)
@@ -360,24 +312,38 @@ def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_si
     ax.set_xlim((-150, 150))
     ax.set_ylim((-150, 150))
 
-    ax.scatter(points[:,0], points[:,1])
-    for l in ll:
-        l: Label
-        pts = l.points.copy()
-        pts.append(pts[0])
-        x, y = zip(*pts)
-        plt.plot(x, y, color='black')
-        plt.plot([l.get_tpoint()[0], l.get_root_point()[0]], [l.get_tpoint()[1], l.get_root_point()[1]], color='black')
-        tx = plt.text(l.get_mpoint()[0], l.get_mpoint()[1], l.text, size=font_size,
-            ha="center", va="center",
-            bbox=dict(boxstyle="round", ec=(0, 0, 0), fc=(1, 1, 1), alpha=0.3)
-            )
-        transformed_text_bbox = Bbox(transform.inverted().transform(tx.get_window_extent()))
-        print(l.text, transformed_text_bbox.width, transformed_text_bbox.height)
+    for label_name in data.keys():
+        ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
 
-    plt.show()
+        tx: Text = ax.text(0, 0, label_name, size=font_size, transform=ax.transData)
+        tx.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.3))
+        text_bbox = tx.get_window_extent()
+        transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
-    # DEBUG END
+        ll.append(Label(label_name, 0, 0, transformed_text_bbox.width, transformed_text_bbox.height, ref_point))
+
+    labels_bounds = [(-150, 150), (-150, 150)]*len(ll)
+    labels_bounds.extend([(0, 4)]*len(ll))
+
+    plt.clf()
+    plt.close(fig)
+
+    # calculate
+    x0 = greedy((0, 0), ll, mset)
+    Label.ll_set_x0(ll, x0)
+
+    if optim_kwargs is None:
+        # deafult configuration for fats editor lunching
+        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=15, visit=2.2)
+    else:
+        # custom configuration
+        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, **optim_kwargs)
+
+    # prep result
+    labels = {}
+    Label.ll_set(ll, res.x)
+    for label in ll:
+        labels[label.text] = label.get_result()
 
     return labels
 

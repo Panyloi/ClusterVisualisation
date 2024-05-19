@@ -93,6 +93,10 @@ class State:
     def get_label_size(self) -> float:
         return self.data['labels_data']['size']
     
+    @KeyErrorWrap(1)
+    def get_arrow_size(self) -> float:
+        return self.data['labels_data']['arrow_size']
+    
     # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
@@ -121,6 +125,10 @@ class State:
     @KeyErrorWrap(None)
     def set_label_size(self, size: float) -> None:
         self.data['labels_data']['size'] = size
+
+    @KeyErrorWrap(None)
+    def set_arrow_size(self, size: float) -> None:
+        self.data['labels_data']['arrow_size'] = size
         
     # ------------------------------------ ADD ----------------------------------- #
     

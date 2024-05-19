@@ -45,9 +45,10 @@ class ArrowArtist(Line2D, StateLinker):
         self.rfy          = rfy
         self.shx          = shx
         self.shy          = shy
+        s = self.state.get_arrow_size()
 
         super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, 
-                         pickradius=5, zorder=70, color='black', **kwargs)
+                         pickradius=5, zorder=70, color='black', linewidth=s, **kwargs)
         
     def set(self, *, x: float | None = None, y: float | None = None, 
                  rfx: float | None = None, rfy: float | None = None,
@@ -124,6 +125,10 @@ class ArrowArtist(Line2D, StateLinker):
         self.state.set_arrow_att_pos(self.parent_label.id, self.id, 
                                      self.x+self.shx, self.y+self.shy)
         self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
+
+    def _update_size(self, size: float) -> None:
+        """update arrow size"""
+        self.set_linewidth(size)
         
     def remove(self) -> None:
         """remove arrow from chart and parent label dict"""
@@ -158,6 +163,32 @@ class ArrowArtist(Line2D, StateLinker):
         la = ArrowArtist(ax, *args, **kwargs)
         ax.add_line(la)
         return la
+    
+    @staticmethod
+    def update_all_arrows_size(ax: Axes, size: float) -> None:
+        """update all arrows"""
+        for child in ax.get_children():
+            if isinstance(child, ArrowArtist):
+                child._update_size(size)
+        ArrowArtist.state.set_arrow_size(size)
+    
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | ArrowArtist':
+        """arrow getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, ArrowArtist):
+                if child.id == sid:
+                    return child
+        return None
+    
+    @staticmethod
+    def get_all_arrows(ax: Axes):
+        """arrow getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, ArrowArtist):
+                yield child
 
 
 class LabelArtist(Text, StateLinker):

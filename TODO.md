@@ -3,10 +3,11 @@
 ### Todo
  - [ ] Create Clusters View
  - [ ] Create Convexes View
- - [ ] Update Home View
+ - [ ] No Editor Chart Generation
 
 ### In progress
- - [ ] Create Labels View
+ - [ ] Editor Chart saving
 
 ### Done
  - [x] Package skeleton and CI
+ - [x] Create Labels View

@@ -90,7 +90,8 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             },
             seccond_label_id: int:
             ...
-            'size': 5.0
+            'size': 10.0
+            'arrow_size': 1.0
         }
     }
 
@@ -104,55 +105,8 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     # labels generation
     labels = calc(normalized_data, all_points, 10, 2)
     state_dict = parse_solution_to_editor(labels, state_dict)
-
-    # tmp labels
-    # state_dict['labels_data']['size'] = 10.0
-    # state_dict['labels_data'][0] =  {'text': "tlabel", 
-    #                                   'x': 60, 
-    #                                   'y': 60,
-    #                                   'arrows': 
-    #                                   {
-    #                                     0:
-    #                                     {
-    #                                         'ref_x': 0,
-    #                                         'ref_y': 0,
-    #                                         'att_x': 55,
-    #                                         'att_y': 58,
-    #                                         'val': "0.2"
-    #                                     },
-    #                                     1:
-    #                                     {
-    #                                         'ref_x': -10,
-    #                                         'ref_y': 10,
-    #                                         'att_x': 55,
-    #                                         'att_y': 58,
-    #                                         'val': "0.3"
-    #                                     }
-    #                                   }
-    #                                 }
-    # state_dict['labels_data'][1] =  {'text': "another", 
-    #                                   'x': -70, 
-    #                                   'y': -70,
-    #                                   'arrows': 
-    #                                   {
-    #                                     0:
-    #                                     {
-    #                                         'ref_x': 30,
-    #                                         'ref_y': -30,
-    #                                         'att_x': -65,
-    #                                         'att_y': -68,
-    #                                         'val': "a"
-    #                                     },
-    #                                     1:
-    #                                     {
-    #                                         'ref_x': -4,
-    #                                         'ref_y': -10,
-    #                                         'att_x': -65,
-    #                                         'att_y': -68,
-    #                                         'val': "b"
-    #                                     }
-    #                                   }
-    #                                 }
+    state_dict["labels_data"]['size'] = 10.0
+    state_dict["labels_data"]['arrow_size'] = 1.0
 
     return State(state_dict)
 

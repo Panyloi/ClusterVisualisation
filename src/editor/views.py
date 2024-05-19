@@ -44,30 +44,28 @@ class LabelsView(View):
             self.pick_event(event)
 
         # buttons
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "+", self.add_label))
-        self.vem.add(NormalButton(self, [0.20, 0.05, 0.05, 0.075], "-", self.delete_label))
-        self.vem.add(NormalButton(self, [0.575, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
-        self.vem.add(NormalButton(self, [0.80, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
-        self.vem.add(NormalButton(self, [0.80, 0.05, 0.05, 0.0375], "v", self.font_size_down))
+        self.vem.add(ChangeViewButton(self, [0.025, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(NormalButton(self, [0.125, 0.05, 0.05, 0.075], "+", self.add_label))
+        self.vem.add(NormalButton(self, [0.175, 0.05, 0.05, 0.075], "-", self.delete_label))
+        self.vem.add(NormalButton(self, [0.55, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
+        self.vem.add(NormalButton(self, [0.775, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
+        self.vem.add(NormalButton(self, [0.775, 0.05, 0.05, 0.0375], "v", self.font_size_down))
+        self.vem.add(NormalButton(self, [0.925, 0.0875, 0.05, 0.0375], "^", self.arrow_size_up))
+        self.vem.add(NormalButton(self, [0.925, 0.05, 0.05, 0.0375], "v", self.arrow_size_down))
 
         # displays
-        self.vem.add(ShiftingTextBox(self, [0.30, 0.05, 0.25, 0.075], 
+        self.vem.add(ShiftingTextBox(self, [0.275, 0.05, 0.25, 0.075], 
                                      self.label_name_update, self.label_name_submit))
-        self.vem.add(LimitedTextBox(self, [0.70, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.675, 0.05, 0.10, 0.075],
                                     self.font_size_update, self.font_size_submit))
+        self.vem.add(LimitedTextBox(self, [0.825, 0.05, 0.10, 0.075],
+                                    self.arrow_size_update, self.arrow_size_submit))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_release_event', self.release_event))
         self.cem.add(SharedEvent('key_press_event', self.key_press_event))
         self.cem.add(SharedEvent('resize_event', self.resize_label_update))
-
-        # DEBUG
-        for label in LabelArtist.get_all_labels(self.vm.ax):
-            bb = label.get_window_extent()
-            print(self.state.get_label_text(label.id), bb.width, bb.height)
-        # DEBUG END
 
         self.vem.refresh()
         plt.draw()
@@ -198,6 +196,43 @@ canceled due to overlapping Label: {artist}""")
         plt.draw()
 
     def resize_label_update(self, event: ResizeEvent) -> None:
+        # print(self.vm.fig.get_window_extent())
+        ...
+
+    def arrow_size_update(self) -> int:
+        return self.state.get_arrow_size()
+
+    def arrow_size_submit(self, size: str) -> None:
+        try:
+            fsize = float(size)
+            if not 0 < fsize <= 10:
+                return
+            ArrowArtist.update_all_arrows_size(self.vm.ax, fsize)
+            plt.draw()
+        except ValueError:
+            return
+
+    def arrow_size_up(self) -> None:
+        size = self.state.get_arrow_size()
+        size += 0.1
+        if not 0 < size <= 10:
+            return
+        self.state.set_arrow_size(size)
+        ArrowArtist.update_all_arrows_size(self.vm.ax, size)
+        self.vem.refresh()
+        plt.draw()
+
+    def arrow_size_down(self) -> None:
+        size = self.state.get_arrow_size()
+        size -= 0.1
+        if not 0 < size <= 10:
+            return
+        self.state.set_arrow_size(size)
+        ArrowArtist.update_all_arrows_size(self.vm.ax, size)
+        self.vem.refresh()
+        plt.draw()
+
+    def resize_arrow_update(self, event: ResizeEvent) -> None:
         # print(self.vm.fig.get_window_extent())
         ...
 
