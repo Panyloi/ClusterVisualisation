@@ -183,8 +183,8 @@ class State:
 class StateLinker:
     """ State class linker
     
-    Every class that has access to the global editor state should derive
-    from this class. After that class variable with state is accessible.
+    Every class that needs access to the global editor state should derive
+    from this class. Basically works as a shared global static variable.
 
     """
 

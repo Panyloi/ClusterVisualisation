@@ -6,7 +6,7 @@ for changing between views and a constructor.
 Additionally, there are a few important attributes:
  + `self.vm` - View Manager. Provides transitions between views (only internal class, not to be messed around).
  + `self.vem` - View Element Manager. Provides functionality for managing objects that derive from the base class `ViewElement`.
- + `self.cem` - Canvas Event Manager. Provides functionality for managing events. There is no custom base class for events.
+ + `self.cem` - Canvas Event Manager. Provides functionality for managing events.
  + `self.state` - State. Since View derives from StateLinker it has access to the global editor state
 
 Empty View looks like this:
@@ -31,7 +31,7 @@ Then, according to the order of the views in the enum, the class object has to b
 ## 3. Populate the class
 For example, lets say we want to add a button and an event. 
 
-Adding the button looks like this.
+Adding the button looks like this:
 ```python
 def draw(self, *args, **kwargs) -> None:
     super().draw()
@@ -40,7 +40,8 @@ def draw(self, *args, **kwargs) -> None:
 
     plt.draw()
 ```
-The button needs to derive directly or not from ViewElement base class. 
+The button must derive, directly or not, from the ViewElement base class. 
+
 Adding the event looks the same, however Canvas Event Manager (cem) is used instead of the View Element Manager (vem).
 ```python
 def draw(self, *args, **kwargs) -> None:
