@@ -8,7 +8,7 @@ P = ParamSpec('P')
 
 def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
-    Wrapper for default value return on KeyError exception.
+    Wrapper for the default value of return on KeyError exception.
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
@@ -41,8 +41,8 @@ def subtract_with_default(value1: Union[T, None], value2: Union[T, None], defaul
 
 class State:
     """ 
-    Wrapper class for editor data and editor state. 
-    Made for providing getters, setters and options storage 
+    Wrapper class for the editor data and state.
+    Provides getters, setters and storage for options.
     """
 
     def __init__(self, data: dict) -> None:
@@ -183,8 +183,8 @@ class State:
 class StateLinker:
     """ State class linker
     
-    Every class that should have access to global editor state should deriviate
-    from this class. After that class variable with state is accessible.
+    Every class that needs access to the global editor state should derive
+    from this class. Basically works as a shared global static variable.
 
     """
 
