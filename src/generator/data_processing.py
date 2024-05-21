@@ -1,7 +1,9 @@
+from typing import Union
+
 import pandas as pd
 import numpy as np
 from mapel.core.objects.Experiment import Experiment
-from typing import Union
+
 
 def parse_data(data: Union[str, Experiment], delim=';') -> dict:
     """ Parse the input data into universal dataframe
@@ -24,12 +26,10 @@ def parse_data(data: Union[str, Experiment], delim=';') -> dict:
     
     """
 
-    if type(data) is str:
+    if isinstance(data, str):
         return _parse_csv(data, delim=delim)
-    elif type(data) is Experiment:
-        return _parse_experiment(data)
     else:
-        raise(TypeError)
+        return _parse_experiment(data)
 
 
 def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
@@ -70,8 +70,8 @@ def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
 
     # scaling - all values are prescaled base on the upper-left and lower-right points soo that they
     # fit a square of bounds (lb, up). The proportions should be kept
-    dx       = (dr_point[0] - ul_point[0])
-    dy       = (ul_point[1] - dr_point[1])
+    dx       = dr_point[0] - ul_point[0]
+    dy       = ul_point[1] - dr_point[1]
     d        = max(dx, dy)
     x_shift  = None # shift are counted from left/down
     y_shift  = None #
@@ -179,4 +179,4 @@ def _parse_experiment(exp: Experiment) -> dict:
         
     """
 
-    raise(NotImplementedError)
+    raise NotImplementedError

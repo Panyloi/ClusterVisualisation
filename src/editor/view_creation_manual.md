@@ -41,11 +41,11 @@ def draw(self, *args, **kwargs) -> None:
     super().draw()
     
     self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-    self.cem.add(self.vm.fig.canvas.mpl_connect('pick_event', lambda ev: print("c:")))
+    self.cem.add(SharedEvent('pick_event', lambda ev: print("c:")))
 
     plt.draw()
 ```
-Both events and view elements will be automaticly disconnected and eraseed from the canvase when the view changes by the vem and cem managers.
+Both events and view elements will be automaticly disconnected and eraseed from the canvase when the view changes by the vem and cem managers. Additionaly events have more disconnect options (disconnect_unique, disconnect_shared, disconnect) for better manipulation of events exclusion.
 
 ## 4. Refreshing
 vem class implements additional refresh method. This will call refresh on all the connected view element objects. If an object is created in such way that it can refresh simple calling `self.vem.refresh()` will do the job.

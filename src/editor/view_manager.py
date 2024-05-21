@@ -1,348 +1,320 @@
-from matplotlib._enums import CapStyle, JoinStyle
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, TextBox
-from matplotlib.figure import Figure
-from matplotlib.backend_bases import FigureCanvasBase, PickEvent, MouseEvent
-from matplotlib.axes._axes import Axes
-from matplotlib.text import Text
-from matplotlib.patches import FancyArrow
-from matplotlib.lines import Line2D
 from enum import Enum
 from abc import ABC, abstractmethod
 import logging
-from typing import Literal, Callable, Type, TypeVar, ParamSpec
+from typing import Callable
 
-T = TypeVar('T')
-P = ParamSpec('P')
+from matplotlib.figure import Figure
+from matplotlib.backend_bases import FigureCanvasBase
+from matplotlib.axes._axes import Axes
+from matplotlib.widgets import RadioButtons, Slider, Button, TextBox
 
-def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            try:
-                result = func(*args, **kwargs)
-                return result
-            except KeyError as e:
-                logging.error(f"{e}")
-                return default
-        return wrapper
-    return decorator
-
-# ----------------------------------- STATE ---------------------------------- #
-
-class State:
-    """ Wrapper class for editor data and editor state. Made for providing getters, setters and options storage """
-
-    def __init__(self, data: dict) -> None:
-        """ Data init
-        
-        Parameters
-        ----------
-        data: dict
-            Data in proper editor format
-        
-        """
-        
-        self.data = data
-
-    def draw(self, ax: Axes) -> None:
-        # draw points
-        for culture_name in self.data['data'].keys():
-            ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
-
-        # draw labels
-        for label_id in self.data['labels_data'].keys():
-            LabelArtist.text(ax, label_id)
-
-    # ---------------------------------- GETTERS --------------------------------- #
-
-    @KeyErrorWrap("")
-    def get_label_text(self, label_id: int) -> str:
-        return self.data['labels_data'][label_id]['text']
-    
-    @KeyErrorWrap((0, 0))
-    def get_label_pos(self, label_id: int) -> tuple[float, float]:
-        return self.data['labels_data'][label_id]['x'], self.data['labels_data'][label_id]['y']
-    
-    @KeyErrorWrap({})
-    def get_label_arrows(self, label_id: int) -> dict:
-        return self.data['labels_data'][label_id]['arrows']
-    
-    @KeyErrorWrap({})
-    def get_label_arrow(self, label_id: int, arrow_id: int) -> dict:
-        return self.data['labels_data'][label_id]['arrows'][arrow_id]
-    
-    @KeyErrorWrap((0, 0))
-    def get_arrow_ref_point(self, label_id: int, arrow_id: int) -> tuple[float, float]:
-        return self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_x'],\
-               self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_y']
-
-    @KeyErrorWrap((0, 0))
-    def get_arrow_att_point(self, label_id: int, arrow_id: int) -> tuple[float, float]:
-        return self.data['labels_data'][label_id]['arrows'][arrow_id]['att_x'],\
-               self.data['labels_data'][label_id]['arrows'][arrow_id]['att_y']
-    
-    @KeyErrorWrap("")
-    def get_arrow_val(self, label_id: int, arrow_id: int) -> str:
-        return self.data['labels_data'][label_id]['arrows'][arrow_id]['val']
-    
-    # ---------------------------------- SETTERS --------------------------------- #
-
-    @KeyErrorWrap(None)
-    def set_label_text(self, label_id: int, text: str) -> None:
-        self.data['labels_data'][label_id]['text'] = text
-        
-    @KeyErrorWrap(None)
-    def set_label_pos(self, label_id: int, x: float, y: float) -> None:
-        self.data['labels_data'][label_id]['x'] = x
-        self.data['labels_data'][label_id]['y'] = y
-
-    @KeyErrorWrap(None)
-    def set_arrow_att_pos(self, label_id: int, arrow_id: int, att_x: float, att_y: float) -> None:
-        self.data['labels_data'][label_id]['arrows'][arrow_id]['att_x'] = att_x
-        self.data['labels_data'][label_id]['arrows'][arrow_id]['att_y'] = att_y
-
-    @KeyErrorWrap(None)
-    def set_arrow_ref_pos(self, label_id: int, arrow_id: int, ref_x: float, ref_y: float) -> None:
-        self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_x'] = ref_x
-        self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_y'] = ref_y
-
-    @KeyErrorWrap(None)
-    def set_arrow_val(self, label_id: int, arrow_id: int, val: str) -> None:
-        self.data['labels_data'][label_id]['arrows'][arrow_id]['val'] = val
-
-    # ----------------------------------- MISC ----------------------------------- #
-
-    def get_raw(self) -> dict:
-        return self.data
-    
-    def set_raw(self, data) -> None:
-        self.data = data
-
-
-class StateLinker:
-    """ State class linker
-    
-    Every class that should have access to global editor state should deriviate
-    from this class. After that class variable with state is accessible.
-
-    """
-
-    state: State
-
-    @classmethod
-    def link_state(cls, lstate):
-        cls.state = lstate
-
-
-# ---------------------------- ARTIST DERIVIATIONS --------------------------- #
-
-class ArrowArtist(Line2D, StateLinker):
-
-    def __init__(self, id: int, x: float, y: float, rfx: float, rfy: float, shx: float, shy: float, 
-                 parent_label: 'LabelArtist', val: str, **kwargs) -> None:
-        
-        # custom init
-        self.id = id
-        self.val = val
-        self.parent_label = parent_label
-        self.x = x
-        self.y = y
-        self.rfx = rfx
-        self.rfy = rfy
-        self.shx = shx
-        self.shy = shy
-
-        super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, pickradius=5, **kwargs)
-        
-    def set(self, *, x: float | None = None, y: float | None = None, 
-                 rfx: float | None = None, rfy: float | None = None,
-                 shx: float | None = None, shy: float | None = None,
-                 val: str | None = None):
-
-        self.x = x if x is not None else self.x
-        self.y = y if y is not None else self.y
-        self.rfx = rfx if rfx is not None else self.rfx
-        self.rfy = rfy if rfy is not None else self.rfy
-        self.shx = shx if shx is not None else self.shx
-        self.shy = shy if shy is not None else self.shy
-        self.val = val if val is not None else self.val
-
-        self._update_state()
-
-        return super().set(xdata=[self.x + self.shx, self.rfx], ydata=[self.y + self.shy, self.rfy])
-        
-    def get_shs(self) -> tuple[float, float]:
-        return self.shx, self.shy
-    
-    def _update_state(self) -> None:
-        self.state.set_arrow_ref_pos(self.parent_label.id, self.id, self.rfx, self.rfy)
-        self.state.set_arrow_att_pos(self.parent_label.id, self.id, self.x+self.shx, self.y+self.shy)
-        self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
-
-plt.quiver
-
-class LabelArtist(Text, StateLinker):
-
-    def __init__(self, ax: Axes, id: int, x=0, y=0, text='', color=None,
-                 verticalalignment='baseline', 
-                 horizontalalignment='left', 
-                 multialignment=None,
-                 fontproperties=None,
-                 rotation=None, 
-                 linespacing=None, 
-                 rotation_mode=None, 
-                 usetex=None, 
-                 wrap=False, 
-                 transform_rotates_text=False, 
-                 *, 
-                 parse_math=None, 
-                 **kwargs) -> None:
-        
-        # label dict id
-        self.id = id
-        self.ax = ax
-
-        # state readout
-        x, y = self.state.get_label_pos(self.id)
-        text = self.state.get_label_text(self.id)
-
-        super().__init__(x,
-                         y, 
-                         text, 
-                         color,
-                         verticalalignment, 
-                         horizontalalignment, 
-                         multialignment, 
-                         fontproperties, 
-                         rotation, 
-                         linespacing, 
-                         rotation_mode, 
-                         usetex, 
-                         wrap, 
-                         transform_rotates_text, 
-                         parse_math=parse_math, 
-                         picker=True,
-                         **kwargs)
-        
-        # arrow artists
-        self.arrows: dict[int, ArrowArtist] = {}
-        for arrow_id in self.state.get_label_arrows(self.id):
-            atx, aty = self.state.get_arrow_att_point(self.id, arrow_id)
-            rfx, rfy = self.state.get_arrow_ref_point(self.id, arrow_id)
-            val = self.state.get_arrow_val(self.id, arrow_id)
-            self.arrows[arrow_id] = ArrowArtist(arrow_id, x, y, rfx, rfy, atx-x, aty-y, self, val)
-            self.ax.add_line(self.arrows[arrow_id])
-
-    def set_position(self, xy) -> None:
-        super().set_position(xy)
-
-        # arrows update
-        x, y = xy
-        for arrow in self.arrows.values():
-            arrow.set(x=x, y=y)
-
-        self.state.set_label_pos(self.id, x, y)
-
-    def set_text(self, new_text):
-        super().set_text(new_text)
-        self.state.set_label_text(self.id, new_text)
-
-    def remove(self) -> None:
-        super().remove()
-        for arrow in self.arrows.values():
-            arrow.remove()
-    
-    @staticmethod
-    def text(ax: Axes, id, **kwargs) -> 'LabelArtist':
-        effective_kwargs = {
-            'verticalalignment': 'baseline',
-            'horizontalalignment': 'left',
-            'transform': ax.transData,
-            'clip_on': False,
-            **kwargs,
-        }
-        t = LabelArtist(ax, id, **effective_kwargs)
-        t.set_clip_path(ax.patch)
-        ax._add_text(t)
-        return t
-    
-    @staticmethod
-    def get_by_id(ax: Axes, id: int) -> 'None | LabelArtist':
-        children = ax.get_children()
-        for child in children:
-            if isinstance(child, LabelArtist):
-                if child.id == id:
-                    return child
-
-    def get_state(self) -> tuple:
-        return self.id, self.get_position()
-
-    def set_state(self, s) -> None:
-        return self.set_position(*s)
+from .artists import *
 
 
 # ----------------------------- TOP LEVEL CLASSES ---------------------------- #
 
 
 class ViewsEnum(Enum):
+    """
+    Enumeration of different views in the application.
+    """
     HOME   = 0
     LABELS = 1
     ARROWS = 2
+    CLUSTER = 3
 
 
 class ViewManager:
+    """
+    Manages different views in the application.
+    """
 
     def __init__(self, fig: Figure, ax: Axes) -> None:
         self.fig = fig
         self.ax  = ax
         self.views: list[View] = []
     
-    def register_views(self, views: list) -> None:
+    def register_views(self, views: list['View']) -> None:
+        """
+        Registers views with the manager.
+
+        Parameters
+        ----------
+        views : list
+            List of View objects to register.
+        """
         self.views = views
 
     def get_view(self, view_id: ViewsEnum) -> 'View':
+        """
+        Gets a specific view by its ID.
+
+        Parameters
+        ----------
+        view_id : ViewsEnum
+            The ID of the view to retrieve.
+
+        Returns
+        -------
+        View
+            The requested view object.
+        """
         return self.views[view_id.value]
     
     def run(self) -> None:
+        """
+        Runs the application, displaying the initial view.
+        """
         self.views[ViewsEnum.HOME.value].draw()
         self.views[ViewsEnum.HOME.value].state.draw(self.ax)
 
 
 class ViewElementManager:
+    """
+    Manages view elements within a view.
+    """
     
     def __init__(self) -> None:
         self.elements: list['ViewElement'] = []
 
     def add(self, el: 'ViewElement') -> 'ViewElement':
+        """
+        Adds a view element to the manager.
+
+        Parameters
+        ----------
+        el : ViewElement
+            The view element to add.
+
+        Returns
+        -------
+        ViewElement
+            The added view element.
+        """
         self.elements.append(el)
         return el
 
     def refresh(self) -> None:
+        """
+        Refreshes all view elements.
+        """
         for view_element in self.elements:
             view_element.refresh()
         
     def deconstruct(self) -> None:
+        """
+        Removes all view elements from the manager.
+        """
         for view_element in self.elements:
             view_element.remove()
         self.elements.clear()
 
 
 class CanvasEventManager:
+    """
+    Manages events on the canvas.
+    """
 
     def __init__(self, canvas: FigureCanvasBase) -> None:
         self.canvas = canvas
-        self.events: list[int] = []
+        self.events_stack: list['Event'] = []
 
-    def add(self, ev_id: int) -> None:
-        self.events.append(ev_id)
+    def add(self, event: 'UniqueEvent | SharedEvent | GlobalEvent | EmptyEvent') -> None:
+        """
+        Adds an event to the event stack. Disables previous event group based
+        on the new event type.
+
+        Parameters
+        ----------
+        event : Union[UniqueEvent, SharedEvent, GlobalEvent, EmptyEvent]
+            The event to add.
+        """
+
+        if isinstance(event, UniqueEvent):
+            # disconnect all previous events
+            for sevent in self.events_stack:
+                if not isinstance(sevent, GlobalEvent):
+                    sevent.disconnect()
+
+        if isinstance(event, SharedEvent):
+            # disconnect all events starting from first met non shared event
+            fm = False
+            for sevent in self.events_stack[::-1]:
+                if not isinstance(sevent, SharedEvent):
+                    fm = True
+                if fm:
+                    if not isinstance(sevent, GlobalEvent):
+                        sevent.disconnect()
+
+        if isinstance(event, GlobalEvent):
+            # globals dont disconnect anything but they are inserted under the stack
+            self.events_stack.insert(0, event)
+            return
+
+        self.events_stack.append(event)
+
+    def _reconect_events(self) -> None:
+        # find next event group to activate
+        shared_group = False
+        for event in self.events_stack[::-1]:
+
+            if isinstance(event, EmptyEvent):
+                break
+
+            # if no shared gourp activate just this event
+            if isinstance(event, UniqueEvent):
+                if not shared_group:
+                    event.reconnect()
+                    return
+                # end of shared group
+                break
+
+            # start or continue the shared group
+            if isinstance(event, SharedEvent):
+                # find other shared events
+                shared_group = True
+                event.reconnect()
+
+    def _clear_empty_events(self) -> None:
+        while self.events_stack:
+            if isinstance(self.events_stack[-1], EmptyEvent):
+                self.events_stack.pop()
+                continue
+            return
+
+    def disconnect_unique(self) -> None:
+        """
+        Disconnects latest unique event and reconnects next event group.
+        """
+
+        if not self.events_stack:
+            return None
+
+        # if not maching just call disconnect
+        if not isinstance(self.events_stack[-1], UniqueEvent):
+            return self.disconnect()
+        
+        self.events_stack.pop().disconnect()
+        self._clear_empty_events()
+        self._reconect_events()
+
+    def disconnect_shared(self) -> None:
+        """
+        Disconnects latest shared event group and reconnects next event group.
+        """
+
+        if not self.events_stack:
+            return None
+        
+        if not isinstance(self.events_stack[-1], SharedEvent):
+            return self.disconnect()
+        
+        while self.events_stack:
+            if isinstance(self.events_stack[-1], SharedEvent):
+                self.events_stack.pop().disconnect()
+                continue
+            break
+
+        self._clear_empty_events()
+        self._reconect_events()
 
     def disconnect(self) -> None:
-        for ev_id in self.events:
-            self.canvas.mpl_disconnect(ev_id)
-        self.events.clear()
+        """
+        Disconnects all events.
+        """
+        for event in self.events_stack:
+            event.disconnect()
+        self.events_stack.clear()
+
+
+class Event(ABC):
+    """
+    Base class for canvas events.
+    """
+
+    canvas: FigureCanvasBase
+
+    @abstractmethod
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        self.ev_type = ev_type
+        self.ev_callback = ev_callback
+        self.id = self.canvas.mpl_connect(ev_type, ev_callback)
+
+    @classmethod
+    def set_canvas(cls, canvas: FigureCanvasBase) -> None:
+        """
+        Sets the canvas for the event class.
+
+        Parameters
+        ----------
+        canvas : FigureCanvasBase
+            The canvas to set.
+        """
+        cls.canvas = canvas
+
+    def reconnect(self) -> None:
+        """
+        Reconnects the event.
+        """
+         # source code says there is no error if self.id does not exist c:
+        self.canvas.mpl_disconnect(self.id)
+        self.id = self.canvas.mpl_connect(self.ev_type, self.ev_callback)
+
+    def disconnect(self) -> None:
+        """
+        Disconnects the event.
+        """
+        if self.canvas is None:
+            return
+        self.canvas.mpl_disconnect(self.id)
+
+
+class GlobalEvent(Event):
+    """
+    GlobalEvent is not disconnectable by other event types
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+
+class UniqueEvent(Event):
+    """
+    UniqueEvent desconnects all other events
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+
+class SharedEvent(Event):
+    """
+    SharedEvent disconnects all previous events that don't belong to this event shared group
+    """
+
+    def __init__(self, ev_type: str, ev_callback: Callable) -> None:
+        super().__init__(ev_type, ev_callback)
+
+    
+class EmptyEvent(Event):
+    """
+    EmptyEvent does nothing. It's used to divide SharedEvent groups
+    """
+
+    def __init__(self) -> None:
+        pass
+
+    def reconnect(self) -> None:
+        pass
+
+    def disconnect(self) -> None:
+        pass
 
 
 class View(ABC, StateLinker):
+    """
+    Base class for views.
+    """
     
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
@@ -351,31 +323,63 @@ class View(ABC, StateLinker):
 
     @abstractmethod
     def draw(self, *args, **kwargs) -> None:
+        """
+        Draws the view.
+
+        Parameters
+        ----------
+        args : tuple
+            Additional arguments.
+        kwargs : dict
+            Additional keyword arguments.
+
+        """
         logging.info(f"{self.__class__} is drawing.")
 
     @abstractmethod
     def undraw(self) -> None:
+        """
+        Undraws the view.
+        """
         logging.info(f"{self.__class__} is undrawing.")
         self.vem.deconstruct()
         self.cem.disconnect()
         self.vm.fig.canvas.flush_events()
 
     def change_view(self, view_id: ViewsEnum, *args, **kwargs):
+        """
+        Changes the current view.
+
+        Parameters
+        ----------
+        view_id : ViewsEnum
+            The ID of the view to change to.
+        args : tuple
+            Additional arguments.
+        kwargs : dict
+            Additional keyword arguments.
+        """
         self.undraw()
         self.vm.get_view(view_id).draw(*args, **kwargs)
 
 
 class ViewElement(ABC, StateLinker):
+    """
+    Abstract base class representing a generic view element.
+    """
 
     def __init__(self) -> None:
+        """Initialize the ViewElement."""
         logging.info(f"{self.__class__} is createing.")
     
     @abstractmethod
     def remove(self) -> None:
+        """Abstract method to remove the view element from the display."""
         logging.info(f"{self.__class__} is removeing.")
 
     @abstractmethod
     def refresh(self) -> None:
+        """Abstract method to refresh the view element."""
         logging.info(f"{self.__class__} is refreshing.")
 
 
@@ -383,28 +387,61 @@ class ViewElement(ABC, StateLinker):
 
 
 class ViewButton(ViewElement):
+    """
+    Class representing an abstract button view element.
+    """
     
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, callback: Callable) -> None:
+        """Initialize the ViewButton.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the button belongs.
+        axes: list[float]
+            The position of the button on the view.
+        label: str
+            The label text of the button.
+        callback: Callable
+            The callback function to be executed when the button is clicked.
+        """
         super().__init__()
         self.pv         = parent_view
         self.button_ax  = parent_view.vm.fig.add_axes(axes)
         self.button_ref = Button(self.button_ax, label)
-        self.button_ref.on_clicked(callback)
+        self.button_cid = self.button_ref.on_clicked(callback)
         
     @abstractmethod
     def remove(self):
+        """Remove the button from the display."""
         super().remove()
         self.button_ref.disconnect_events()     
         self.pv.vm.fig.delaxes(self.button_ax)
 
     @abstractmethod
     def refresh(self) -> None:
+        """Refresh the button."""
         return super().refresh()
 
 
 class ViewTextBox(ViewElement):
+    """
+    Class representing an abstract text box view element.
+    """
 
     def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+        """Initialize the ViewTextBox.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the text box belongs.
+        axes: list[float]
+            The position of the text box on the view.
+        label: str
+            The label text of the text box.
+        """
         super().__init__()
         self.pv       = parent_view
         self.label_ax = parent_view.vm.fig.add_axes(axes)
@@ -412,50 +449,187 @@ class ViewTextBox(ViewElement):
 
     @abstractmethod
     def remove(self):
+        """Remove the text box from the display."""
         super().remove() 
         self.pv.vm.fig.delaxes(self.label_ax)
 
     @abstractmethod
     def refresh(self) -> None:
+        """Refresh the text box."""
         return super().refresh()
 
 # ------------------------------ OUTPUT CLASSES ------------------------------ #
 
 class ChangeViewButton(ViewButton):
+    """Class representing a button for changing views."""
     
-    def __init__(self, parent_view: View, axes: list[float], label: str, new_view: ViewsEnum) -> None:
-        super().__init__(parent_view, axes, label, lambda ev: parent_view.change_view(new_view, ev))
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, new_view: ViewsEnum) -> None:
+        """Initialize the ChangeViewButton.
+
+        Parameters
+        ----------
+        parent_view: View
+            The parent view to which the button belongs.
+        axes: list[float]
+            The position of the button on the view.
+        label: str
+            The label text of the button.
+        new_view: ViewsEnum
+            The new view to switch to when the button is clicked.
+        """
+        super().__init__(parent_view, axes, label, 
+                         lambda ev: parent_view.change_view(new_view, ev))
         
     def remove(self):
+        """Remove the button from the display."""
         return super().remove()
 
     def refresh(self) -> None:
+        """Refresh the button."""
         return super().refresh()
     
 
 class NormalButton(ViewButton):
+    """
+    A standard button for user interaction in a graphical view.
+    """
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, callback: Callable) -> None:
-        super().__init__(parent_view, axes, label, lambda ev: callback())
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, callback: Callable) -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the button belongs.
+        axes : list[float]
+            The position of the button in normalized coordinates [left, bottom, width, height].
+        label : str
+            The text displayed on the button.
+        callback : Callable
+            The function to be called when the button is clicked.
+        
+        """
+        super().__init__(parent_view, axes, label, 
+                         lambda ev: callback())
 
     def remove(self):
+        """Remove the button from the view."""
         return super().remove()
     
     def refresh(self) -> None:
+        """Refresh the appearance of the button."""
         return super().refresh()
     
 
-# move to observer pattern?
-class UpdateableTextBox(ViewTextBox):
+class BlockingButton(ViewButton):
+    """
+    A button that blocks other interactions with itself until its action is completed.
+    """
 
-    def __init__(self, parent_view: View, axes: list[float], label: str, update: Callable, submit: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, 
+                 callback: Callable[[Callable[..., None]], None]) -> None:
+        """init
+
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the button belongs.
+        axes : list[float]
+            The position of the button in normalized coordinates [left, bottom, width, height].
+        label : str
+            The text displayed on the button.
+        callback : Callable[[Callable[..., None]], None]
+            The function to be called when the button is clicked, with an argument to reconnect the button.
+        """
+
+        def reconnect_callback():
+            self.button_cid = self.button_ref.on_clicked(blocking_callback)
+
+        def blocking_callback():
+            self.button_ref.disconnect(self.button_cid)
+            callback(reconnect_callback)
+
+        super().__init__(parent_view, axes, label, blocking_callback)
+
+    def remove(self):
+        """Remove the button from the view."""
+        return super().remove()
+    
+    def refresh(self) -> None:
+        """Refresh the appearance of the button."""
+        return super().refresh()
+    
+
+class UpdateableTextBox(ViewTextBox):
+    """A text box that can be updated dynamically."""
+
+    def __init__(self, parent_view: View, axes: list[float], 
+                 label: str, update: Callable, submit: Callable) -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the text box belongs.
+        axes : list[float]
+            The position of the text box in normalized coordinates [left, bottom, width, height].
+        label : str
+            The label of the text box.
+        update : Callable
+            The function to update the content of the text box.
+        submit : Callable
+            The function to be called when text is submitted.
+
+        """
         super().__init__(parent_view, axes, label)
         self.update = update
         self.box_ref.on_submit(submit)
 
     def remove(self) -> None:
+        """Remove the text box from the view."""
         return super().remove()
     
     def refresh(self) -> None:
+        """Refresh the content of the text box."""
         super().refresh()
         self.box_ref.set_val(self.update())
+
+
+class ViewRadioButtons(ViewElement):
+
+    def __init__(self, parent_view: View, axes: list[float], 
+                 labels: list[str], callback: Callable) -> None:
+        super().__init__()
+        self.pv = parent_view
+        self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
+        self.ref = RadioButtons(self.ax, labels=labels, active=0)
+        self.ref.on_clicked(callback)
+
+    def remove(self):
+        super().remove()
+        self.ref.disconnect_events()
+        self.pv.vm.fig.delaxes(self.ax)
+
+    def refresh(self) -> None:
+        return super().refresh()
+
+
+class ViewSlider(ViewElement):
+
+    def __init__(self, parent_view: View, axes: list[float], label: str,
+                 valmin: float, valmax: float, callback: Callable) -> None:
+        super().__init__()
+        self.pv = parent_view
+        self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
+        self.ref = Slider(ax=self.ax, label=label, valmin=valmin, valmax=valmax, initcolor=None)
+        self.ref.on_changed(callback)
+
+    def remove(self):
+        super().remove()
+        self.ref.disconnect_events()
+        self.pv.vm.fig.delaxes(self.ax)
+
+    def refresh(self) -> None:
+        return super().refresh()
