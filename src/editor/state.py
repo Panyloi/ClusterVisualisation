@@ -93,6 +93,10 @@ class State:
     def get_label_size(self) -> float:
         return self.data['labels_data']['size']
     
+    @KeyErrorWrap(1)
+    def get_arrow_size(self) -> float:
+        return self.data['labels_data']['arrow_size']
+    
     # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
@@ -121,12 +125,17 @@ class State:
     @KeyErrorWrap(None)
     def set_label_size(self, size: float) -> None:
         self.data['labels_data']['size'] = size
+
+    @KeyErrorWrap(None)
+    def set_arrow_size(self, size: float) -> None:
+        self.data['labels_data']['arrow_size'] = size
         
     # ------------------------------------ ADD ----------------------------------- #
     
     @KeyErrorWrap(-1)
     def add_empty_label(self) -> int:
-        nid = max(self.data['labels_data'].keys()) + 1
+        nid = max( filter(lambda x: True if isinstance(x, int) else False,
+                          self.data['labels_data'].keys())) + 1
         self.data['labels_data'][nid] = \
         {
             'text': "...",

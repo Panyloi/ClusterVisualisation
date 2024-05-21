@@ -45,9 +45,10 @@ class ArrowArtist(Line2D, StateLinker):
         self.rfy          = rfy
         self.shx          = shx
         self.shy          = shy
+        s = self.state.get_arrow_size()
 
         super().__init__([x + shx, rfx], [y + shy, rfy], picker=True, 
-                         pickradius=5, zorder=70, color='black', **kwargs)
+                         pickradius=5, zorder=70, color='black', linewidth=s, **kwargs)
         
     def set(self, *, x: float | None = None, y: float | None = None, 
                  rfx: float | None = None, rfy: float | None = None,
@@ -88,9 +89,26 @@ class ArrowArtist(Line2D, StateLinker):
         ----------
         rx, ry: float
             Coordinates of the chart point
+            
+        Notes
+        -----
+        This operation allso snaps the shift to the closes outline of the label.
         
         """
-        self.set(shx=rx-self.x, shy=ry-self.y)
+        
+        rbbx = self.parent_label.get_window_extent()
+        bbx = self.ax.transData.inverted().transform(rbbx)
+        x, y = rx, ry
+        if y < bbx[0][1]:
+            y = bbx[0][1]
+        if y > bbx[1][1]:
+            y = bbx[1][1]
+        if x < bbx[0][0]:
+            x = bbx[0][0]
+        if x > bbx[1][0]:
+            x = bbx[1][0]
+        
+        self.set(shx=x-self.x, shy=y-self.y)
         
     def get_shs(self) -> tuple[float, float]:
         """shift point values getter"""
@@ -107,6 +125,10 @@ class ArrowArtist(Line2D, StateLinker):
         self.state.set_arrow_att_pos(self.parent_label.id, self.id, 
                                      self.x+self.shx, self.y+self.shy)
         self.state.set_arrow_val(self.parent_label.id, self.id, self.val)
+
+    def _update_size(self, size: float) -> None:
+        """update arrow size"""
+        self.set_linewidth(size)
         
     def remove(self) -> None:
         """remove arrow from chart and parent label dict"""
@@ -141,6 +163,32 @@ class ArrowArtist(Line2D, StateLinker):
         la = ArrowArtist(ax, *args, **kwargs)
         ax.add_line(la)
         return la
+    
+    @staticmethod
+    def update_all_arrows_size(ax: Axes, size: float) -> None:
+        """update all arrows"""
+        for child in ax.get_children():
+            if isinstance(child, ArrowArtist):
+                child._update_size(size)
+        ArrowArtist.state.set_arrow_size(size)
+    
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | ArrowArtist':
+        """arrow getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, ArrowArtist):
+                if child.id == sid:
+                    return child
+        return None
+    
+    @staticmethod
+    def get_all_arrows(ax: Axes):
+        """arrow getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, ArrowArtist):
+                yield child
 
 
 class LabelArtist(Text, StateLinker):
@@ -208,22 +256,24 @@ class LabelArtist(Text, StateLinker):
         super().set_text(new_text)
         self.state.set_label_text(self.id, new_text)
 
-    def update_size(self, size):
+    def update_fontsize(self, size: float) -> None:
         """label size local update"""
-        self.set(size=size)
+        self.set(fontsize=size)
 
-    def update_all_labels_size(self, size):
+    @staticmethod
+    def update_all_labels_fontsize(ax: Axes, size: float) -> None:
         """update all labels"""
-        for child in self.ax.get_children():
+        for child in ax.get_children():
             if isinstance(child, LabelArtist):
-                child._update_size(size)
-        self.state.set_label_size(size)
+                child.update_fontsize(size)
+        LabelArtist.state.set_label_size(size)
 
     def remove(self) -> None:
         """removes label and all attached arrows"""
         super().remove()
         self.state.delete_label(self.id)
-        for arrow in self.arrows.values():
+        dict_cpy = list(self.arrows.values()).copy()
+        for arrow in dict_cpy:
             arrow.remove()
     
     @staticmethod
@@ -277,6 +327,14 @@ class LabelArtist(Text, StateLinker):
                     return child
         return None
     
+    @staticmethod
+    def get_all_labels(ax: Axes):
+        """label getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, LabelArtist):
+                yield child
+    
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
@@ -289,5 +347,26 @@ def draw(self, ax: Axes) -> None:
     for label_id in self.data['labels_data'].keys():
         if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
+
+    ax.tick_params(
+        axis='x',
+        which='both',
+        bottom=False,
+        top=False,
+        labelbottom=False)
+    ax.tick_params(
+        axis='y',
+        which='both',
+        left=False,
+        right=False,
+        labelleft=False)
+    
+    ax.bbox._bbox.x0 = 0.01
+    ax.bbox._bbox.y0 = 0.15
+    ax.bbox._bbox.x1 = 0.99
+    ax.bbox._bbox.y1 = 0.99
+
+    ax.set_xlim((-150, 150))
+    ax.set_ylim((-150, 150))
 
 State.draw = draw

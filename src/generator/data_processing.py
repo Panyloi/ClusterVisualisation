@@ -99,6 +99,18 @@ def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
     return data
 
 
+def get_all_points(data: dict) -> np.ndarray:
+    xs, ys = None, None
+    for name in data.keys():
+        if xs is None:
+            xs = data[name]['x']
+        if ys is None:
+            ys = data[name]['y']
+        xs = np.concatenate((xs, data[name]['x']))
+        ys = np.concatenate((ys, data[name]['y']))
+    return np.column_stack((xs, ys))
+
+
 def editor_format(data: dict) -> dict:
     """ Formats the data to editor readable format
     

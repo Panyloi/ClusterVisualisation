@@ -430,7 +430,7 @@ class ViewTextBox(ViewElement):
     Class representing an abstract text box view element.
     """
 
-    def __init__(self, parent_view: View, axes: list[float], label: str) -> None:
+    def __init__(self, parent_view: View, axes: list[float], label: str, description="") -> None:
         """Initialize the ViewTextBox.
 
         Parameters
@@ -445,7 +445,7 @@ class ViewTextBox(ViewElement):
         super().__init__()
         self.pv       = parent_view
         self.label_ax = parent_view.vm.fig.add_axes(axes)
-        self.box_ref  = TextBox(self.label_ax, '', initial=label)
+        self.box_ref  = TextBox(self.label_ax, description, initial=label)
 
     @abstractmethod
     def remove(self):
@@ -544,10 +544,10 @@ class BlockingButton(ViewButton):
             The function to be called when the button is clicked, with an argument to reconnect the button.
         """
 
-        def reconnect_callback():
+        def reconnect_callback(event = ...):
             self.button_cid = self.button_ref.on_clicked(blocking_callback)
 
-        def blocking_callback():
+        def blocking_callback(event = ...):
             self.button_ref.disconnect(self.button_cid)
             callback(reconnect_callback)
 
@@ -562,11 +562,11 @@ class BlockingButton(ViewButton):
         return super().refresh()
     
 
-class UpdateableTextBox(ViewTextBox):
+class ShiftingTextBox(ViewTextBox):
     """A text box that can be updated dynamically."""
 
     def __init__(self, parent_view: View, axes: list[float], 
-                 label: str, update: Callable, submit: Callable) -> None:
+                 update: Callable, submit: Callable, description: str = '', label: str = '') -> None:
         """init
         
         Parameters
@@ -583,9 +583,25 @@ class UpdateableTextBox(ViewTextBox):
             The function to be called when text is submitted.
 
         """
-        super().__init__(parent_view, axes, label)
+        super().__init__(parent_view, axes, label, description)
+
+        old_kp = TextBox._keypress
+        old_c = TextBox._click
+        TextBox._keypress = self._custom_keypress
+        TextBox._click = self._custom_click
+        self.box_ref = TextBox(self.label_ax, description, initial=label)
+        TextBox._keypress = old_kp
+        TextBox._click = old_c
+
         self.update = update
         self.box_ref.on_submit(submit)
+
+        # inject custom wrap to disp text
+        self.box_ref.text_disp.set_wrap(True)
+        gwt_type = type(self.box_ref.text_disp._get_wrapped_text)
+        self.box_ref.text_disp._get_wrapped_text = gwt_type(
+            lambda ref: self._custom_get_wrapped_text(ref, self.box_ref.ax), self.box_ref.text_disp
+        )
 
     def remove(self) -> None:
         """Remove the text box from the view."""
@@ -595,6 +611,131 @@ class UpdateableTextBox(ViewTextBox):
         """Refresh the content of the text box."""
         super().refresh()
         self.box_ref.set_val(self.update())
+
+    @staticmethod
+    def _custom_get_wrapped_text(self, ax):
+        # lib
+        if not self.get_wrap():
+            return self.get_text()
+
+        if self.get_usetex():
+            return self.get_text()
+
+        # custom
+        line = self.get_text()
+        line_width = ax.get_window_extent().width - 7 # TODO: make this responsive?
+        current_width = self._get_rendered_text_width(line)
+
+        while current_width > line_width:
+            line = line[1:]
+            current_width = self._get_rendered_text_width(line)
+
+        return line
+    
+    @staticmethod
+    def _custom_keypress(self, event):
+        if self.ignore(event):
+            return
+        if self.capturekeystrokes:
+            key = event.key
+            text = self.text
+            if len(key) == 1:
+                text = (text[:self.cursor_index] + key +
+                        text[self.cursor_index:])
+                self.cursor_index += 1
+            elif key == "end":
+                self.cursor_index = len(text)
+            elif key == "backspace":
+                if self.cursor_index != 0:
+                    text = (text[:self.cursor_index - 1] +
+                            text[self.cursor_index:])
+                    self.cursor_index -= 1
+            self.text_disp.set_text(text)
+            self._rendercursor()
+            if self.eventson:
+                self._observers.process('change', self.text)
+                if key in ["enter", "return"]:
+                    self._observers.process('submit', self.text)
+
+    @staticmethod
+    def _custom_click(self, event):
+        if self.ignore(event):
+            return
+        if event.inaxes != self.ax:
+            self.stop_typing()
+            return
+        if not self.eventson:
+            return
+        if event.canvas.mouse_grabber != self.ax:
+            event.canvas.grab_mouse(self.ax)
+        if not self.capturekeystrokes:
+            self.begin_typing()
+        self.cursor_index = len(self.text_disp.get_text())
+        self._rendercursor()
+
+
+class LimitedTextBox(ViewTextBox):
+    """A text box that can be updated dynamically."""
+
+    def __init__(self, parent_view: View, axes: list[float], 
+                 update: Callable, submit: Callable, description = '', label: str = '') -> None:
+        """init
+        
+        Parameters
+        ----------
+        parent_view : View
+            The parent view to which the text box belongs.
+        axes : list[float]
+            The position of the text box in normalized coordinates [left, bottom, width, height].
+        label : str
+            The label of the text box.
+        update : Callable
+            The function to update the content of the text box.
+        submit : Callable
+            The function to be called when text is submitted.
+
+        """
+        super().__init__(parent_view, axes, label, description)
+        self.update = update
+        self.box_ref.on_submit(submit)
+        
+        # inject custom wrap to disp text
+        self.box_ref.text_disp.set_wrap(True)
+        gwt_type = type(self.box_ref.text_disp._get_wrapped_text)
+        self.box_ref.text_disp._get_wrapped_text = gwt_type(
+            lambda ref: self._custom_get_wrapped_text(ref, self.box_ref.ax), self.box_ref.text_disp
+        )
+
+    def remove(self) -> None:
+        """Remove the text box from the view."""
+        return super().remove()
+    
+    def refresh(self) -> None:
+        """Refresh the content of the text box."""
+        super().refresh()
+        self.box_ref.set_val(self.update())
+
+    @staticmethod
+    def _custom_get_wrapped_text(self, ax):
+        # lib
+        if not self.get_wrap():
+            return self.get_text()
+
+        if self.get_usetex():
+            return self.get_text()
+
+        # custom
+        line = self.get_text()
+        line_width = ax.get_window_extent().width
+        current_width = self._get_rendered_text_width(line)
+
+        while current_width > line_width:
+            line = line[:-1]
+            current_width = self._get_rendered_text_width(line)
+
+        self.set_text(line)
+
+        return line
 
 
 class ViewRadioButtons(ViewElement):
