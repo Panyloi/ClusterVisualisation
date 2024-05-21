@@ -20,7 +20,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
         Path for the .jpg image to be saved to. If None raw drawer data is returned
         for the editor drawer operations
     delim: str
-        If raw_data is a csv file the delim is used as input delimeter.
+        If raw_data is a csv file the delim is used as input delimiter.
 
     Returns
     -------
@@ -40,7 +40,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                 'x': np.array(), 
                 'y': np.array()
             },
-            "seccond_culture_name":
+            "second_culture_name":
             ...
         }
 
@@ -53,7 +53,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                 // TODO: additional cluster data?
                 'org': list("original_culture_name", ...)
             },
-            "seccond_cluster_name":
+            "second_cluster_name":
             ...
         }
 
@@ -63,7 +63,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             {
                 // TODO: data for convex?
             },
-            "seccond_cluster_name":
+            "second_cluster_name":
             ...
         }
 
@@ -88,7 +88,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                 'att_points': list[tuple[float]]
                 'ref_point_vals': list[str]
             },
-            seccond_label_id: int:
+            second_label_id: int:
             ...
             'size': 10.0
             'arrow_size': 1.0
@@ -119,12 +119,12 @@ def draw_maps_editor(raw_data: Union[str, Experiment], out_path: str | None, del
     raw_data: str or Experiment
         Either string with path to the csv file or an instance of mapel...Experiment
     delim: str
-        If raw_data is a csv file the delim is used as input delimeter.
+        If raw_data is a csv file the delim is used as input delimiter.
     
     """
     
     state = draw_maps(raw_data, None)
-    assert state is not None # editor needs init state for now (might use deafult cache later)
+    assert state is not None # editor needs init state for now (might use default cache later)
 
     FORMAT = '%(asctime)s %(message)s'
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)

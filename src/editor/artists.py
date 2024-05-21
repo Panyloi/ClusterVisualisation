@@ -62,11 +62,11 @@ class ArrowArtist(Line2D, StateLinker):
         x, y: float
             Coordinates of parent label
         rfx, rfy: float
-            Coordinates of the point arrow referse to
+            Coordinates of the point arrow refers to
         shx, shy: float
             Shift of the attachment point
         val: str
-            The anotation string
+            The annotation string
 
         """
 
@@ -92,7 +92,7 @@ class ArrowArtist(Line2D, StateLinker):
             
         Notes
         -----
-        This operation allso snaps the shift to the closes outline of the label.
+        This operation also snaps the shift to the closest outline of the label.
         
         """
         

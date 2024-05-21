@@ -147,13 +147,13 @@ class CanvasEventManager:
                         sevent.disconnect()
 
         if isinstance(event, GlobalEvent):
-            # globals dont disconnect anything but they are inserted under the stack
+            # globals don't disconnect anything, but they are inserted under the stack
             self.events_stack.insert(0, event)
             return
 
         self.events_stack.append(event)
 
-    def _reconect_events(self) -> None:
+    def _reconnect_events(self) -> None:
         # find next event group to activate
         shared_group = False
         for event in self.events_stack[::-1]:
@@ -161,7 +161,7 @@ class CanvasEventManager:
             if isinstance(event, EmptyEvent):
                 break
 
-            # if no shared gourp activate just this event
+            # if no shared group activate just this event
             if isinstance(event, UniqueEvent):
                 if not shared_group:
                     event.reconnect()
@@ -196,7 +196,7 @@ class CanvasEventManager:
         
         self.events_stack.pop().disconnect()
         self._clear_empty_events()
-        self._reconect_events()
+        self._reconnect_events()
 
     def disconnect_shared(self) -> None:
         """
@@ -216,7 +216,7 @@ class CanvasEventManager:
             break
 
         self._clear_empty_events()
-        self._reconect_events()
+        self._reconnect_events()
 
     def disconnect(self) -> None:
         """
@@ -280,7 +280,7 @@ class GlobalEvent(Event):
 
 class UniqueEvent(Event):
     """
-    UniqueEvent desconnects all other events
+    UniqueEvent disconnects all other events
     """
 
     def __init__(self, ev_type: str, ev_callback: Callable) -> None:
@@ -370,12 +370,12 @@ class ViewElement(ABC, StateLinker):
 
     def __init__(self) -> None:
         """Initialize the ViewElement."""
-        logging.info(f"{self.__class__} is createing.")
+        logging.info(f"{self.__class__} is creating.")
     
     @abstractmethod
     def remove(self) -> None:
         """Abstract method to remove the view element from the display."""
-        logging.info(f"{self.__class__} is removeing.")
+        logging.info(f"{self.__class__} is removing.")
 
     @abstractmethod
     def refresh(self) -> None:
