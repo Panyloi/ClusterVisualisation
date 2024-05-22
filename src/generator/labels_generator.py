@@ -334,7 +334,7 @@ def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_si
 
     if optim_kwargs is None:
         # deafult configuration for fats editor lunching
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=15, visit=2.2)
+        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=1, visit=2.2)
     else:
         # custom configuration
         res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, **optim_kwargs)

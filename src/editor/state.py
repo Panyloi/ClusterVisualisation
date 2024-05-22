@@ -1,5 +1,6 @@
 import logging
 from typing import Callable, Type, TypeVar, ParamSpec, Union
+import json
 
 from matplotlib.axes._axes import Axes
 
@@ -182,6 +183,17 @@ class State:
     
     def set_raw(self, data) -> None:
         self.data = data
+
+    def save_state_to_file(self, fpath: str) -> None:
+        with open(fpath, 'w') as f:
+            json.dump(self.data, f)
+
+    @staticmethod
+    def load_state_from_file(fpath: str) -> 'State':
+        with open(fpath, 'r') as f:
+            data = json.load(f)
+        return State(data)
+    
 
 
 class StateLinker:
