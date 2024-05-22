@@ -1,14 +1,15 @@
 # How to create a view
 
-## 1. Create an empty class with all deriviated methodes.
-All Views should deriviate from base class `View`. View provides 2 abstract methodes, one
-non-abstract fixed method for changeing between views and constructor. Additionaly there are few important attributes.
- + `self.vm` - View Manager. Provides transitions between views(only internall class not to mess around with).
- + `self.vem` - View Element Manager. Provides functionality for managing objects that deriviate from base class `ViewElement`.
- + `self.cem` - Canvas Event Manager. Provides functionality for managing events. There is no custom base class for events.
- + `self.state` - State. Because View deriviates from StateLinker it has access to global editor state
+## 1. Create an empty class with all derived methods.
+All Views should be derived from the base class `View`. View provides two abstract methods, a non-abstract fixed method 
+for changing between views and a constructor. 
+Additionally, there are a few important attributes:
+ + `self.vm` - View Manager. Provides transitions between views (only internal class, not to be messed around).
+ + `self.vem` - View Element Manager. Provides functionality for managing objects that derive from the base class `ViewElement`.
+ + `self.cem` - Canvas Event Manager. Provides functionality for managing events.
+ + `self.state` - State. Since View derives from StateLinker it has access to the global editor state
 
-Empty View should look something like this:
+Empty View looks like this:
 ```python
 class EmptyView(View):
 
@@ -22,11 +23,15 @@ class EmptyView(View):
         return super().undraw()
 ```
 
-## 2. Link the class to global editor
-For View to be reachable it needs to create it's own enum in ViewsEnum. After that according to views enum order a class object needs to be registered in the main editor class. `vm.register_views([Home(vm), LabelsView(vm), ...])` in the ... space goes the object.
+## 2. Link the class to the global editor
+For View to be reachable, it must correspond to an enum in ViewsEnum. 
+Then, according to the order of the views in the enum, the class object has to be registered in the main editor class. 
+`vm.register_views([Home(vm), LabelsView(vm), ...])` "..." should be replaced with the object.
 
 ## 3. Populate the class
-For example lets say we want to add an button and an event. Adding a button would look like this
+For example, lets say we want to add a button and an event. 
+
+Adding the button looks like this:
 ```python
 def draw(self, *args, **kwargs) -> None:
     super().draw()
@@ -35,7 +40,9 @@ def draw(self, *args, **kwargs) -> None:
 
     plt.draw()
 ```
-The button needs to deriviate directly or not from ViewElement base class. Adding event is very similar but we use canvas event manager instead.
+The button must derive, directly or not, from the ViewElement base class. 
+
+Adding the event looks the same, however Canvas Event Manager (cem) is used instead of the View Element Manager (vem).
 ```python
 def draw(self, *args, **kwargs) -> None:
     super().draw()
@@ -45,17 +52,21 @@ def draw(self, *args, **kwargs) -> None:
 
     plt.draw()
 ```
-Both events and view elements will be automaticly disconnected and eraseed from the canvase when the view changes by the vem and cem managers. Additionaly events have more disconnect options (disconnect_unique, disconnect_shared, disconnect) for better manipulation of events exclusion.
+Both events and view elements will be automatically disconnected and removed from the canvas when the view is changed by the vem and cem managers. 
+Additionally, events can be disconnected in several other ways such as (disconnect_unique, disconnect_shared, disconnect) for better manipulation of events exclusion.
 
 ## 4. Refreshing
-vem class implements additional refresh method. This will call refresh on all the connected view element objects. If an object is created in such way that it can refresh simple calling `self.vem.refresh()` will do the job.
+vem class implements an additional refresh method. It calls refresh on all the connected view element objects. 
+If an object is created in such a way that it can refresh, simply calling `self.vem.refresh()` will do the job.
 
 ## 5. Starting arguments
-If needed a view can be drawn with some arguments(preferably kwargs). It is not possible to achieve this with a change view button! While directly calling `view.change_view` just add needed kwargs, for example
+If needed a view can be drawn with some arguments (preferably kwargs). 
+However, it is not possible to achieve this with a change view button! 
+Just add needed kwargs when directly calling `view.change_view`, for example:
 ```python
 self.change_view(ViewsEnum.ARROWS, picked_item=event.artist)
 ```
-Than in the draw methode of drawed view the retrival looks something like this
+Then, retrival in the draw method of the view looks like this:
 ```python
     def draw(self, *args, **kwargs) -> None:
         super().draw()
