@@ -57,6 +57,10 @@ class State:
         
         self.data = data
 
+    def draw(self, ax: Axes):
+        """This function should be overriten later after initialization of artists"""
+        raise NotImplementedError
+
     # ---------------------------------- GETTERS --------------------------------- #
 
     @KeyErrorWrap("")
