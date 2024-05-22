@@ -557,8 +557,9 @@ class Editor:
     def run(self) -> None:
 
         fig, ax = plt.subplots()
-        fig.add_axes(ax)
         fig.subplots_adjust(bottom=0.2)
+
+        SavePltLinker.link_ax_fig(ax, fig)
 
         # init event canvas
         Event.set_canvas(fig.canvas)

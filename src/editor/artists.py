@@ -3,6 +3,7 @@ from matplotlib.text import Text
 from matplotlib.lines import Line2D
 
 from .state import *
+from .backend_events import *
 
 class ArrowArtist(Line2D, StateLinker):
     """
