@@ -12,3 +12,4 @@
  - [x] Package skeleton and CI
  - [x] Create Labels View
  - [x] Editor Chart saving
+ - [x] No Editor Chart Generation

@@ -108,7 +108,20 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict["labels_data"]['size'] = 10.0
     state_dict["labels_data"]['arrow_size'] = 1.0
 
-    return State(state_dict)
+    # ------------------------- RETURN FOR EDITOR LAUNCH ------------------------- #
+    if out_path is None:
+        return State(state_dict)
+    # -------------------------------- END RETURN -------------------------------- #
+
+    fig, ax = plt.subplots()
+    fig.subplots_adjust(bottom=0.2)
+
+    st = State(state_dict)
+    StateLinker.link_state(st)
+    st.draw(ax)
+
+    bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(out_path, bbox_inches=bbox, pad_inches=0)
 
 
 def draw_maps_editor(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> None:
