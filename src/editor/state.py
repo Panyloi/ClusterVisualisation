@@ -1,6 +1,7 @@
 import logging
 from typing import Callable, Type, TypeVar, ParamSpec, Union
 import json
+import numpy as np
 
 from matplotlib.axes._axes import Axes
 
@@ -56,6 +57,38 @@ class State:
         
         """
         
+        # pythonize data
+        def pythonize_dict(d: dict):
+            for key, value in d.items():
+                
+                # recurse for inside dictionaries
+                if isinstance(value, dict):
+                    pythonize_dict(value)
+                    
+                # recurse for inside lists
+                if isinstance(value, list):
+                    pythonize_list(value)
+                    
+                # prune
+                if isinstance(value, np.ndarray):
+                    d[key] = value.tolist()
+                    
+        def pythonize_list(l: list):
+            for i, value in enumerate(l):
+                
+                # recurse for inside dictionaries
+                if isinstance(value, dict):
+                    pythonize_dict(value)
+                    
+                # recurse for inside lists
+                if isinstance(value, list):
+                    pythonize_list(value)
+                    
+                # prune
+                if isinstance(value, np.ndarray):
+                    l[i] = value.tolist()
+        
+        pythonize_dict(data)
         self.data = data
 
     def draw(self, ax: Axes):
@@ -188,11 +221,10 @@ class State:
         with open(fpath, 'w') as f:
             json.dump(self.data, f)
 
-    @staticmethod
-    def load_state_from_file(fpath: str) -> 'State':
+    def load_state_from_file(self, fpath: str) -> 'State':
         with open(fpath, 'r') as f:
             data = json.load(f)
-        return State(data)
+        self.data = data
     
 
 

@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent, ResizeEvent
-from matplotlib.backends._backend_tk import NavigationToolbar2Tk, ToolTip
 from sklearn.cluster import AgglomerativeClustering
 import numpy as np
 
@@ -561,13 +560,8 @@ class Editor:
         fig.subplots_adjust(bottom=0.2)
 
         # setup costom toolbar buttons
-        tb = fig.canvas.manager.toolbar
-        tb: NavigationToolbar2Tk
-        b1 = tb._Button("sv", None, False, lambda *args, **kwargs: print("saving chart"))
-        ToolTip.createToolTip(b1, "Save editor state")
-        b2 = tb._Button("ld", None, False, lambda *args, **kwargs: print("loading chart"))
-        ToolTip.createToolTip(b2, "Load editor state")
-        tb._Spacer()
+        custom_buttons_setup(fig, self.state)
+        fig.canvas.mpl_connect('refresh_event', lambda *arags, **kwargs: print("THE EVENTTTTTTTTT"))
 
         SavePltLinker.link_ax_fig(ax, fig)
 
