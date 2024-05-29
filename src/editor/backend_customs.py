@@ -10,16 +10,18 @@ from .state import *
 
 
 class RefreshEvent(Event):
-    
-    name = 'refresh_event'
+
+    rf = None
+
+    def __init__(self, name: str, canvas: FigureCanvasBase, guiEvent=None) -> None:
+        super().__init__(name, canvas, guiEvent)
            
-    @staticmethod
-    def trigger_refresh_event(fig, *args, **kwargs):
-        fig.canvas.callbacks.process(RefreshEvent.name, *args, **kwargs)
+    def trigger_refresh_event(self, *args, **kwargs):
+        self._process()
 
 
 # register new event in the library
-FigureCanvasBase.events.append(RefreshEvent.name)
+FigureCanvasBase.events.append('refresh_event')
 
 
 class SavePltLinker:
@@ -97,7 +99,7 @@ def editor_save_cb(fig: Figure, state: State):
 def editor_load_cb(fig: Figure, state: State):
     fname = editor_state_file_load_choose(fig)
     state.load_state_from_file(fname)
-    RefreshEvent.trigger_refresh_event(fig)
+    RefreshEvent.rf.trigger_refresh_event()
     logging.info(f"Loaded editor state from {fname}")
 
 

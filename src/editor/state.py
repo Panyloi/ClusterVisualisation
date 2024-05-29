@@ -4,6 +4,7 @@ import json
 import numpy as np
 
 from matplotlib.axes._axes import Axes
+import matplotlib.pyplot as plt
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -225,7 +226,6 @@ class State:
         with open(fpath, 'r') as f:
             data = json.load(f)
         self.data = data
-    
 
 
 class StateLinker:
