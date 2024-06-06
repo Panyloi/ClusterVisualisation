@@ -21,8 +21,10 @@ class ViewsEnum(Enum):
     HOME   = 0
     LABELS = 1
     ARROWS = 2
-    CLUSTER = 3
-    HULLS = 4
+    HULLS = 3
+    CLUSTER = 4
+    AGGLOMERATIVE = 5
+    DBSCAN  = 6
 
 
 class ViewManager:

@@ -774,8 +774,8 @@ class Editor:
         vm.register_views([Home(vm),
                            LabelsView(vm),
                            ArrowsView(vm),
-                           ClusterView(vm),
                            HullView(vm),
+                           ClusterView(vm),
                            AgglomerativeView(vm),
                            DBSCANView(vm)])  # must be the same as ViewsEnum
         vm.run()

@@ -392,6 +392,25 @@ class HullArtist(StateLinker):
             if isinstance(child, HullArtist):
                 yield child
 
+
+#todo no idea what I'm doing
+class ClusterArtist(StateLinker):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+
+    def get_all_clusters(self):
+        return self.state.get_all_clusters()
+
+    def get_cluster(self, cluster_type: str):
+        return self.state.get_cluster(cluster_type)
+
+    def set_clusters_empty(self) -> None:
+        self.state.set_clusters_empty()
+
+    def set_cluster(self, cluster_type: str, x: list, y: list, labels) -> None:
+        self.state.set_cluster(cluster_type, x, y, labels)
+
+
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:

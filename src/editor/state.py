@@ -135,16 +135,30 @@ class State:
     @KeyErrorWrap(1)
     def get_arrow_size(self) -> float:
         return self.data['labels_data']['arrow_size']
-    
+
     # ------------------------------- HULLS_GETTERS ------------------------------ #
+
     @KeyErrorWrap([])
     def get_hull_polygon_cords(self, hull_id: int) -> list[tuple[float, float]]:
         return self.data['hulls_data'][hull_id]['cords']
 
     @KeyErrorWrap([])
-    def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float],tuple[float, float]]]:
+    def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         return self.data['hulls_data'][hull_id]['line_cords']
-    
+
+    @KeyErrorWrap(None)
+    def get_cluster(self, cluster_type: str) -> dict:
+        return self.data['clusters_data'][cluster_type]
+
+    #todo dunno how to initialise
+    @KeyErrorWrap(None)
+    def get_all_clusters(self) -> dict:
+        print("get all")
+        if 'clusters_data' not in self.data.keys():
+            print("reset")
+            self.data['clusters_data'] = {}
+        return self.data['clusters_data']
+
     # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
@@ -177,7 +191,27 @@ class State:
     @KeyErrorWrap(None)
     def set_arrow_size(self, size: float) -> None:
         self.data['labels_data']['arrow_size'] = size
-        
+
+    @KeyErrorWrap(None)
+    def set_cluster(self, cluster_type: str, x: list, y: list, labels: list) -> None:
+        logging.info("state set cluster")
+        logging.info(x)
+        logging.info(y)
+        self.data['clusters_data'][cluster_type] = {}
+        logging.info(labels)
+        self.data['clusters_data'][cluster_type]["x"] = x
+        self.data['clusters_data'][cluster_type]["y"] = y
+        self.data['clusters_data'][cluster_type]["labels"] = labels
+        print("wtf", self.data['clusters_data'])
+        # logging.info(self.data['clusters_data'][cluster_type])
+        # logging.info(self.data['clusters_data'])
+        logging.info("end")
+
+    @KeyErrorWrap(None)
+    def set_clusters_empty(self) -> None:
+        self.data['clusters_data'] = {}
+
+
     # ------------------------------------ ADD ----------------------------------- #
     
     @KeyErrorWrap(-1)
