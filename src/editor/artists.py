@@ -424,13 +424,17 @@ def draw(self, ax: Axes) -> None:
 
     # draw labels
     for label_id in self.data['labels_data'].keys():
-        if isinstance(label_id, int):
-            LabelArtist.text(ax, label_id)
+        try:
+            LabelArtist.text(ax, int(label_id))
+        except ValueError:
+            continue
 
     # draw hulls TODO: uncoment when hull_generator.py is done
     for hull_id in self.data['hulls_data'].keys():
-        if isinstance(hull_id, int):
-            HullArtist.hull(ax, hull_id)
+        try:
+            HullArtist.hull(ax, int(hull_id))
+        except ValueError:
+            continue
 
     ax.tick_params(
         axis='x',
