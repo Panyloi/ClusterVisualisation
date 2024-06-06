@@ -95,7 +95,10 @@ class ViewElementManager:
         self.elements.append(el)
         return el
 
-    def refresh(self) -> None:
+    def refresh_connect(self, fig: Figure) -> None:
+        fig.canvas.mpl_connect('refresh_event', self.refresh)
+
+    def refresh(self, *args, **kwargs) -> None:
         """
         Refreshes all view elements.
         """

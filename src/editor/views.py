@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent, ResizeEvent
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
 import numpy as np
@@ -21,6 +20,10 @@ class Home(View):
         self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, [0.25, 0.05, 0.1, 0.075], "Cluster", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, [0.35, 0.05, 0.1, 0.075], "Hulls", ViewsEnum.HULLS))
+
+        # connect auto refreshing
+        self.vem.refresh_connect(self.vm.fig)
+        self.cem.add(GlobalEvent('refresh_event', self.state.draw(self.vm.ax)))
 
         plt.draw()
 
@@ -757,6 +760,10 @@ class Editor:
     def run(self) -> None:
         fig, ax = plt.subplots()
         fig.subplots_adjust(bottom=0.2)
+
+        # setup costom toolbar buttons and events
+        custom_buttons_setup(fig, self.state)
+        RefreshEvent.rf = RefreshEvent('refresh_event', fig.canvas)
 
         SavePltLinker.link_ax_fig(ax, fig)
 

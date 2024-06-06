@@ -4,8 +4,7 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
 
-from .state import *
-from .backend_events import *
+from .backend_customs import *
 
 class ArrowArtist(Line2D, StateLinker):
     """
@@ -396,6 +395,10 @@ class HullArtist(StateLinker):
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
+
+    # clear ax
+    ax.clear()
+
     # draw points
     for culture_name in self.data['data'].keys():
         ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
@@ -430,5 +433,9 @@ def draw(self, ax: Axes) -> None:
 
     ax.set_xlim((-150, 150))
     ax.set_ylim((-150, 150))
+
+    plt.draw()
+    logging.info(f"State redraw")
+
 
 State.draw = draw
