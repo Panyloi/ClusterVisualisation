@@ -104,10 +104,10 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict = editor_format(normalized_data)
 
     # labels generation
-    # labels = calc(normalized_data, all_points, 10, 2)
-    # state_dict = parse_solution_to_editor(labels, state_dict)
-    # state_dict["labels_data"]['size'] = 10.0
-    # state_dict["labels_data"]['arrow_size'] = 1.0
+    labels = calc(normalized_data, all_points, 10, 2)
+    state_dict = parse_solution_to_editor(labels, state_dict)
+    state_dict["labels_data"]['size'] = 10.0
+    state_dict["labels_data"]['arrow_size'] = 1.0
 
     # hulls generator
     hulls = calc_hull(normalized_data, all_points, 2, 10, 20)

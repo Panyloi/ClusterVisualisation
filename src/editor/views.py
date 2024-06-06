@@ -550,21 +550,52 @@ class HullView(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
+        self.dragged_item: HullArtist | None = None
+        self.picked_item: HullArtist | None = None
+        self.events_stack = []
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        for culture_name in self.state.get_raw()['data'].keys():
-            self.vm.ax.scatter(
-                self.state.get_raw()['data'][culture_name]['x'],
-                self.state.get_raw()['data'][culture_name]['y'],
-                color="blue", s=3
-            )
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.events_stack.clear()
 
+        self.picked_item = kwargs.get('picked_item', None)
+ 
+        
+        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(NormalButton(self, [0.15, 0.05, 0.1, 0.075], "Remove Line", self.remove_line))
+        self.vem.add(NormalButton(self, [0.25, 0.05, 0.1, 0.075], "Remove Hull", self.remove_hull))
+
+        # events
+        self.cem.add(SharedEvent('pick_event', self.pick_event))
+
+        self.vem.refresh()
+        plt.draw()
+
+    def pick_event(self, event: PickEvent) -> None:
+        logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
+                     ID: {getattr(event.artist, 'id', None)}""")
+        if isinstance(event.artist, HullArtist):
+            self.events_stack.append(event.artist.get_state())
+            self.picked_item  = event.artist
+            self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
+
+            # update fields
+            self.vem.refresh()
+
+    def remove_line(self) -> None:
+        ...
     
+    def remove_hull(self) -> None:
+        if self.picked_item is None:
+            return
+        
+        self.pick_event.remove()
+        self.picked_item = None
+        self.vem.refresh()
+
     def undraw(self) -> None:
-        return super().undraw()
+        super().undraw()
 
 # -------------------------------- MAIN EDITOR ------------------------------- #
 

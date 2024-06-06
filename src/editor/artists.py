@@ -363,7 +363,15 @@ class HullArtist(StateLinker):
         else:
             self.polygon_cords = polygon
         self.polygon_lines = self.state.get_hull_lines_cords(self.id)
-        
+
+    def get_state(self) -> int:
+        """state getter for position undo operation"""
+        return self.id
+
+    def remove(self) -> None:
+        super().remove()
+        self.state.delete_hull(self.id)
+
     @staticmethod
     def hull(ax: Axes, sid: int, **kwargs) -> 'HullArtist':
         h = HullArtist(ax, sid)

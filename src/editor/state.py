@@ -183,6 +183,10 @@ class State:
     @KeyErrorWrap(None)
     def delete_arrow(self, label_id: int, arrow_id: int) -> None:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
+    
+    @KeyErrorWrap(None)
+    def delete_hull(self, hull_id: int) -> None:
+        self.data['hulls_data'].pop(hull_id)
 
     # ----------------------------------- MISC ----------------------------------- #
 
