@@ -741,12 +741,12 @@ class LimitedTextBox(ViewTextBox):
 
 class ViewRadioButtons(ViewElement):
 
-    def __init__(self, parent_view: View, axes: list[float], 
-                 labels: list[str], callback: Callable) -> None:
+    def __init__(self, parent_view: View, axes: list[float],
+                 labels: list[str], callback: Callable, active: int = 0) -> None:
         super().__init__()
         self.pv = parent_view
         self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
-        self.ref = RadioButtons(self.ax, labels=labels, active=0)
+        self.ref = RadioButtons(self.ax, labels=labels, active=active)
         self.ref.on_clicked(callback)
 
     def remove(self):
@@ -765,7 +765,7 @@ class ViewSlider(ViewElement):
         super().__init__()
         self.pv = parent_view
         self.ax = parent_view.vm.fig.add_axes(axes, frameon=False)
-        self.ref = Slider(ax=self.ax, label=label, valmin=valmin, valmax=valmax, initcolor=None)
+        self.ref = Slider(ax=self.ax, label=label, valmin=valmin, valmax=valmax, valinit=2, initcolor=None)
         self.ref.on_changed(callback)
 
     def remove(self):
