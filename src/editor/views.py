@@ -13,8 +13,7 @@ class Home(View):
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        #todo different solution
-        ClusterArtist.state.draw(self.vm.ax)
+        self.state.draw(self.vm.ax)
 
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
