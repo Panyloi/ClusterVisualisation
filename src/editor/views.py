@@ -17,6 +17,7 @@ class Home(View):
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, [0.25, 0.05, 0.1, 0.075], "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, [0.35, 0.05, 0.1, 0.075], "Hulls", ViewsEnum.HULLS))
 
         plt.draw()
     
@@ -545,6 +546,26 @@ class ClusterView(View):
                     self.removed["y"].append(cluster["y"][i])
             print(self.removed)
 
+class HullView(View):
+
+    def __init__(self, view_manager: ViewManager) -> None:
+        super().__init__(view_manager)
+
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+
+        for culture_name in self.state.get_raw()['data'].keys():
+            self.vm.ax.scatter(
+                self.state.get_raw()['data'][culture_name]['x'],
+                self.state.get_raw()['data'][culture_name]['y'],
+                color="blue", s=3
+            )
+        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+
+    
+    def undraw(self) -> None:
+        return super().undraw()
+
 # -------------------------------- MAIN EDITOR ------------------------------- #
 
 class Editor:
@@ -568,7 +589,8 @@ class Editor:
         vm.register_views([Home(vm), 
                            LabelsView(vm), 
                            ArrowsView(vm), 
-                           ClusterView(vm)]) # must be the same as ViewsEnum
+                           ClusterView(vm),
+                           HullView(vm)]) # must be the same as ViewsEnum
         vm.run()
 
         # dispalay
