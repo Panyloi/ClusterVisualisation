@@ -22,6 +22,7 @@ class ViewsEnum(Enum):
     LABELS = 1
     ARROWS = 2
     CLUSTER = 3
+    HULLS = 4
 
 
 class ViewManager:

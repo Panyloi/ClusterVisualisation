@@ -1,6 +1,8 @@
 from matplotlib.axes._axes import Axes
 from matplotlib.text import Text
 from matplotlib.lines import Line2D
+from matplotlib.collections import LineCollection
+from typing import List, Tuple
 
 from .state import *
 from .backend_events import *
@@ -336,6 +338,60 @@ class LabelArtist(Text, StateLinker):
             if isinstance(child, LabelArtist):
                 yield child
     
+class HullArtist(StateLinker):
+    """
+    Class for properly managing hulls
+    """
+
+    def __init__(self, ax: Axes, sid: int, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
+        """init
+
+        Parameters
+        ----------
+        ax: Axes
+            Main chart ax
+        sid: int
+            The created HullArtist id
+        polygon: List[Tuple[float, float]]
+            The polygon coordinates
+        """
+
+        self.id = sid
+        self.ax = ax
+        if polygon is None:
+            self.polygon_cords = self.state.get_hull_polygon_cords(self.id)
+        else:
+            self.polygon_cords = polygon
+        self.polygon_lines = self.state.get_hull_lines_cords(self.id)
+
+    def get_state(self) -> int:
+        """state getter for position undo operation"""
+        return self.id
+
+    def remove(self) -> None:
+        super().remove()
+        self.state.delete_hull(self.id)
+
+    @staticmethod
+    def hull(ax: Axes, sid: int, **kwargs) -> 'HullArtist':
+        h = HullArtist(ax, sid)
+        ax.add_collection(LineCollection(segments=h.polygon_lines, colors='black'))
+    
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | HullArtist':
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, HullArtist):
+                if child.id == sid:
+                    return child
+        return None
+    
+    @staticmethod
+    def get_all_hulls(ax: Axes):
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, HullArtist):
+                yield child
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
@@ -348,6 +404,11 @@ def draw(self, ax: Axes) -> None:
     for label_id in self.data['labels_data'].keys():
         if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
+
+    # draw hulls TODO: uncoment when hull_generator.py is done
+    for hull_id in self.data['hulls_data'].keys():
+        if isinstance(hull_id, int):
+            HullArtist.hull(ax, hull_id)
 
     ax.tick_params(
         axis='x',

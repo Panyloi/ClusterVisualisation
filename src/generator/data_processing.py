@@ -128,7 +128,7 @@ def editor_format(data: dict) -> dict:
 
     data = {"data": data,
             "cluster_data": {},
-            "convex_data": {},
+            "hulls_data": {},
             "labels_data": {}}
     
     return data

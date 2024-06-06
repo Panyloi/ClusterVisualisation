@@ -101,6 +101,15 @@ class State:
     def get_arrow_size(self) -> float:
         return self.data['labels_data']['arrow_size']
     
+    # ------------------------------- HULLS_GETTERS ------------------------------ #
+    @KeyErrorWrap([])
+    def get_hull_polygon_cords(self, hull_id: int) -> list[tuple[float, float]]:
+        return self.data['hulls_data'][hull_id]['cords']
+
+    @KeyErrorWrap([])
+    def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float],tuple[float, float]]]:
+        return self.data['hulls_data'][hull_id]['line_cords']
+    
     # ---------------------------------- SETTERS --------------------------------- #
 
     @KeyErrorWrap(None)
@@ -174,6 +183,10 @@ class State:
     @KeyErrorWrap(None)
     def delete_arrow(self, label_id: int, arrow_id: int) -> None:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
+    
+    @KeyErrorWrap(None)
+    def delete_hull(self, hull_id: int) -> None:
+        self.data['hulls_data'].pop(hull_id)
 
     # ----------------------------------- MISC ----------------------------------- #
 

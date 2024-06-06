@@ -7,6 +7,7 @@ from .generator.data_processing import *
 from .editor.view_manager import *
 from .editor.views import *
 from .generator.labels_generator import *
+from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull
 
 
 def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
@@ -107,6 +108,10 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict = parse_solution_to_editor(labels, state_dict)
     state_dict["labels_data"]['size'] = 10.0
     state_dict["labels_data"]['arrow_size'] = 1.0
+
+    # hulls generator
+    hulls = calc_hull(normalized_data, all_points, 2, 10, 20)
+    state_dict = parse_solution_to_editor_hull(hulls, state_dict)
 
     # ------------------------- RETURN FOR EDITOR LAUNCH ------------------------- #
     if out_path is None:
