@@ -11,28 +11,54 @@ from .state import *
 
 class RefreshEvent(Event):
 
-    rf = None
-
     def __init__(self, name: str, canvas: FigureCanvasBase, guiEvent=None) -> None:
         super().__init__(name, canvas, guiEvent)
-           
-    def trigger_refresh_event(self, *args, **kwargs):
-        self._process()
+
+    @staticmethod
+    def trigger_refresh_event(*args, **kwargs):
+        event = RefreshEventSingletonFactory.get_instance().make_event()
+        event.canvas.callbacks.process(event.name, event)
+
+
+class RefreshEventSingletonFactory:
+
+    instance = None
+    name_a = None
+    canvas_a = None
+    guiEvent_a = None
+
+    @classmethod
+    def get_instance(cls):
+        if cls.instance is None:
+            cls.instance = RefreshEventSingletonFactory()
+        return cls.instance
+    
+    @classmethod
+    def set_args(cls, name: str, canvas: FigureCanvasBase, guiEvent=None) -> None:
+        cls.name_a = name
+        cls.canvas_a = canvas
+        cls.guiEvent_a = guiEvent
+
+    @classmethod
+    def make_event(cls) -> RefreshEvent:
+        return RefreshEvent(cls.name_a, cls.canvas_a, cls.guiEvent_a)
 
 
 # register new event in the library
 FigureCanvasBase.events.append('refresh_event')
 
-
-class SavePltLinker:
+class SaveLoadPltLinker:
     
     ax = None
     fig = None
 
     @classmethod
-    def link_ax_fig(cls, ax, fig):
+    def link_ax_fig(cls, ax: Axes, fig: Figure):
         cls.ax = ax
         cls.fig = fig
+
+        # additionaly this method initiates RefreshEventSingletonFactory
+        RefreshEventSingletonFactory.set_args('refresh_event', cls.fig.canvas)
 
     @classmethod
     def get_ax_fig(cls):
@@ -90,25 +116,29 @@ def editor_state_file_load_choose(fig: Figure):
     return fname
 
 
-def editor_save_cb(fig: Figure, state: State):
+def editor_save_cb(state: State):
+    ax, fig = SaveLoadPltLinker.get_ax_fig()
     fname = editor_state_file_save_choose(fig)
     state.save_state_to_file(fname)
     logging.info(f"Saved editor state to {fname}")
     
     
-def editor_load_cb(fig: Figure, state: State):
+def editor_load_cb(state: State):
+    ax, fig = SaveLoadPltLinker.get_ax_fig()
     fname = editor_state_file_load_choose(fig)
     state.load_state_from_file(fname)
-    RefreshEvent.rf.trigger_refresh_event()
+    state.draw(ax)
+    RefreshEvent.trigger_refresh_event()
     logging.info(f"Loaded editor state from {fname}")
 
 
-def custom_buttons_setup(fig: Figure, state: State):
+def custom_buttons_setup(state: State):
+    ax, fig = SaveLoadPltLinker.get_ax_fig()
     tb = fig.canvas.manager.toolbar
     tb: NavigationToolbar2Tk
-    b1 = tb._Button("sv", None, False, lambda : editor_save_cb(fig, state))
+    b1 = tb._Button("sv", None, False, lambda : editor_save_cb(state))
     ToolTip.createToolTip(b1, "Save editor state")
-    b2 = tb._Button("ld", None, False, lambda : editor_load_cb(fig, state))
+    b2 = tb._Button("ld", None, False, lambda : editor_load_cb(state))
     ToolTip.createToolTip(b2, "Load editor state")
     tb._Spacer()
     
@@ -141,7 +171,7 @@ def new_save_figure(self, *args):
         mpl.rcParams['savefig.directory'] = (
             os.path.dirname(str(fname)))
     try:
-        pax, pfig = SavePltLinker.get_ax_fig()
+        pax, pfig = SaveLoadPltLinker.get_ax_fig()
         bbox = pax.get_tightbbox().transformed(pfig.dpi_scale_trans.inverted())
         self.canvas.figure.savefig(fname, bbox_inches=bbox, pad_inches=0)
     except Exception as e:
