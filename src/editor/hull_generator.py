@@ -331,7 +331,7 @@ def greedy_selecting(points):
     return outline_points
 
 
-def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_circle: int, segment_length: int):
+def calc_hull(data: dict, circle_radious: float, points_in_circle: int, segment_length: int):
 
     hulls = {}
 

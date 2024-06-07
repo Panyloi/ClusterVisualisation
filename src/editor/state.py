@@ -309,6 +309,11 @@ class State:
     def delete_hull(self, hull_id: int) -> None:
         self.data['hulls_data'].pop(hull_id)
 
+    def delete_hulls(self) -> None:
+        keys = list(self.data['hulls_data'].keys())
+        for key in keys:
+            self.data['hulls_data'].pop(key)
+
     # ----------------------------------- MISC ----------------------------------- #
 
     @staticmethod

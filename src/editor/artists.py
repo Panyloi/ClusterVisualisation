@@ -4,6 +4,9 @@ from matplotlib.text import Text
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
+import time
+
+from .hull_generator import calc_hull, parse_solution_to_editor_hull
 
 from .backend_customs import *
 
@@ -433,7 +436,6 @@ def draw(self, ax: Axes) -> None:
 
     # clear ax
     ax.clear()
-
     # draw points
     for point_id in range(len(self.data['clusters_data_points'])):
         PointArtist.point(ax, point_id)
@@ -448,8 +450,13 @@ def draw(self, ax: Axes) -> None:
             LabelArtist.text(ax, int(label_id))
         except ValueError:
             continue
+    
+    # this is temp solution -> it generates all hull again TODO: change this in future
+    self.delete_hulls()
+    hulls = calc_hull(self.get_normalised_clusters(), 2, 10, 20)
+    self.data = parse_solution_to_editor_hull(hulls, self.data)
 
-    # draw hulls TODO: uncomment when hull_generator.py is done
+
     for hull_id in self.data['hulls_data'].keys():
         try:
             HullArtist.hull(ax, int(hull_id))
