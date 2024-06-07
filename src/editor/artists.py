@@ -1,4 +1,5 @@
 from matplotlib.axes._axes import Axes
+from matplotlib.patches import Circle
 from matplotlib.text import Text
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
@@ -393,23 +394,38 @@ class HullArtist(StateLinker):
                 yield child
 
 
-#todo no idea what I'm doing
-class ClusterArtist(StateLinker):
-    def __init__(self, **kwargs) -> None:
-        super().__init__()
+class PointArtist(Circle, StateLinker):
+    def __init__(self, ax: Axes, sid: int, x: float = 0, y: float = 0, radius=1.5, **kwargs) -> None:
+        self.id = sid
+        self.ax = ax
 
-    def get_all_clusters(self):
-        return self.state.get_all_clusters()
+        xy = self.state.get_point_pos(self.id)
+        default_kwargs = {"color":self.state.get_point_color(sid)}
+        kwargs = {**default_kwargs, **kwargs}
 
-    def get_cluster(self, cluster_type: str):
-        return self.state.get_cluster(cluster_type)
+        super().__init__(xy, radius, picker=True, **kwargs)
 
-    def set_clusters_empty(self) -> None:
-        self.state.set_clusters_empty()
+    @staticmethod
+    def point(ax: Axes, sid: int, **kwargs) -> 'PointArtist':
+        circle = PointArtist(ax, sid, **kwargs)
+        ax.add_patch(circle)
+        return circle
 
-    def set_cluster(self, cluster_type: str, x: list, y: list, labels) -> None:
-        self.state.set_cluster(cluster_type, x, y, labels)
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | PointArtist':
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, PointArtist):
+                if child.id == sid:
+                    return child
+        return None
 
+    @staticmethod
+    def get_all_points(ax: Axes):
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, PointArtist):
+                yield child
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
@@ -419,15 +435,19 @@ def draw(self, ax: Axes) -> None:
     ax.clear()
 
     # draw points
-    for culture_name in self.data['data'].keys():
-        ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
+    for point_id in range(len(self.data['clusters_data_points'])):
+        PointArtist.point(ax, point_id)
+
+    # old scatter
+    # for culture_name in self.data['data'].keys():
+    #     ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
 
     # draw labels
     for label_id in self.data['labels_data'].keys():
         if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
 
-    # draw hulls TODO: uncoment when hull_generator.py is done
+    # draw hulls TODO: uncomment when hull_generator.py is done
     for hull_id in self.data['hulls_data'].keys():
         if isinstance(hull_id, int):
             HullArtist.hull(ax, hull_id)
