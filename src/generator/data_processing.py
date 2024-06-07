@@ -125,7 +125,7 @@ def editor_format(data: dict) -> dict:
         Reference to data
 
     """
-
+    #todo initialize cluster data here after clean up
     data = {"data": data,
             "cluster_data": {},
             "hulls_data": {},
@@ -161,6 +161,8 @@ def _parse_csv(path: str, delim=';') -> dict:
 
     df[ids] = df[ids].apply(lambda x: x.split(sep="_")[0])
 
+    df = combine_mallows_urn(df)
+
     categorized_names = df[ids].unique()
     gruped_points = {}
 
@@ -171,6 +173,11 @@ def _parse_csv(path: str, delim=';') -> dict:
 
     return gruped_points
 
+
+def combine_mallows_urn(df):
+    mallows = df[df[df.columns[0]].str.contains('Mallows-Urn')]
+    df.loc[mallows.index, df.columns[0]] = 'Mallows-Urn'
+    return df
 
 def _parse_experiment(exp: Experiment) -> dict:
     """ Parse method for Experiment obj

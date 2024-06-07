@@ -1,4 +1,5 @@
 import logging
+import random
 from typing import Callable, Type, TypeVar, ParamSpec, Union
 import json
 import numpy as np
@@ -151,18 +152,48 @@ class State:
     def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         return self.data['hulls_data'][hull_id]['line_cords']
 
+    # ------------------------------- CLUSTER GETTERS ------------------------------ #
     @KeyErrorWrap(None)
     def get_cluster(self, cluster_type: str) -> dict:
-        return self.data['clusters_data'][cluster_type]
+        return self.data['clusters_data_v2'][cluster_type]
 
-    #todo dunno how to initialise
     @KeyErrorWrap(None)
     def get_all_clusters(self) -> dict:
-        print("get all")
-        if 'clusters_data' not in self.data.keys():
-            print("reset")
-            self.data['clusters_data'] = {}
-        return self.data['clusters_data']
+        return self.data['clusters_data_v2']
+
+    @KeyErrorWrap(None)
+    def get_all_points(self) -> []:
+        return self.data['clusters_data_points']
+
+    @KeyErrorWrap(None)
+    def get_point_pos(self, point_id) -> tuple:
+        return self.data['clusters_data_points'][point_id]["x"], self.data['clusters_data_points'][point_id]["y"]
+
+    @KeyErrorWrap(None)
+    def get_point_color(self, point_id) -> str:
+        type_name = self.data['clusters_data_points'][point_id]["type"]
+        return self.data['clusters_data_v2'][type_name]["color"]
+
+    @KeyErrorWrap(None)
+    def get_normalised_clusters(self) -> dict:
+        for point in self.data['clusters_data_points']:
+            self.data['clusters_data_v2'][point["type"]]["points"].append(point["point_id"])
+
+        print(self.data['clusters_data_v2'])
+        data = {}
+        for k, v in self.data['clusters_data_v2'].items():
+            x_list = []
+            y_list = []
+            for point_id in v["points"]:
+                xy = self.get_point_pos(point_id)
+                x_list.append(xy[0])
+                y_list.append(xy[1])
+            if len(x_list) != 0:
+                data[k] = {"x": np.array(x_list), "y": np.array(y_list)}
+        print(data)
+        return data
+
+
 
     # ---------------------------------- SETTERS --------------------------------- #
 
@@ -197,24 +228,40 @@ class State:
     def set_arrow_size(self, size: float) -> None:
         self.data['labels_data']['arrow_size'] = size
 
+    # ------------------------------- CLUSTER SETTERS ------------------------------ #
+
+    # @KeyErrorWrap(None)
+    # def set_cluster(self, cluster_type: str, x: list, y: list, labels: list) -> None:
+    #     self.data['clusters_data'][cluster_type] = {}
+    #     self.data['clusters_data'][cluster_type]["x"] = x
+    #     self.data['clusters_data'][cluster_type]["y"] = y
+    #     self.data['clusters_data'][cluster_type]["labels"] = labels
+
     @KeyErrorWrap(None)
-    def set_cluster(self, cluster_type: str, x: list, y: list, labels: list) -> None:
-        logging.info("state set cluster")
-        logging.info(x)
-        logging.info(y)
-        self.data['clusters_data'][cluster_type] = {}
-        logging.info(labels)
-        self.data['clusters_data'][cluster_type]["x"] = x
-        self.data['clusters_data'][cluster_type]["y"] = y
-        self.data['clusters_data'][cluster_type]["labels"] = labels
-        print("wtf", self.data['clusters_data'])
-        # logging.info(self.data['clusters_data'][cluster_type])
-        # logging.info(self.data['clusters_data'])
-        logging.info("end")
+    def set_cluster(self, cluster_type: str, points: list) -> None:
+        if cluster_type in self.data['clusters_data_v2'].keys():
+            self.data['clusters_data_v2'][cluster_type]["points"] = points
+        else:
+            self.data['clusters_data_v2'][cluster_type] = {"points": points,
+                                                            "color": f"#{random.randrange(0x1000000):06x}"}
+            for point_id in points:
+                self.data['clusters_data_points'][point_id]["type"] = cluster_type
 
     @KeyErrorWrap(None)
     def set_clusters_empty(self) -> None:
-        self.data['clusters_data'] = {}
+        # todo clean new clusters properly
+        self.data['clusters_data_points'] = []
+        idx = 0
+        for culture_name in self.data['data'].keys():
+            self.data['clusters_data_v2'][culture_name]["points"] = [],
+            for i in range(len(self.data['data'][culture_name]["x"])):
+                self.data['clusters_data_points'].append({
+                    "point_id": idx,
+                    "x": self.data['data'][culture_name]['x'][i],
+                    "y": self.data['data'][culture_name]['y'][i],
+                    "type": culture_name
+                })
+                idx += 1
 
 
     # ------------------------------------ ADD ----------------------------------- #

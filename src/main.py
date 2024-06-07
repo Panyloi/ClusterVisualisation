@@ -1,3 +1,4 @@
+import random
 from typing import Optional, Union
 from mapel.core.objects.Experiment import Experiment
 import sys
@@ -107,6 +108,26 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     normalized_data = normalize(parsed_data)
     all_points = get_all_points(normalized_data)
     state_dict = editor_format(normalized_data)
+    print(normalized_data)
+    print("break\n\n\n")
+    print(state_dict)
+
+    # cluster generation
+    state_dict['clusters_data'] = {}
+    state_dict['clusters_data_v2'] = {}
+    state_dict['clusters_data_points'] = []
+    idx = 0
+    for culture_name in state_dict['data'].keys():
+        state_dict['clusters_data_v2'][culture_name] = {"points": [], "color": f"#{random.randrange(0x1000000):06x}"}
+        for i in range(len(state_dict['data'][culture_name]["x"])):
+            state_dict['clusters_data_points'].append({
+                "point_id": idx,
+                "x": state_dict['data'][culture_name]['x'][i],
+                "y": state_dict['data'][culture_name]['y'][i],
+                "type": culture_name
+            })
+            idx += 1
+
 
     # labels generation
     labels = calc(normalized_data, all_points, 10, 2)
