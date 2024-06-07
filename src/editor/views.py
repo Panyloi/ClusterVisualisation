@@ -423,7 +423,7 @@ class ClusterView(View):
         self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],"Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.17, 0.075], "Agglomerative", ViewsEnum.AGGLOMERATIVE))
         self.vem.add(ChangeViewButton(self, [0.37, 0.05, 0.10, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],"Reset", self.reset))
+        # self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],"Reset", self.reset))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -493,7 +493,7 @@ class DBSCANView(View):
         self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075],
                                   "Save cluster", self.save_cluster))
         self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],
-                                  "Reset", self.reset))
+                                  "Save all", self.reset))
 
         self.draw_cluster()
 
@@ -528,12 +528,10 @@ class DBSCANView(View):
     def save_cluster(self):
         tuples = list(zip(self.current_cluster["x"], self.current_cluster["y"]))
         label_map = {key: [] for key in set(self.current_labels)}
-        print(label_map)
         for point_id in range(len(self.state.get_all_points())):
             point = self.state.get_point_pos(point_id)
             if point in tuples:
                 idx = tuples.index(point)
-                print(idx, self.current_labels[idx])
                 label_map[self.current_labels[idx]].append(point_id)
         for points in label_map.values():
             self.state.set_cluster(str(self.save_index), points)
@@ -592,8 +590,8 @@ class AgglomerativeView(View):
                                   "Save cluster", self.save_cluster))
         # self.vem.add(NormalButton(self, [0.44, 0.05, 0.17, 0.075],
         #                           "Remove points", self.remove_points))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],
-                                  "Reset", self.reset))
+        # self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],
+        #                           "Reset", self.reset))
 
         self.draw_cluster()
 
@@ -632,12 +630,10 @@ class AgglomerativeView(View):
     def save_cluster(self):
         tuples = list(zip(self.current_cluster["x"], self.current_cluster["y"]))
         label_map = {key: [] for key in set(self.current_labels)}
-        print(label_map)
         for point_id in range(len(self.state.get_all_points())):
             point = self.state.get_point_pos(point_id)
             if point in tuples:
                 idx = tuples.index(point)
-                print(idx, self.current_labels[idx])
                 label_map[self.current_labels[idx]].append(point_id)
         for points in label_map.values():
             self.state.set_cluster(str(self.save_index), points)
