@@ -344,6 +344,7 @@ def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_c
         x = deepcopy(data[hull_name]['x'])
         y = deepcopy(data[hull_name]['y'])
 
+        hulls[i]['cluster_points'] = {'x': x, 'y': y}
 
         points_transform = np.hstack(
             (
@@ -389,7 +390,8 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
         state['hulls_data'][i] = {
             'name': hulls[i]['name'],
             'cords': hulls[i]['polygon_points'],
-            'line_cords': hulls[i]['polygon_lines']
+            'line_cords': hulls[i]['polygon_lines'],
+            'cluster_points': hulls[i]['cluster_points']
         }
     return state
 

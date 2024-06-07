@@ -58,11 +58,18 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             ...
         }
 
-        convex_data: 
+        hulls_data: 
         {
-            "cluster_name":
+            hull_id:
             {
-                // TODO: data for convex?
+                'name': str
+                'cords': list[tuple[float, float]] // coordinates of hull points
+                'line_cords': list[tuple[tuple[float, float], tuple[float, float]]] // hull's lines
+                'cluster_points':
+                {
+                    'x': np.array()
+                    'y': np.array()
+                }
             },
             "second_cluster_name":
             ...
