@@ -408,22 +408,21 @@ class ClusterView(View):
         self.picked_item: PointArtist | None = None
         self.pick_pos: tuple[float, float] | None = None
         self.events_stack = []
-        self.events_stack = []
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        self.events_stack.clear()
-        event = kwargs.get('event', None)
-        self.picked_item = kwargs.get('picked_item', None)
-        if event is not None:
-            self.pick_event(event)
+        # self.events_stack.clear()
+        # event = kwargs.get('event', None)
+        # self.picked_item = kwargs.get('picked_item', None)
+        # if event is not None:
+        #     self.pick_event(event)
 
         # buttons
         self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],"Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.17, 0.075], "Agglomerative", ViewsEnum.AGGLOMERATIVE))
         self.vem.add(ChangeViewButton(self, [0.37, 0.05, 0.10, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
-        # self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],"Reset", self.reset))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],"Reset", self.reset))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -434,27 +433,35 @@ class ClusterView(View):
 
     def draw_points(self):
         # todo could use a different solution to draw just points
-        self.vm.ax.clear()
-        for point_id in range(len(self.state.get_all_points())):
-            PointArtist.point(self.vm.ax, point_id, alpha=0.3)
 
-        for cluster in self.state.get_all_clusters().values():
-            for point_id in cluster["points"]:
-                PointArtist.point(self.vm.ax, point_id, alpha=1)
-        self.vm.ax.plot()
+        for artist in self.vm.ax.get_children():
+            if isinstance(artist, ArrowArtist) or isinstance(artist, LabelArtist) or isinstance(artist, LineCollection):
+                artist.remove()
+
+        for point_id in self.state.get_all_points().index:
+            self.state.data['clusters_data']['artists'][point_id].set_alpha(0.3)
 
     def undraw(self) -> None:
         super().undraw()
 
     def reset(self):
-        self.state.set_clusters_empty()
+        self.state.reset_clusters()
         self.draw()
 
     def pick_event(self, event: PickEvent) -> None:
         if self.picked_item:
             self.picked_item.remove()
+            point = self.state.get_point(self.picked_item.id)
+            for point_id in self.state.get_cluster(point['type']).index:
+                self.state.data['clusters_data']['artists'][point_id].set_alpha(0.3)
+
         logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}""")
         self.picked_item = PointArtist.point(self.vm.ax, event.artist.id, color="red")
+
+        point = self.state.get_point(self.picked_item.id)
+        for point_id in self.state.get_cluster(point['type']).index:
+            self.state.data['clusters_data']['artists'][point_id].set_alpha(1)
+
         plt.draw()
 
 
@@ -710,6 +717,7 @@ class HullView(View):
         super().undraw()
 
 # -------------------------------- MAIN EDITOR ------------------------------- #
+
 
 class Editor:
     def __init__(self, state: State) -> None:

@@ -405,6 +405,9 @@ class PointArtist(Circle, StateLinker):
 
         super().__init__(xy, radius, picker=True, **kwargs)
 
+    def remove(self) -> None:
+        super().remove()
+
     @staticmethod
     def point(ax: Axes, sid: int, **kwargs) -> 'PointArtist':
         circle = PointArtist(ax, sid, **kwargs)
@@ -415,9 +418,8 @@ class PointArtist(Circle, StateLinker):
     def get_by_id(ax: Axes, sid: int) -> 'None | PointArtist':
         children = ax.get_children()
         for child in children:
-            if isinstance(child, PointArtist):
-                if child.id == sid:
-                    return child
+            if isinstance(child, PointArtist) and child.id == sid:
+                return child
         return None
 
     @staticmethod
@@ -429,14 +431,16 @@ class PointArtist(Circle, StateLinker):
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
+
 def draw(self, ax: Axes) -> None:
 
     # clear ax
     ax.clear()
 
+    self.data['clusters_data']['artists'] = []
     # draw points
-    for point_id in range(len(self.data['clusters_data_points'])):
-        PointArtist.point(ax, point_id)
+    for point_id in self.data['clusters_data']['points'].index:
+        self.data['clusters_data']['artists'].append(PointArtist.point(ax, point_id))
 
     # old scatter
     # for culture_name in self.data['data'].keys():
@@ -475,6 +479,7 @@ def draw(self, ax: Axes) -> None:
 
     plt.draw()
     logging.info(f"State redraw")
+    # todo check why state redraws three times while launching
 
 
 State.draw = draw
