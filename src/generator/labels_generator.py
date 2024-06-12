@@ -1,15 +1,13 @@
-import matplotlib.font_manager
+from typing import List, Tuple, Optional
+
 import matplotlib.pyplot as plt
-from matplotlib.transforms import Bbox, BboxTransformFrom, BboxTransformTo, BlendedAffine2D, CompositeGenericTransform, IdentityTransform, TransformWrapper
+from matplotlib.transforms import Bbox
+from matplotlib.text import Text
 import numpy as np
 from scipy.optimize import dual_annealing, basinhopping
-import time
-from collections import defaultdict
-from typing import List, Tuple, Optional
 from scipy.spatial import KDTree, ConvexHull
-from matplotlib.backends.backend_agg import RendererAgg
-from matplotlib.transforms import TransformedBbox, Affine2D, BboxTransform
-from matplotlib.text import Text
+
+from ..configuration import Configuration
 
 CPoint = Tuple[float]
 Point  = List[float]
@@ -24,14 +22,14 @@ tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
 
 class Label:
 
-    def __init__(self, text, x, y, width, height, root_point) -> None:
+    def __init__(self, text, r, a, width, height, root_point) -> None:
 
         # data
         self.text = text
 
         # params
-        self.x = x
-        self.y = y
+        self.r = r
+        self.a = a
         self.t = 0
 
         # hiperparams
@@ -43,14 +41,14 @@ class Label:
         self.x0_y = None
 
         # refreshable
-        self.points = [tuple_add((x, y), (-self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, -self.height/2)),
-                       tuple_add((x, y), (-self.width/2, -self.height/2))]
+        self.points = [tuple_add((self.rp_x, self.rp_y), (-self.width/2, self.height/2)),
+                       tuple_add((self.rp_x, self.rp_y), (self.width/2, self.height/2)),
+                       tuple_add((self.rp_x, self.rp_y), (self.width/2, -self.height/2)),
+                       tuple_add((self.rp_x, self.rp_y), (-self.width/2, -self.height/2))]
         
         self.t_point = self.get_tpoint()
     
-    def update_params(self, x, y, t):
+    def update_params(self, r, a, t):
         self.x = x
         self.y = y
         self.points = [tuple_add((x, y), (-self.width/2, self.height/2)),
@@ -69,10 +67,13 @@ class Label:
             return tuple_add(self.points[2], (-self.width*(self.t % 1), 0))
         else:
             return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
-
-    def get_err(self):
-        return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + \
-               np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2))/100
+    
+    def get_err(self, include_x0: bool = True):
+        if include_x0:
+            return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + \
+                    np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2))/100
+        else:
+            return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
     def get_mpoint(self):
         return self.x, (self.y - self.height/2) + self.width/2
@@ -240,7 +241,7 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
 #                                     LOSS                                     #
 # ---------------------------------------------------------------------------- #
 
-def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
+def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = True):
     
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -270,7 +271,44 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
             intersections += 15
 
         # loss
-        loss += label.get_err()
+        loss += label.get_err(include_x0_in_err)
+
+    return loss*((1 + intersections)**2)
+
+def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False):
+    
+    # ---------------------------------- UPDATE ---------------------------------- #
+
+    # update kd tree pts
+    npts=[]
+    for slabel in static_label_list:
+        npts.extend(slabel.points)
+
+    # update label
+    label.update_params(x[0], x[1], x[2])
+    npts.extend(label.points)
+        
+    # create new KDTree
+    nx = np.array(npts)
+    kd = KDTree(nx)
+
+    # ----------------------------------- LOSS ----------------------------------- #
+
+    intersections = 0
+    loss = 0
+
+    # labels intersection
+    mp = label.get_mpoint()
+    candidates = nx[kd.query_ball_point(x=mp, r=label.width/2+0.001, p=np.inf)]
+    if len(candidates[candidates[:, 1] <= label.y + label.height/2]) > 4:
+        intersections += 20
+
+    # main set penalty
+    if any(point in main_set for point in label.points):
+        intersections += 50
+
+    # loss
+    loss += label.get_err(include_x0_in_err)
 
     return loss*((1 + intersections)**2)
 
@@ -279,13 +317,15 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
-def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_size: float = 10, RADIUS: float = 2, optim_kwargs: dict = None):
+def calc(data: dict, 
+         points: np.ndarray,
+         config_id: str):
 
     # Generate main set convex
     hull = ConvexHull(points)
 
-    mset     = MainSet(points[hull.vertices])
-    ll       = []
+    mset = MainSet(points[hull.vertices])
+    ll   = []
 
     fig, ax = plt.subplots()
     fig.add_axes(ax)
@@ -309,41 +349,87 @@ def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_si
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    ax.set_xlim((-150, 150))
-    ax.set_ylim((-150, 150))
+    xlim = (Configuration.instance['editor']['init_xlim_low'], Configuration.instance['editor']['init_xlim_high'])
+    ylim = (Configuration.instance['editor']['init_ylim_low'], Configuration.instance['editor']['init_ylim_high'])
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
 
     for label_name in data.keys():
         ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
 
-        tx: Text = ax.text(0, 0, label_name, size=font_size, transform=ax.transData)
-        tx.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.3))
+        tx: Text = ax.text(0, 0, label_name, size=Configuration.instance['editor']['font_size'], transform=ax.transData)
+        tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
         text_bbox = tx.get_window_extent()
         transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
-        ll.append(Label(label_name, 0, 0, transformed_text_bbox.width, transformed_text_bbox.height, ref_point))
+        ll.append(Label(label_name, 0, 0, transformed_text_bbox.width+2, transformed_text_bbox.height+3, ref_point))
 
-    labels_bounds = [(-150, 150), (-150, 150)]*len(ll)
+    labels_bounds = [xlim, ylim]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
 
     plt.clf()
     plt.close(fig)
+    
+    x=None
 
-    # calculate
-    x0 = greedy((0, 0), ll, mset)
-    Label.ll_set_x0(ll, x0)
+    if config_id == 'iterative':
 
-    if optim_kwargs is None:
-        # deafult configuration for fats editor lunching
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=1, visit=2.2)
+        curr_config = Configuration.instance['labels_generator']['configurations'][config_id]
+        maxiter = curr_config['maxiter']
+        visit = curr_config['visit']
+        initial_temp = curr_config['initial_temp']
+        restart_temp_ratio = curr_config['restart_temp_ratio']
+        accept = curr_config['accept']
+        no_local_search = curr_config['no_local_search']
+
+        res_ll = []
+        for label in ll:
+            label_bounds = [xlim, ylim, (0, 4)]
+            lres = dual_annealing(iter_loss, bounds=label_bounds, args=(label, res_ll, mset),
+                                  maxiter=maxiter, visit=visit, initial_temp=initial_temp, restart_temp_ratio=restart_temp_ratio, 
+                                  accept=accept, no_local_search=no_local_search)
+            lx = lres.x
+            label.update_params(lx[0], lx[1], lx[2])
+            res_ll.append(label)
+
+        x = Label.ll_get(res_ll)
+            
+
+    elif config_id == 'global':
+
+        x0 = None
+        curr_config = Configuration.instance['labels_generator']['configurations'][config_id]
+        if curr_config['generate_greedy_x0']:
+            x0 = greedy((0, 0), ll, mset)
+            Label.ll_set_x0(ll, x0)
+
+        maxiter = curr_config['maxiter']
+        visit = curr_config['visit']
+        initial_temp = curr_config['initial_temp']
+        restart_temp_ratio = curr_config['restart_temp_ratio']
+        accept = curr_config['accept']
+        no_local_search = curr_config['no_local_search']
+
+        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), 
+                             x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
+                             restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
+        x = res.x
+    elif config_id == 'divide_and_conquare':
+        ...
+    elif config_id == 'timed':
+        ...
     else:
-        # custom configuration
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, **optim_kwargs)
+        raise Exception("Invalid config_id. No such configuration exists")
 
     # prep result
+    assert(x is not None)
     labels = {}
-    Label.ll_set(ll, res.x)
+    Label.ll_set(ll, x)
     for label in ll:
         labels[label.text] = label.get_result()
+
+    _debug_draw(ll, points)
 
     return labels
 
@@ -367,3 +453,49 @@ def parse_solution_to_editor(labels: dict, state: dict) -> dict:
         }
 
     return state
+
+
+
+def _debug_draw(ll: List[Label], points: np.ndarray):
+
+    hull = ConvexHull(points)
+    mset = MainSet(points[hull.vertices])
+
+    fig, ax = plt.subplots()
+    fig.add_axes(ax)
+    fig.subplots_adjust(bottom=0.2)
+
+    ax.tick_params(
+        axis='x',
+        which='both',
+        bottom=False,
+        top=False,
+        labelbottom=False)
+    ax.tick_params(
+        axis='y',
+        which='both',
+        left=False,
+        right=False,
+        labelleft=False)
+    
+    ax.bbox._bbox.x0 = 0.01
+    ax.bbox._bbox.y0 = 0.15
+    ax.bbox._bbox.x1 = 0.99
+    ax.bbox._bbox.y1 = 0.99
+
+    xlim = (Configuration.instance['editor']['init_xlim_low'], Configuration.instance['editor']['init_xlim_high'])
+    ylim = (Configuration.instance['editor']['init_ylim_low'], Configuration.instance['editor']['init_ylim_high'])
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    plt.plot(mset.points[:,0], mset.points[:,1], c='black')
+    for label in ll:
+        txt = plt.text(label.x, label.y, label.text, size=Configuration.instance['editor']['font_size'], ha='center', va='center')
+        txt.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.2))
+        raw_points = label.points
+        raw_points.append(raw_points[0])
+        raw_points = np.array(raw_points)
+        plt.plot(raw_points[:,0], raw_points[:,1])
+    plt.show()
+    

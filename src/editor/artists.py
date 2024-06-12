@@ -454,7 +454,7 @@ def draw(self, ax: Axes) -> None:
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    ax.set_xlim((-150, 150))
+    ax.set_xlim((-190, 190))
     ax.set_ylim((-150, 150))
 
     plt.draw()

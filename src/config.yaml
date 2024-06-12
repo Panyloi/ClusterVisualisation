@@ -1,0 +1,38 @@
+global:
+  nothing: nothing
+
+editor:
+  # initial frame size (the data is normalized to -100, 100 on wider axis)
+  init_xlim_low: -190
+  init_xlim_high: 190
+  init_ylim_low: -150
+  init_ylim_high: 150
+
+  # initial font size
+  font_size: 10
+
+
+labels_generator:
+  configurations:
+    iterative:
+      maxiter: 100
+      visit: 2.62
+      initial_temp: 5230
+      restart_temp_ratio: 0.00002
+      accept: -5
+      no_local_search: False
+
+    global:
+      generate_greedy_x0: True
+      maxiter: 10
+      visit: 2.62
+      initial_temp: 5230
+      restart_temp_ratio: 0.00002
+      accept: -5
+      no_local_search: False
+
+    divide_and_conquare:
+      maxiter: 10
+
+    timed:
+      time: 5  #s

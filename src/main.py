@@ -10,7 +10,7 @@ from .generator.labels_generator import *
 from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull
 
 
-def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
+def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';', config_id: str = 'iterative') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
@@ -22,6 +22,9 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
         for the editor drawer operations
     delim: str
         If raw_data is a csv file the delim is used as input delimiter.
+    config_id: str
+        String id specifying a group of parameters in the Configuration class which 
+        affect auto generation
 
     Returns
     -------
@@ -109,7 +112,7 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict = editor_format(normalized_data)
 
     # labels generation
-    labels = calc(normalized_data, all_points, 10, 2)
+    labels = calc(normalized_data, all_points, config_id)
     state_dict = parse_solution_to_editor(labels, state_dict)
     state_dict["labels_data"]['size'] = 10.0
     state_dict["labels_data"]['arrow_size'] = 1.0
