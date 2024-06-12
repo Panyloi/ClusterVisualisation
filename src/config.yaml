@@ -15,21 +15,21 @@ editor:
 labels_generator:
   configurations:
     iterative:
+      maxiter: 150
+      visit: 2.62
+      initial_temp: 5230
+      restart_temp_ratio: 0.00002
+      accept: -5
+      no_local_search: True
+
+    global:
+      generate_greedy_x0: True
       maxiter: 100
       visit: 2.62
       initial_temp: 5230
       restart_temp_ratio: 0.00002
       accept: -5
-      no_local_search: False
-
-    global:
-      generate_greedy_x0: True
-      maxiter: 10
-      visit: 2.62
-      initial_temp: 5230
-      restart_temp_ratio: 0.00002
-      accept: -5
-      no_local_search: False
+      no_local_search: True
 
     divide_and_conquare:
       maxiter: 10
