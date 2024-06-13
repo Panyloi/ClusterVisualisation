@@ -400,7 +400,8 @@ class PointArtist(Circle, StateLinker):
         self.ax = ax
 
         xy = self.state.get_point_pos(self.id)
-        default_kwargs = {"color":self.state.get_point_color(sid)}
+        color = self.state.get_point_color(sid)
+        default_kwargs = {"facecolor": color, "edgecolor": color}
         kwargs = {**default_kwargs, **kwargs}
 
         super().__init__(xy, radius, picker=True, **kwargs)
@@ -433,25 +434,20 @@ class PointArtist(Circle, StateLinker):
 
 
 def draw(self, ax: Axes) -> None:
-
     # clear ax
     ax.clear()
 
-    self.data['clusters_data']['artists'] = []
     # draw points
+    self.data['clusters_data']['artists'] = []
     for point_id in self.data['clusters_data']['points'].index:
         self.data['clusters_data']['artists'].append(PointArtist.point(ax, point_id))
-
-    # old scatter
-    # for culture_name in self.data['data'].keys():
-    #     ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
 
     # draw labels
     for label_id in self.data['labels_data'].keys():
         if isinstance(label_id, int):
             LabelArtist.text(ax, label_id)
 
-    # draw hulls TODO: uncomment when hull_generator.py is done
+    # draw hulls
     for hull_id in self.data['hulls_data'].keys():
         if isinstance(hull_id, int):
             HullArtist.hull(ax, hull_id)

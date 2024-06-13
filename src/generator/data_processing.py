@@ -202,7 +202,9 @@ def initialize_colors(data):
     """
     Method that generates colors for cultures based on normalised data
     """
-    return {culture_name: f"#{random.randrange(0x1000000):06x}" for culture_name in data.keys()}
+    colors = {culture_name: f"#{random.randrange(0x1000000):06x}" for culture_name in data.keys()}
+    colors["Removed"] = "black"
+    return colors
 
 
 def _parse_experiment(exp: Experiment) -> dict:

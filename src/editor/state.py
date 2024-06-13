@@ -181,26 +181,13 @@ class State:
         cluster_name = df.loc[point_id, 'type']
         return self.data['clusters_data']['colors'][cluster_name]
 
-    @KeyErrorWrap(None) # todo redo
+    @KeyErrorWrap(None) #todo sometimes data is null, needs fix
     def get_normalised_clusters(self) -> dict:
-        for point in self.data['clusters_data_points']:
-            self.data['clusters_data_v2'][point["type"]]["points"].append(point["point_id"])
-
-        print(self.data['clusters_data_v2'])
-        data = {}
-        for k, v in self.data['clusters_data_v2'].items():
-            x_list = []
-            y_list = []
-            for point_id in v["points"]:
-                xy = self.get_point_pos(point_id)
-                x_list.append(xy[0])
-                y_list.append(xy[1])
-            if len(x_list) != 0:
-                data[k] = {"x": np.array(x_list), "y": np.array(y_list)}
-        print(data)
+        df = self.data['clusters_data']['points']
+        data = {type_name: {'x': np.array(type_data['x']), 'y': np.array(type_data['y'])} for type_name, type_data in df.groupby('type')}
+        if "Removed" in data.keys():
+            data.pop("Removed")
         return data
-
-
 
     # ---------------------------------- SETTERS --------------------------------- #
 

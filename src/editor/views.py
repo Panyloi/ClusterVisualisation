@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
 from matplotlib.backend_bases import PickEvent, MouseEvent, KeyEvent, ResizeEvent
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
-import numpy as np
 
 from .view_manager import *
+from ..generator.hull_generator import calc_hull
+from ..generator.labels_generator import calc, parse_solution_to_editor
 
 
 class Home(View):
@@ -408,6 +410,7 @@ class ClusterView(View):
         self.picked_item: PointArtist | None = None
         self.pick_pos: tuple[float, float] | None = None
         self.events_stack = []
+        self.info_text = None
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
@@ -418,136 +421,232 @@ class ClusterView(View):
         # if event is not None:
         #     self.pick_event(event)
 
+        self.info_text = Text(0, 0, "Info")
+
         # buttons
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],"Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.17, 0.075], "Agglomerative", ViewsEnum.AGGLOMERATIVE))
-        self.vem.add(ChangeViewButton(self, [0.37, 0.05, 0.10, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],"Reset", self.reset))
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Agglo", ViewsEnum.AGGLOMERATIVE))
+        self.vem.add(ChangeViewButton(self, [0.3, 0.05, 0.1, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
+        self.vem.add(NormalButton(self, [0.4, 0.05, 0.1, 0.075], "Remove", self.remove_point))
+        self.vem.add(NormalButton(self, [0.56, 0.05, 0.12, 0.075], "Hulls", self.draw_hull))
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.12, 0.075], "Labels", self.draw_labels))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Reset", self.reset))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
 
         self.draw_points()
+        self.info_text.set_position((self.vm.ax.get_xlim()[0] + 3, self.vm.ax.get_ylim()[1] - 10))
+        self.vm.ax.add_artist(self.info_text)
+
         self.vem.refresh()
         plt.draw()
 
     def draw_points(self):
-        # todo could use a different solution to draw just points
+        self.vm.ax.clear()
+        for artist in self.state.data['clusters_data']['artists']:
+            self.vm.ax.add_artist(artist)
+            artist.set_alpha(0.3)
 
-        for artist in self.vm.ax.get_children():
-            if isinstance(artist, ArrowArtist) or isinstance(artist, LabelArtist) or isinstance(artist, LineCollection):
-                artist.remove()
+        df = self.state.get_all_points()
+        self.vm.ax.set_xlim(df['x'].min()-10, df['x'].max()+10)
+        self.vm.ax.set_ylim(df['y'].min()-10, df['y'].max()+10)
 
-        for point_id in self.state.get_all_points().index:
-            self.state.data['clusters_data']['artists'][point_id].set_alpha(0.3)
+        # self.vm.ax.relim()
+        # self.vm.ax.autoscale_view()
+        # autoscale doesn't work when labels are out of axis
+        # relim fixes that but takes a lot of time, setting lims manually seems to work for now
 
     def undraw(self) -> None:
         super().undraw()
+        self.reset_pick_event()
+        self.info_text.remove()
 
     def reset(self):
         self.state.reset_clusters()
-        self.draw()
+        for artist in self.state.data['clusters_data']['artists']:
+            artist.set_color(self.state.get_point_color(artist.id))
+        plt.draw()
 
-    def pick_event(self, event: PickEvent) -> None:
+    def remove_point(self):
         if self.picked_item:
-            self.picked_item.remove()
+            self.reset_pick_event()
+            self.state.set_cluster("Removed", [self.picked_item.id])
+            self.info_text.set_text("Removed")
+
+            artist = self.state.data['clusters_data']['artists'][self.picked_item.id]
+            artist.set_color(self.state.get_point_color(self.picked_item.id))
+
+            plt.draw()
+
+    def reset_pick_event(self):
+        if self.picked_item:
+            if self.picked_item.axes is not None:
+                self.picked_item.remove()
             point = self.state.get_point(self.picked_item.id)
             for point_id in self.state.get_cluster(point['type']).index:
-                self.state.data['clusters_data']['artists'][point_id].set_alpha(0.3)
+                artist = self.state.data['clusters_data']['artists'][point_id]
+                artist.set_alpha(0.3)
+                artist.set_edgecolor(self.state.get_point_color(point_id))
 
-        logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}""")
+    def pick_event(self, event: PickEvent) -> None:
+        self.reset_pick_event()
+
+        # logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} ID: {event.artist.id}""")
+
         self.picked_item = PointArtist.point(self.vm.ax, event.artist.id, color="red")
-
         point = self.state.get_point(self.picked_item.id)
         for point_id in self.state.get_cluster(point['type']).index:
-            self.state.data['clusters_data']['artists'][point_id].set_alpha(1)
+            artist = self.state.data['clusters_data']['artists'][point_id]
+            artist.set_alpha(1)
+            artist.set_edgecolor("black")
+
+        self.info_text.set_text(point['type'])
 
         plt.draw()
+
+    def draw_hull(self):
+        hulls = calc_hull(self.state.get_normalised_clusters(), None, 2, 10, 20)
+        for i in hulls.keys():
+            self.state.data['hulls_data'][i] = {
+                'name': hulls[i]['name'],
+                'cords': hulls[i]['polygon_points'],
+                'line_cords': hulls[i]['polygon_lines']
+            }
+        for hull_id in self.state.data['hulls_data'].keys():
+            HullArtist.hull(self.vm.ax, hull_id)
+        plt.draw()
+
+    def draw_labels(self):
+        labels = calc(self.state.get_normalised_clusters(), self.state.get_all_points()[['x', 'y']].values, 10, 2)
+        self.state.data = parse_solution_to_editor(labels, self.state.data)
+
+        for label_id in self.state.data['labels_data'].keys():
+            if isinstance(label_id, int):
+                LabelArtist.text(self.vm.ax, label_id)
+        plt.draw()
+
 
 
 class DBSCANView(View):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.type = None
-        self.scalar = None
-        self.widget_type = None
+        self.widget_cluster_name = None
         self.widget_scalar = None
-        self.current_cluster = None
-        self.current_labels = None
-        self.save_index = 0
+        self.args = {"cluster_name": None, "scalar": None}
+        self.current = {"cluster": None, "labels": None}
+        self.info_text = None
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        self.widget_type = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75],
-                                            sorted(list(self.state.get_raw()['data'].keys())),
-                                            self._update_args)
-        self.widget_scalar = ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5,
-                                        self._update_args)
-
-        self.type = self.widget_type.ref.value_selected
-        self.scalar = self.widget_scalar.ref.val
-
-        self.vem.add(self.widget_type)
-        self.vem.add(self.widget_scalar)
-
         plt.subplots_adjust(bottom=0.3, left=0.4, top=0.9, right=0.9)
 
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],
-                                      "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075],
-                                      "Back", ViewsEnum.CLUSTER))
-        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075],
-                                  "Save cluster", self.save_cluster))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],
-                                  "Save all", self.reset))
+        self.info_text = Text(self.vm.ax.get_xlim()[0] + 3, self.vm.ax.get_ylim()[1] - 10, "Info")
+        self.vm.ax.add_artist(self.info_text)
+
+        self.widget_cluster_name = ViewRadioButtons(
+            self,
+            [0.05, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())),
+            self._update_args,
+        )
+
+        self.widget_scalar = ViewSlider(
+            self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self._update_args
+        )
+
+        self.args["cluster_name"] = self.widget_cluster_name.ref.value_selected
+        self.args["scalar"] = self.widget_scalar.ref.val
+
+        # adding and removing manually todo add remove to vem
+        # self.vem.add(self.widget_cluster_name)
+        self.vem.add(self.widget_scalar)
+
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Back", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Save all", self.reset))
 
         self.draw_cluster()
-
-    def draw_cluster(self):
-        if self.type is None or self.scalar is None: return
-        self.current_cluster = self.state.get_raw()['data'][self.type]
-        sth = np.column_stack([self.current_cluster["x"], self.current_cluster["y"]])
-        if len(self.current_cluster["x"]) > 1:
-            clustering = DBSCAN(eps=self.scalar*10, min_samples=2).fit(sth)
-            self.current_labels = clustering.labels_
-        else:
-            self.current_labels = 'k'
-
-        self.vm.ax.clear()
-        for point_id in range(len(self.state.get_all_points())):
-            PointArtist.point(self.vm.ax, point_id, alpha=0.3)
-        self.vm.ax.plot()
-
-        self.vm.ax.scatter(self.current_cluster["x"], self.current_cluster["y"], c=self.current_labels)
         plt.draw()
 
-    #todo weird double arg
-    def _update_args(self, sth):
-        self.type = self.widget_type.ref.value_selected
-        self.scalar = self.widget_scalar.ref.val
+    def reset_cluster(self):
+        for point_id in self.state.get_cluster(self.args["cluster_name"]).index:
+            artist = self.state.data['clusters_data']['artists'][point_id]
+            artist.set_color(self.state.get_point_color(point_id))
+            artist.set_alpha(0.3)
+            artist.set_radius(1.5)
+            artist.set_zorder(1)
+
+    def draw_cluster(self):
+        self.current["cluster"] = self.state.get_cluster(self.args["cluster_name"])
+        X = self.current["cluster"][['x', 'y']].values
+        if self.current["cluster"].shape[0] > 1:
+            clustering = DBSCAN(eps=self.args["scalar"]*10, min_samples=2).fit(X)
+            self.current["labels"] = clustering.labels_
+            colors = mpl.colormaps["tab10"](self.current["labels"])
+            colors = ["black" if self.current["labels"][idx] == -1 else x for idx, x in enumerate(colors)]
+        else:
+            colors = self.current["labels"] = ["black"]
+
+        idx = 0
+        for point_id in self.state.get_cluster(self.args["cluster_name"]).index:
+            artist = self.state.data['clusters_data']['artists'][point_id]
+            artist.set_color(colors[idx])
+            artist.set_alpha(1)
+            artist.set_radius(2.5)
+            artist.set_zorder(10)
+            idx += 1
+
+    def _update_args(self, widget_value):
+        self.reset_cluster()
+        self.info_text.set_text("Info")
+        self.args["cluster_name"] = self.widget_cluster_name.ref.value_selected
+        self.args["scalar"] = self.widget_scalar.ref.val
         self.draw_cluster()
+        plt.draw()
 
     def undraw(self) -> None:
         super().undraw()
+        self.reset_cluster()
+        self.widget_cluster_name.remove()
+        self.info_text.remove()
         plt.subplots_adjust(bottom=0.15, left=0.01, right=0.99, top=0.99)
 
+    def recreate_cluster_widget(self):
+        self.widget_cluster_name.remove()
+        self.widget_cluster_name = ViewRadioButtons(
+            self,
+            [0.05, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())),
+            self._update_args,
+        )
+
     def save_cluster(self):
-        tuples = list(zip(self.current_cluster["x"], self.current_cluster["y"]))
-        label_map = {key: [] for key in set(self.current_labels)}
-        for point_id in range(len(self.state.get_all_points())):
-            point = self.state.get_point_pos(point_id)
-            if point in tuples:
-                idx = tuples.index(point)
-                label_map[self.current_labels[idx]].append(point_id)
-        for points in label_map.values():
-            self.state.set_cluster(str(self.save_index), points)
-            self.save_index += 1
+        self.reset_cluster()
+
+        label_map = {key: [] for key in set(self.current["labels"])}
+
+        for idx, point_id in enumerate(self.current["cluster"].index):
+            label_map[self.current["labels"][idx]].append(point_id)
+
+        for key, points in label_map.items():
+            if key == -1: continue
+            self.state.set_cluster(self.args["cluster_name"] + str(key), points)
+            for point_id in points:
+                artist = self.state.data['clusters_data']['artists'][point_id]
+                artist.set_color(self.state.get_point_color(point_id))
+
+        self.recreate_cluster_widget()
+        self.info_text.set_text("Saved")
+        plt.draw()
+
         print(self.state.get_all_clusters())
 
     #todo I'm using this func for testing, gotta change it back later
     def reset(self):
-        self.state.get_normalised_clusters()
+        print(self.state.get_normalised_clusters())
         # self.state.set_clusters_empty()
         # self.draw_cluster()
 
