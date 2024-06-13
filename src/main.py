@@ -59,11 +59,18 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
             ...
         }
 
-        convex_data: 
+        hulls_data: 
         {
-            "cluster_name":
+            hull_id:
             {
-                // TODO: data for convex?
+                'name': str
+                'cords': list[tuple[float, float]] // coordinates of hull points
+                'line_cords': list[tuple[tuple[float, float], tuple[float, float]]] // hull's lines
+                'cluster_points':
+                {
+                    'x': np.array()
+                    'y': np.array()
+                }
             },
             "second_cluster_name":
             ...
@@ -87,13 +94,11 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                         'val': str
                     }
                 }
-                'att_points': list[tuple[float]]
-                'ref_point_vals': list[str]
             },
             second_label_id: int:
             ...
-            'size': 10.0
-            'arrow_size': 1.0
+            'size': float 10.0
+            'arrow_size': float 1.0
         }
     }
 
@@ -153,7 +158,7 @@ def draw_maps_editor(raw_data: Union[str, Experiment], out_path: str | None, del
     state = draw_maps(raw_data, None)
     assert state is not None # editor needs init state for now (might use default cache later)
 
-    FORMAT = '%(asctime)s %(message)s'
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=FORMAT)
+    FORMAT = '%(asctime)s %(filename)s %(funcName)s %(lineno)d %(message)s'
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, format=FORMAT)
     editor = Editor(state)
     editor.run()

@@ -4,9 +4,11 @@ from typing import Callable, Type, TypeVar, ParamSpec, Union
 import json
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 
 from matplotlib.axes._axes import Axes
 import matplotlib.pyplot as plt
+from functools import wraps
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -17,14 +19,17 @@ def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """
 
     def decorator(func: Callable[P, T]) -> Callable[P, T]:
+
+        @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 result = func(*args, **kwargs)
                 return result
             except KeyError as e:
-                logging.error(f"{e}")
+                logging.error(f"{e} func {func.__name__}")
                 return default
         return wrapper
+    
     return decorator
 
 
@@ -290,6 +295,35 @@ class State:
 
     # ----------------------------------- MISC ----------------------------------- #
 
+    @staticmethod
+    def _retype_state(state: dict) -> dict:
+        state_cp = deepcopy(state)
+
+        for key in state['labels_data']:
+            try:
+                int(key) # prune strings early
+                label_data = state_cp['labels_data'].pop(key)
+
+                label_data['x'] = float(label_data['x'])
+                label_data['y'] = float(label_data['y'])
+
+                label_data_cp = deepcopy(label_data)
+                for arrow_key in label_data['arrows']:
+                    arrow_data = label_data_cp['arrows'].pop(arrow_key)
+
+                    arrow_data['ref_x'] = float(arrow_data['ref_x'])
+                    arrow_data['ref_y'] = float(arrow_data['ref_y'])
+                    arrow_data['att_x'] = float(arrow_data['att_x'])
+                    arrow_data['att_y'] = float(arrow_data['att_y'])
+
+                    label_data_cp['arrows'][int(arrow_key)] = arrow_data
+
+                state_cp['labels_data'][int(key)] = label_data_cp
+            except ValueError:
+                state_cp['labels_data'][key] = float(state_cp['labels_data'][key])
+        
+        return state_cp
+
     def get_raw(self) -> dict:
         return self.data
     
@@ -303,7 +337,7 @@ class State:
     def load_state_from_file(self, fpath: str) -> 'State':
         with open(fpath, 'r') as f:
             data = json.load(f)
-        self.data = data
+        self.data = self._retype_state(data)
 
 
 class StateLinker:

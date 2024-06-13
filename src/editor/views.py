@@ -830,10 +830,9 @@ class Editor:
         fig.subplots_adjust(bottom=0.2)
 
         # setup costom toolbar buttons and events
-        custom_buttons_setup(fig, self.state)
-        RefreshEvent.rf = RefreshEvent('refresh_event', fig.canvas)
+        SaveLoadPltLinker.link_ax_fig(ax, fig)
+        custom_buttons_setup(self.state)
 
-        SavePltLinker.link_ax_fig(ax, fig)
 
         # init event canvas
         Event.set_canvas(fig.canvas)
