@@ -403,10 +403,14 @@ class PointArtist(Circle, StateLinker):
         self.ax = ax
 
         xy = self.state.get_point_pos(self.id)
-        default_kwargs = {"color":self.state.get_point_color(sid)}
+        color = self.state.get_point_color(sid)
+        default_kwargs = {"facecolor": color, "edgecolor": color}
         kwargs = {**default_kwargs, **kwargs}
 
         super().__init__(xy, radius, picker=True, **kwargs)
+
+    def remove(self) -> None:
+        super().remove()
 
     @staticmethod
     def point(ax: Axes, sid: int, **kwargs) -> 'PointArtist':
@@ -418,9 +422,8 @@ class PointArtist(Circle, StateLinker):
     def get_by_id(ax: Axes, sid: int) -> 'None | PointArtist':
         children = ax.get_children()
         for child in children:
-            if isinstance(child, PointArtist):
-                if child.id == sid:
-                    return child
+            if isinstance(child, PointArtist) and child.id == sid:
+                return child
         return None
 
     @staticmethod
@@ -432,17 +435,14 @@ class PointArtist(Circle, StateLinker):
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
-def draw(self, ax: Axes) -> None:
 
+def draw(self, ax: Axes) -> None:
     # clear ax
     ax.clear()
     # draw points
-    for point_id in range(len(self.data['clusters_data_points'])):
-        PointArtist.point(ax, point_id)
-
-    # old scatter
-    # for culture_name in self.data['data'].keys():
-    #     ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
+    self.data['clusters_data']['artists'] = []
+    for point_id in self.data['clusters_data']['points'].index:
+        self.data['clusters_data']['artists'].append(PointArtist.point(ax, point_id))
 
     # draw labels
     for label_id in self.data['labels_data'].keys():
@@ -450,13 +450,8 @@ def draw(self, ax: Axes) -> None:
             LabelArtist.text(ax, int(label_id))
         except ValueError:
             continue
-    
-    # this is temp solution -> it generates all hull again TODO: change this in future
-    self.delete_hulls()
-    hulls = calc_hull(self.get_normalised_clusters(), 2, 10, 20)
-    self.data = parse_solution_to_editor_hull(hulls, self.data)
 
-
+    # draw hulls
     for hull_id in self.data['hulls_data'].keys():
         try:
             HullArtist.hull(ax, int(hull_id))
@@ -486,6 +481,7 @@ def draw(self, ax: Axes) -> None:
 
     plt.draw()
     logging.info(f"State redraw")
+    # todo check why state redraws three times while launching
 
 
 State.draw = draw

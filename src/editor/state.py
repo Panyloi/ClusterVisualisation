@@ -3,6 +3,7 @@ import random
 from typing import Callable, Type, TypeVar, ParamSpec, Union
 import json
 import numpy as np
+import pandas as pd
 from copy import deepcopy
 
 from matplotlib.axes._axes import Axes
@@ -30,7 +31,8 @@ def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
         return wrapper
     
     return decorator
-  
+
+
 def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
     children = ax.get_children()
     artists = []
@@ -38,6 +40,7 @@ def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
         if isinstance(child, artist_type):
             artists.append(child)
     return artists
+
 
 def subtract_with_default(value1: Union[T, None], value2: Union[T, None], default: T) -> T:
     if value1 is not None and value2 is not None:
@@ -154,46 +157,42 @@ class State:
 
     # ------------------------------- CLUSTER GETTERS ------------------------------ #
     @KeyErrorWrap(None)
-    def get_cluster(self, cluster_type: str) -> dict:
-        return self.data['clusters_data_v2'][cluster_type]
+    def get_cluster(self, cluster_name: str) -> pd.DataFrame:
+        df = self.data['clusters_data']['points']
+        return df[df['type'] == cluster_name]
 
     @KeyErrorWrap(None)
     def get_all_clusters(self) -> dict:
-        return self.data['clusters_data_v2']
+        df = self.data['clusters_data']['points']
+        return df.groupby('type').apply(lambda x: x[['x', 'y']].values.tolist()).to_dict()
 
     @KeyErrorWrap(None)
-    def get_all_points(self) -> []:
-        return self.data['clusters_data_points']
+    def get_all_points(self) -> pd.DataFrame:
+        return self.data['clusters_data']['points']
+
+    @KeyErrorWrap(None)
+    def get_point(self, point_id) -> dict:
+        df = self.data['clusters_data']['points'].loc[point_id]
+        return df.to_dict()
 
     @KeyErrorWrap(None)
     def get_point_pos(self, point_id) -> tuple:
-        return self.data['clusters_data_points'][point_id]["x"], self.data['clusters_data_points'][point_id]["y"]
+        df = self.data['clusters_data']['points']
+        return df.loc[point_id, 'x'], df.loc[point_id, 'y']
 
     @KeyErrorWrap(None)
     def get_point_color(self, point_id) -> str:
-        type_name = self.data['clusters_data_points'][point_id]["type"]
-        return self.data['clusters_data_v2'][type_name]["color"]
+        df = self.data['clusters_data']['points']
+        cluster_name = df.loc[point_id, 'type']
+        return self.data['clusters_data']['colors'][cluster_name]
 
-    @KeyErrorWrap(None)
+    @KeyErrorWrap(None) #todo sometimes data is null, needs fix
     def get_normalised_clusters(self) -> dict:
-        for point in self.data['clusters_data_points']:
-            self.data['clusters_data_v2'][point["type"]]["points"].append(point["point_id"])
-
-        print(self.data['clusters_data_v2'])
-        data = {}
-        for k, v in self.data['clusters_data_v2'].items():
-            x_list = []
-            y_list = []
-            for point_id in v["points"]:
-                xy = self.get_point_pos(point_id)
-                x_list.append(xy[0])
-                y_list.append(xy[1])
-            if len(x_list) != 0:
-                data[k] = {"x": np.array(x_list), "y": np.array(y_list)}
-        print(data)
+        df = self.data['clusters_data']['points']
+        data = {type_name: {'x': np.array(type_data['x']), 'y': np.array(type_data['y'])} for type_name, type_data in df.groupby('type')}
+        if "Removed" in data.keys():
+            data.pop("Removed")
         return data
-
-
 
     # ---------------------------------- SETTERS --------------------------------- #
 
@@ -229,52 +228,25 @@ class State:
         self.data['labels_data']['arrow_size'] = size
 
     # ------------------------------- CLUSTER SETTERS ------------------------------ #
-
-    # @KeyErrorWrap(None)
-    # def set_cluster(self, cluster_type: str, x: list, y: list, labels: list) -> None:
-    #     self.data['clusters_data'][cluster_type] = {}
-    #     self.data['clusters_data'][cluster_type]["x"] = x
-    #     self.data['clusters_data'][cluster_type]["y"] = y
-    #     self.data['clusters_data'][cluster_type]["labels"] = labels
+    @KeyErrorWrap(None)
+    def set_cluster(self, cluster_name: str, points: list) -> None:
+        if cluster_name not in self.data['clusters_data']['colors'].keys():
+            self.data['clusters_data']['colors'][cluster_name] = f"#{random.randrange(0x1000000):06x}"
+        df = self.data['clusters_data']['points']
+        df.loc[df.index.isin(points), 'type'] = cluster_name
+        self.data['clusters_data']['points'] = df
 
     @KeyErrorWrap(None)
-    def set_cluster(self, cluster_type: str, points: list) -> None:
-        if cluster_type in self.data['clusters_data_v2'].keys():
-            self.data['clusters_data_v2'][cluster_type]["points"] = points
-        else:
-            self.data['clusters_data_v2'][cluster_type] = {"points": points,
-                                                            "color": f"#{random.randrange(0x1000000):06x}"}
-            for point_id in points:
-                self.data['clusters_data_points'][point_id]["type"] = cluster_type
-
-    @KeyErrorWrap(None)
-    def set_clusters_empty(self) -> None:
-        # todo clean new clusters properly
-        self.data['clusters_data_points'] = []
-        idx = 0
-        for culture_name in self.data['data'].keys():
-            self.data['clusters_data_v2'][culture_name]["points"] = [],
-            for i in range(len(self.data['data'][culture_name]["x"])):
-                self.data['clusters_data_points'].append({
-                    "point_id": idx,
-                    "x": self.data['data'][culture_name]['x'][i],
-                    "y": self.data['data'][culture_name]['y'][i],
-                    "type": culture_name
-                })
-                idx += 1
-
-    # -------------------------------------- HIRO changes begin --------------------------------------
-
-    @KeyErrorWrap(None)
-    def set_cluster_change(self, cluster_name) -> None:
-        self.data['clusters_hull_info']['cluster_change_name'].append(cluster_name)
-
-    @KeyError(None)
-    def set_new_cluster(self, points, cluster_id: int) -> None:
-        self.data['clusters_hull_info']['new_cluster_poitns'][cluster_id] = points
-
-    # --------------------------------------- HIRO changes end ---------------------------------------
-
+    def reset_clusters(self) -> None:
+        self.data['clusters_data']['points'] = pd.DataFrame([
+            {
+                "x": self.data['data'][culture_name]['x'][i],
+                "y": self.data['data'][culture_name]['y'][i],
+                "type": culture_name,
+            }
+            for culture_name in self.data['data'].keys()
+            for i in range(len(self.data['data'][culture_name]['x']))
+        ])
 
     # ------------------------------------ ADD ----------------------------------- #
     
