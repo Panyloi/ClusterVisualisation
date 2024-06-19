@@ -6,8 +6,8 @@ from matplotlib.collections import LineCollection
 from typing import List, Tuple
 import time
 
-from .hull_generator import calc_hull, parse_solution_to_editor_hull
-
+# from .hull_generator import calc_hull, parse_solution_to_editor_hull
+from ..generator.hull_generator import calc_hull, parse_solution_to_editor_hull
 from .backend_customs import *
 
 class ArrowArtist(Line2D, StateLinker):
@@ -346,15 +346,15 @@ class HullArtist(StateLinker):
     Class for properly managing hulls
     """
 
-    def __init__(self, ax: Axes, sid: int, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
+    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
         """init
 
         Parameters
         ----------
         ax: Axes
             Main chart ax
-        sid: int
-            The created HullArtist id
+        sid: str
+            The created HullArtist id (name of the hull)
         polygon: List[Tuple[float, float]]
             The polygon coordinates
         """
@@ -376,7 +376,7 @@ class HullArtist(StateLinker):
         self.state.delete_hull(self.id)
 
     @staticmethod
-    def hull(ax: Axes, sid: int, **kwargs) -> 'HullArtist':
+    def hull(ax: Axes, sid: str, **kwargs) -> 'HullArtist':
         h = HullArtist(ax, sid)
         ax.add_collection(LineCollection(segments=h.polygon_lines, colors='black'))
     
@@ -452,9 +452,10 @@ def draw(self, ax: Axes) -> None:
             continue
 
     # draw hulls
-    for hull_id in self.data['hulls_data'].keys():
+    self.update_hulls()
+    for hull_name in self.data['hulls_data']['hulls'].keys():
         try:
-            HullArtist.hull(ax, int(hull_id))
+            HullArtist.hull(ax, hull_name)
         except ValueError:
             continue
 

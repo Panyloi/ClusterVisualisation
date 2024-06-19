@@ -384,15 +384,81 @@ def calc_hull(data: dict, circle_radious: float, points_in_circle: int, segment_
 
     return hulls
 
+def set_hull_parameters(state, circle_radious: float, points_in_circle: int, segment_length: int):
+    state['hulls_data']['parameters'] = {
+        'circle_radious': circle_radious,
+        'points_in_circle': points_in_circle,
+        'segment_length': segment_length,
+    }
+
+def calc_one_hull(hull_name, points, state):
+    hulls = {}
+
+
+    hulls[hull_name] = {}
+
+    x = np.array(points['x'])
+    y = np.array(points['y'])
+
+    hulls[hull_name]['cluster_points'] = {'x': x, 'y': y}
+
+    points_transform = np.hstack(
+        (
+            x.reshape(-1, 1),
+            y.reshape(-1, 1),
+        )
+    )
+
+    idxes = concave_hull_indexes(
+        points_transform[:, :2],
+        concavity=2,
+        length_threshold=0,
+    )
+
+    _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
+
+    points_transform, to_jarvis = convert_points(
+        _idx_points, 
+        state['hulls_data']['parameters']['circle_radious'],
+        num_of_points=state['hulls_data']['parameters']['points_in_circle']
+    )
+
+    _idx_points = make_dense_points(
+        greedy_selecting(to_jarvis),
+        segment_length=state['hulls_data']['parameters']['segment_length']
+    )
+
+    hulls[hull_name]['polygon_points'] = _idx_points 
+
+    polygon_lines = [
+        (
+            _idx_points[j % len(_idx_points)],
+            _idx_points[(j + 1) % len(_idx_points)],
+        )
+        for j in range(len(_idx_points))
+    ]
+
+    hulls[hull_name]['polygon_lines'] = polygon_lines
+
+    return hulls
+
 def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
-    
+    state['hulls_data']['hulls'] = {}
     for i in hulls.keys():
-        state['hulls_data'][i] = {
-            'name': hulls[i]['name'],
+        # state['hulls_data'][i] = {
+        #     'name': hulls[i]['name'],
+        #     'cords': hulls[i]['polygon_points'],
+        #     'line_cords': hulls[i]['polygon_lines'],
+        #     'cluster_points': hulls[i]['cluster_points']
+        # }
+        state['hulls_data']['hulls'][hulls[i]['name']] = {
             'cords': hulls[i]['polygon_points'],
             'line_cords': hulls[i]['polygon_lines'],
             'cluster_points': hulls[i]['cluster_points']
         }
+        state['hulls_data']['change'] = {}
+        state['hulls_data']['undraw'] = set()
+        
     return state
 
 

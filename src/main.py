@@ -8,7 +8,7 @@ from .generator.data_processing import *
 from .editor.view_manager import *
 from .editor.views import *
 from .generator.labels_generator import *
-from .editor.hull_generator import calc_hull, parse_solution_to_editor_hull
+from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull, set_hull_parameters
 
 
 def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';') -> Optional[State]:
@@ -61,23 +61,27 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
 
         hulls_data: 
         {
-            hull_id:
+            hulls:
             {
-                'name': str
-                'cords': list[tuple[float, float]] // coordinates of hull points
-                'line_cords': list[tuple[tuple[float, float], tuple[float, float]]] // hull's lines
-                'cluster_points':
+                hull_name
                 {
-                    'x': np.array()
-                    'y': np.array()
+                    cords': list[tuple[float, float]] // coordinates of hull points
+                    'line_cords': list[tuple[tuple[float, float], tuple[float, float]]] // hull's lines
+                    'cluster_points':
+                    {
+                        'x': np.array()
+                        'y': np.array()
+                    }
                 }
             },
-            cluster_id:
+
+            change:
             {
-                'hull_id': hull_id 
-            }
-            "second_cluster_name":
-            ...
+                'hull_name':
+                pd.Series('x', 'y', 'type') 
+            },
+            
+            undraw: set(hull_name)
         }
 
         'labels_data':
@@ -128,8 +132,9 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict["labels_data"]['arrow_size'] = 1.0
 
     # hulls generator
-    # hulls = calc_hull(normalized_data, 2, 10, 20)
-    # state_dict = parse_solution_to_editor_hull(hulls, state_dict)
+    set_hull_parameters(state_dict, 2, 10, 20)
+    hulls = calc_hull(normalized_data, 2, 10, 20)
+    state_dict = parse_solution_to_editor_hull(hulls, state_dict)
 
     # ------------------------- RETURN FOR EDITOR LAUNCH ------------------------- #
     if out_path is None:

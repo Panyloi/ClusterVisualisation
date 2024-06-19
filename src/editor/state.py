@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 
+from ..generator.hull_generator import calc_one_hull
+
+
 from matplotlib.axes._axes import Axes
 import matplotlib.pyplot as plt
 from functools import wraps
@@ -146,14 +149,49 @@ class State:
         return self.data['labels_data']['arrow_size']
 
     # ------------------------------- HULLS_GETTERS ------------------------------ #
+    # TODO: update parameters for dict
+    @KeyErrorWrap([])
+    def get_hull_polygon_cords(self, hull_name: int) -> list[tuple[float, float]]:
+        return self.data['hulls_data']['hulls'][hull_name]['cords']
 
     @KeyErrorWrap([])
-    def get_hull_polygon_cords(self, hull_id: int) -> list[tuple[float, float]]:
-        return self.data['hulls_data'][hull_id]['cords']
-
+    def get_hull_lines_cords(self, hull_name: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+        return self.data['hulls_data']['hulls'][hull_name]['line_cords']
+    
     @KeyErrorWrap([])
-    def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
-        return self.data['hulls_data'][hull_id]['line_cords']
+    def update_hulls(self):
+        if len(self.data['hulls_data']['undraw']) == 0 and len(self.data['hulls_data']['change']) == 0:
+            return
+
+        # print("WITAM")
+        # print(self.data['hulls_data']['undraw'])
+        # print(self.data['hulls_data']['change'])
+        # print("ZEGNAM")
+
+        for hull_name in self.data['hulls_data']['undraw']:
+            del self.data['hulls_data']['hulls'][hull_name]
+
+        for hull_name in self.data['hulls_data']['change'].keys():
+            new_hull = calc_one_hull(hull_name, self.data['hulls_data']['change'][hull_name], self.data)
+
+            self.data['hulls_data']['hulls'][hull_name] = {
+                'cords': new_hull[hull_name]['polygon_points'],
+                'line_cords': new_hull[hull_name]['polygon_lines'],
+                'cluster_points': new_hull[hull_name]['cluster_points'],
+            }
+
+        self.data['hulls_data']['undraw'] = set()
+        self.data['hulls_data']['change'] = {}
+
+    # ------------------------------- HULLS SETTERS ------------------------------ #
+
+    @KeyErrorWrap(None)
+    def set_hull_to_undraw(self, hull_name):
+        self.data['hulls_data']['undraw'].add(hull_name)
+
+    @KeyErrorWrap(None)
+    def set_hull_to_change(self, hull_name, points):
+        self.data['hulls_data']['change'][hull_name] = points
 
     # ------------------------------- CLUSTER GETTERS ------------------------------ #
     @KeyErrorWrap(None)
@@ -290,13 +328,13 @@ class State:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
     
     @KeyErrorWrap(None)
-    def delete_hull(self, hull_id: int) -> None:
-        self.data['hulls_data'].pop(hull_id)
+    def delete_hull(self, hull_name: int) -> None:
+        self.data['hulls_data']['hulls'].pop(hull_name)
 
     def delete_hulls(self) -> None:
-        keys = list(self.data['hulls_data'].keys())
+        keys = list(self.data['hulls_data']['hulls'].keys())
         for key in keys:
-            self.data['hulls_data'].pop(key)
+            self.data['hulls_data']['hulls'].pop(key)
 
     # ----------------------------------- MISC ----------------------------------- #
 

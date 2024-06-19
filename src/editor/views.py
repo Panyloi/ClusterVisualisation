@@ -471,8 +471,18 @@ class ClusterView(View):
     def remove_point(self):
         if self.picked_item:
             self.reset_pick_event()
+# -------------------------------------- HIRO changes begin --------------------------------------
+            point = self.state.get_point(self.picked_item.id)
+            point_hull = point['type']
+            self.state.set_hull_to_undraw(point_hull)
+# --------------------------------------- HIRO changes end ---------------------------------------
+
             self.state.set_cluster("Removed", [self.picked_item.id])
             self.info_text.set_text("Removed")
+
+# -------------------------------------- HIRO changes begin --------------------------------------
+            self.state.set_hull_to_change(point_hull, self.state.get_cluster(point_hull))
+# --------------------------------------- HIRO changes end ---------------------------------------
 
             artist = self.state.data['clusters_data']['artists'][self.picked_item.id]
             artist.set_color(self.state.get_point_color(self.picked_item.id))
@@ -506,15 +516,18 @@ class ClusterView(View):
         plt.draw()
 
     def draw_hull(self):
-        hulls = calc_hull(self.state.get_normalised_clusters(), None, 2, 10, 20)
-        for i in hulls.keys():
-            self.state.data['hulls_data'][i] = {
-                'name': hulls[i]['name'],
-                'cords': hulls[i]['polygon_points'],
-                'line_cords': hulls[i]['polygon_lines']
-            }
-        for hull_id in self.state.data['hulls_data'].keys():
-            HullArtist.hull(self.vm.ax, hull_id)
+        # hulls = calc_hull(self.state.get_normalised_clusters(), 2, 10, 20)
+        # for i in hulls.keys():
+        #     self.state.data['hulls_data'][i] = {
+        #         'name': hulls[i]['name'],
+        #         'cords': hulls[i]['polygon_points'],
+        #         'line_cords': hulls[i]['polygon_lines']
+        #     }
+
+        self.state.update_hulls()
+        
+        for hull_name in self.state.data['hulls_data']['hulls'].keys():
+            HullArtist.hull(self.vm.ax, hull_name)
         plt.draw()
 
     def draw_labels(self):
