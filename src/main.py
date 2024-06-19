@@ -72,6 +72,10 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
                     'y': np.array()
                 }
             },
+            cluster_id:
+            {
+                'hull_id': hull_id 
+            }
             "second_cluster_name":
             ...
         }
@@ -116,6 +120,10 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict['clusters_data'] = {}
     state_dict['clusters_data_v2'] = {}
     state_dict['clusters_data_points'] = []
+    # -------------------------------------- HIRO changes begin --------------------------------------
+    state_dict['clusters_hull_info'] = {'cluster_change_name': [],
+                                        'new_cluster_poitns': {}}
+    # --------------------------------------- HIRO changes end ---------------------------------------
     idx = 0
     for culture_name in state_dict['data'].keys():
         state_dict['clusters_data_v2'][culture_name] = {"points": [], "color": f"#{random.randrange(0x1000000):06x}"}

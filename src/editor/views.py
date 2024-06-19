@@ -608,6 +608,9 @@ class AgglomerativeView(View):
     def draw_cluster(self):
         if self.type is None or self.linkage is None or self.scalar is None: return
         self.current_cluster = self.state.get_raw()['data'][self.type]
+        # -------------------------------------- HIRO changes begin --------------------------------------
+
+        # --------------------------------------- HIRO changes end ---------------------------------------
         sth = np.column_stack([self.current_cluster["x"], self.current_cluster["y"]])
         if len(self.current_cluster["x"]) > 1:
             dist = AgglomerativeClustering(n_clusters=1, compute_distances=True).fit(sth).distances_

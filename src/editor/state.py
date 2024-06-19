@@ -263,6 +263,18 @@ class State:
                 })
                 idx += 1
 
+    # -------------------------------------- HIRO changes begin --------------------------------------
+
+    @KeyErrorWrap(None)
+    def set_cluster_change(self, cluster_name) -> None:
+        self.data['clusters_hull_info']['cluster_change_name'].append(cluster_name)
+
+    @KeyError(None)
+    def set_new_cluster(self, points, cluster_id: int) -> None:
+        self.data['clusters_hull_info']['new_cluster_poitns'][cluster_id] = points
+
+    # --------------------------------------- HIRO changes end ---------------------------------------
+
 
     # ------------------------------------ ADD ----------------------------------- #
     
