@@ -132,8 +132,8 @@ def draw_maps(raw_data: Union[str, Experiment], out_path: str | None, delim=';')
     state_dict["labels_data"]['arrow_size'] = 1.0
 
     # hulls generator
-    set_hull_parameters(state_dict, 2, 10, 20)
-    hulls = calc_hull(normalized_data, 2, 10, 20)
+    set_hull_parameters(state_dict, 1.5, 20, 20)
+    hulls = calc_hull(normalized_data, 1.5, 20, 20)
     state_dict = parse_solution_to_editor_hull(hulls, state_dict)
 
     # ------------------------- RETURN FOR EDITOR LAUNCH ------------------------- #

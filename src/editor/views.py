@@ -647,6 +647,12 @@ class DBSCANView(View):
         for key, points in label_map.items():
             if key == -1: continue
             self.state.set_cluster(self.args["cluster_name"] + str(key), points)
+# -------------------------------------- HIRO changes begin --------------------------------------
+            self.state.set_hull_to_undraw(self.args["cluster_name"])
+            self.state.set_hull_to_change(self.args["cluster_name"] + str(key), self.state.get_cluster(self.args["cluster_name"] + str(key)))
+
+# --------------------------------------- HIRO changes end ---------------------------------------
+
             for point_id in points:
                 artist = self.state.data['clusters_data']['artists'][point_id]
                 artist.set_color(self.state.get_point_color(point_id))
@@ -727,9 +733,6 @@ class AgglomerativeView(View):
     def draw_cluster(self):
         if self.type is None or self.linkage is None or self.scalar is None: return
         self.current_cluster = self.state.get_raw()['data'][self.type]
-        # -------------------------------------- HIRO changes begin --------------------------------------
-
-        # --------------------------------------- HIRO changes end ---------------------------------------
         sth = np.column_stack([self.current_cluster["x"], self.current_cluster["y"]])
         if len(self.current_cluster["x"]) > 1:
             dist = AgglomerativeClustering(n_clusters=1, compute_distances=True).fit(sth).distances_
@@ -759,6 +762,11 @@ class AgglomerativeView(View):
                 label_map[self.current_labels[idx]].append(point_id)
         for points in label_map.values():
             self.state.set_cluster(str(self.save_index), points)
+# -------------------------------------- HIRO changes begin --------------------------------------
+            self.state.set_hull_to_undraw(self.type)
+            self.state.set_hull_to_change(str(self.save_index), self.state.get_cluster(str(self.save_index)))
+# --------------------------------------- HIRO changes end ---------------------------------------
+
             self.save_index += 1
         print(self.state.get_all_clusters())
 
