@@ -15,7 +15,7 @@ editor:
 labels_generator:
   configurations:
     iterative:
-      maxiter: 150
+      maxiter: 100
       visit: 2.62
       initial_temp: 5230
       restart_temp_ratio: 0.00002
