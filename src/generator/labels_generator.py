@@ -1,12 +1,12 @@
 from typing import List, Tuple, Optional, Dict
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 from matplotlib.text import Text
 import numpy as np
-from scipy.optimize import dual_annealing, basinhopping
+from scipy.optimize import dual_annealing
 from scipy.spatial import KDTree, ConvexHull
-from collections import defaultdict
 
 from ..configuration import Configuration
 
@@ -101,8 +101,7 @@ class Label:
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
                     + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/100
-        else:
-            return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
+        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
     def get_mpoint(self):
         x, y = self.get_point()
@@ -375,7 +374,7 @@ def calc(data: InData,
          points: np.ndarray,
          config_id: str):
 
-    if Configuration['data_processing']['merge_parametrized_labels']:
+    if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
         data = merge_parametrized_labels(data)
 
     # Generate main set convex
@@ -578,7 +577,7 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         plt.plot(raw_points[:,0], raw_points[:,1])
         plt.plot([tp[0], rp[0]], [tp[1], rp[1]])
     plt.show()
-    
+
 
 def _test():
 

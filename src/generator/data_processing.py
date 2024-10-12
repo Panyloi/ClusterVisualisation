@@ -1,3 +1,7 @@
+"""
+Module with raw data parsing utilities
+"""
+
 import random
 from typing import Union
 
@@ -29,8 +33,7 @@ def parse_data(data: Union[str, Experiment], delim=';') -> dict:
 
     if isinstance(data, str):
         return _parse_csv(data, delim=delim)
-    else:
-        return _parse_experiment(data)
+    return _parse_experiment(data)
 
 
 def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
@@ -76,7 +79,7 @@ def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
     d        = max(dx, dy)
     x_shift  = None # shift are counted from left/down
     y_shift  = None #
-    
+
     # unit calculation based on which orientation is wider
     if dx >= dy:
         x_shift = 0
@@ -101,6 +104,7 @@ def normalize(data: dict, lb: int = -100, ub: int = 100) -> dict:
 
 
 def get_all_points(data: dict) -> np.ndarray:
+    """Return all points from data in one numpy array"""
     xs, ys = None, None
     for name in data.keys():
         if xs is None:
@@ -130,7 +134,7 @@ def editor_format(data: dict) -> dict:
             "clusters_data": {},
             "hulls_data": {},
             "labels_data": {}}
-    
+
     return data
 
 
