@@ -1,8 +1,13 @@
 import logging
+import random
 from typing import Callable, Type, TypeVar, ParamSpec, Union
 import json
 import numpy as np
+import pandas as pd
 from copy import deepcopy
+
+from ..generator.hull_generator import calc_one_hull
+
 
 from matplotlib.axes._axes import Axes
 import matplotlib.pyplot as plt
@@ -29,7 +34,8 @@ def KeyErrorWrap(default) -> Callable[[Callable[P, T]], Callable[P, T]]:
         return wrapper
     
     return decorator
-  
+
+
 def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
     children = ax.get_children()
     artists = []
@@ -37,6 +43,7 @@ def get_artists_by_type(ax: Axes, artist_type: Type[T]) -> list[T]:
         if isinstance(child, artist_type):
             artists.append(child)
     return artists
+
 
 def subtract_with_default(value1: Union[T, None], value2: Union[T, None], default: T) -> T:
     if value1 is not None and value2 is not None:
@@ -142,27 +149,88 @@ class State:
         return self.data['labels_data']['arrow_size']
 
     # ------------------------------- HULLS_GETTERS ------------------------------ #
+    # TODO: update parameters for dict
+    @KeyErrorWrap([])
+    def get_hull_polygon_cords(self, hull_name: int) -> list[tuple[float, float]]:
+        return self.data['hulls_data']['hulls'][hull_name]['cords']
 
     @KeyErrorWrap([])
-    def get_hull_polygon_cords(self, hull_id: int) -> list[tuple[float, float]]:
-        return self.data['hulls_data'][hull_id]['cords']
-
+    def get_hull_lines_cords(self, hull_name: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+        return self.data['hulls_data']['hulls'][hull_name]['line_cords']
+    
     @KeyErrorWrap([])
-    def get_hull_lines_cords(self, hull_id: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
-        return self.data['hulls_data'][hull_id]['line_cords']
+    def update_hulls(self):
+        if len(self.data['hulls_data']['undraw']) == 0 and len(self.data['hulls_data']['change']) == 0:
+            return
+
+        # print("WITAM")
+        # print(self.data['hulls_data']['undraw'])
+        # print(self.data['hulls_data']['change'])
+        # print("ZEGNAM")
+
+        for hull_name in self.data['hulls_data']['undraw']:
+            del self.data['hulls_data']['hulls'][hull_name]
+
+        for hull_name in self.data['hulls_data']['change'].keys():
+            new_hull = calc_one_hull(hull_name, self.data['hulls_data']['change'][hull_name], self.data)
+
+            self.data['hulls_data']['hulls'][hull_name] = {
+                'cords': new_hull[hull_name]['polygon_points'],
+                'line_cords': new_hull[hull_name]['polygon_lines'],
+                'cluster_points': new_hull[hull_name]['cluster_points'],
+            }
+
+        self.data['hulls_data']['undraw'] = set()
+        self.data['hulls_data']['change'] = {}
+
+    # ------------------------------- HULLS SETTERS ------------------------------ #
 
     @KeyErrorWrap(None)
-    def get_cluster(self, cluster_type: str) -> dict:
-        return self.data['clusters_data'][cluster_type]
+    def set_hull_to_undraw(self, hull_name):
+        self.data['hulls_data']['undraw'].add(hull_name)
 
-    #todo dunno how to initialise
+    @KeyErrorWrap(None)
+    def set_hull_to_change(self, hull_name, points):
+        self.data['hulls_data']['change'][hull_name] = points
+
+    # ------------------------------- CLUSTER GETTERS ------------------------------ #
+    @KeyErrorWrap(None)
+    def get_cluster(self, cluster_name: str) -> pd.DataFrame:
+        df = self.data['clusters_data']['points']
+        return df[df['type'] == cluster_name]
+
     @KeyErrorWrap(None)
     def get_all_clusters(self) -> dict:
-        print("get all")
-        if 'clusters_data' not in self.data.keys():
-            print("reset")
-            self.data['clusters_data'] = {}
-        return self.data['clusters_data']
+        df = self.data['clusters_data']['points']
+        return df.groupby('type').apply(lambda x: x[['x', 'y']].values.tolist()).to_dict()
+
+    @KeyErrorWrap(None)
+    def get_all_points(self) -> pd.DataFrame:
+        return self.data['clusters_data']['points']
+
+    @KeyErrorWrap(None)
+    def get_point(self, point_id) -> dict:
+        df = self.data['clusters_data']['points'].loc[point_id]
+        return df.to_dict()
+
+    @KeyErrorWrap(None)
+    def get_point_pos(self, point_id) -> tuple:
+        df = self.data['clusters_data']['points']
+        return df.loc[point_id, 'x'], df.loc[point_id, 'y']
+
+    @KeyErrorWrap(None)
+    def get_point_color(self, point_id) -> str:
+        df = self.data['clusters_data']['points']
+        cluster_name = df.loc[point_id, 'type']
+        return self.data['clusters_data']['colors'][cluster_name]
+
+    @KeyErrorWrap(None) #todo sometimes data is null, needs fix
+    def get_normalised_clusters(self) -> dict:
+        df = self.data['clusters_data']['points']
+        data = {type_name: {'x': np.array(type_data['x']), 'y': np.array(type_data['y'])} for type_name, type_data in df.groupby('type')}
+        if "Removed" in data.keys():
+            data.pop("Removed")
+        return data
 
     # ---------------------------------- SETTERS --------------------------------- #
 
@@ -197,25 +265,26 @@ class State:
     def set_arrow_size(self, size: float) -> None:
         self.data['labels_data']['arrow_size'] = size
 
+    # ------------------------------- CLUSTER SETTERS ------------------------------ #
     @KeyErrorWrap(None)
-    def set_cluster(self, cluster_type: str, x: list, y: list, labels: list) -> None:
-        logging.info("state set cluster")
-        logging.info(x)
-        logging.info(y)
-        self.data['clusters_data'][cluster_type] = {}
-        logging.info(labels)
-        self.data['clusters_data'][cluster_type]["x"] = x
-        self.data['clusters_data'][cluster_type]["y"] = y
-        self.data['clusters_data'][cluster_type]["labels"] = labels
-        print("wtf", self.data['clusters_data'])
-        # logging.info(self.data['clusters_data'][cluster_type])
-        # logging.info(self.data['clusters_data'])
-        logging.info("end")
+    def set_cluster(self, cluster_name: str, points: list) -> None:
+        if cluster_name not in self.data['clusters_data']['colors'].keys():
+            self.data['clusters_data']['colors'][cluster_name] = f"#{random.randrange(0x1000000):06x}"
+        df = self.data['clusters_data']['points']
+        df.loc[df.index.isin(points), 'type'] = cluster_name
+        self.data['clusters_data']['points'] = df
 
     @KeyErrorWrap(None)
-    def set_clusters_empty(self) -> None:
-        self.data['clusters_data'] = {}
-
+    def reset_clusters(self) -> None:
+        self.data['clusters_data']['points'] = pd.DataFrame([
+            {
+                "x": self.data['data'][culture_name]['x'][i],
+                "y": self.data['data'][culture_name]['y'][i],
+                "type": culture_name,
+            }
+            for culture_name in self.data['data'].keys()
+            for i in range(len(self.data['data'][culture_name]['x']))
+        ])
 
     # ------------------------------------ ADD ----------------------------------- #
     
@@ -259,8 +328,13 @@ class State:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
     
     @KeyErrorWrap(None)
-    def delete_hull(self, hull_id: int) -> None:
-        self.data['hulls_data'].pop(hull_id)
+    def delete_hull(self, hull_name: int) -> None:
+        self.data['hulls_data']['hulls'].pop(hull_name)
+
+    def delete_hulls(self) -> None:
+        keys = list(self.data['hulls_data']['hulls'].keys())
+        for key in keys:
+            self.data['hulls_data']['hulls'].pop(key)
 
     # ----------------------------------- MISC ----------------------------------- #
 

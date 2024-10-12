@@ -1,9 +1,13 @@
 from matplotlib.axes._axes import Axes
+from matplotlib.patches import Circle
 from matplotlib.text import Text
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
+import time
 
+# from .hull_generator import calc_hull, parse_solution_to_editor_hull
+from ..generator.hull_generator import calc_hull, parse_solution_to_editor_hull
 from .backend_customs import *
 
 class ArrowArtist(Line2D, StateLinker):
@@ -342,15 +346,15 @@ class HullArtist(StateLinker):
     Class for properly managing hulls
     """
 
-    def __init__(self, ax: Axes, sid: int, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
+    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
         """init
 
         Parameters
         ----------
         ax: Axes
             Main chart ax
-        sid: int
-            The created HullArtist id
+        sid: str
+            The created HullArtist id (name of the hull)
         polygon: List[Tuple[float, float]]
             The polygon coordinates
         """
@@ -372,7 +376,7 @@ class HullArtist(StateLinker):
         self.state.delete_hull(self.id)
 
     @staticmethod
-    def hull(ax: Axes, sid: int, **kwargs) -> 'HullArtist':
+    def hull(ax: Axes, sid: str, **kwargs) -> 'HullArtist':
         h = HullArtist(ax, sid)
         ax.add_collection(LineCollection(segments=h.polygon_lines, colors='black'))
     
@@ -393,34 +397,52 @@ class HullArtist(StateLinker):
                 yield child
 
 
-#todo no idea what I'm doing
-class ClusterArtist(StateLinker):
-    def __init__(self, **kwargs) -> None:
-        super().__init__()
+class PointArtist(Circle, StateLinker):
+    def __init__(self, ax: Axes, sid: int, x: float = 0, y: float = 0, radius=1.5, **kwargs) -> None:
+        self.id = sid
+        self.ax = ax
 
-    def get_all_clusters(self):
-        return self.state.get_all_clusters()
+        xy = self.state.get_point_pos(self.id)
+        color = self.state.get_point_color(sid)
+        default_kwargs = {"facecolor": color, "edgecolor": color}
+        kwargs = {**default_kwargs, **kwargs}
 
-    def get_cluster(self, cluster_type: str):
-        return self.state.get_cluster(cluster_type)
+        super().__init__(xy, radius, picker=True, **kwargs)
 
-    def set_clusters_empty(self) -> None:
-        self.state.set_clusters_empty()
+    def remove(self) -> None:
+        super().remove()
 
-    def set_cluster(self, cluster_type: str, x: list, y: list, labels) -> None:
-        self.state.set_cluster(cluster_type, x, y, labels)
+    @staticmethod
+    def point(ax: Axes, sid: int, **kwargs) -> 'PointArtist':
+        circle = PointArtist(ax, sid, **kwargs)
+        ax.add_patch(circle)
+        return circle
 
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | PointArtist':
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, PointArtist) and child.id == sid:
+                return child
+        return None
+
+    @staticmethod
+    def get_all_points(ax: Axes):
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, PointArtist):
+                yield child
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
-def draw(self, ax: Axes) -> None:
 
+def draw(self, ax: Axes) -> None:
     # clear ax
     ax.clear()
-
     # draw points
-    for culture_name in self.data['data'].keys():
-        ax.scatter(self.data['data'][culture_name]['x'], self.data['data'][culture_name]['y'])
+    self.data['clusters_data']['artists'] = []
+    for point_id in self.data['clusters_data']['points'].index:
+        self.data['clusters_data']['artists'].append(PointArtist.point(ax, point_id))
 
     # draw labels
     for label_id in self.data['labels_data'].keys():
@@ -429,10 +451,11 @@ def draw(self, ax: Axes) -> None:
         except ValueError:
             continue
 
-    # draw hulls TODO: uncoment when hull_generator.py is done
-    for hull_id in self.data['hulls_data'].keys():
+    # draw hulls
+    self.update_hulls()
+    for hull_name in self.data['hulls_data']['hulls'].keys():
         try:
-            HullArtist.hull(ax, int(hull_id))
+            HullArtist.hull(ax, hull_name)
         except ValueError:
             continue
 
@@ -459,6 +482,7 @@ def draw(self, ax: Axes) -> None:
 
     plt.draw()
     logging.info(f"State redraw")
+    # todo check why state redraws three times while launching
 
 
 State.draw = draw
