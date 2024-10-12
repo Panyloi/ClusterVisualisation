@@ -1,3 +1,4 @@
+import random
 from typing import Union
 
 import pandas as pd
@@ -125,9 +126,8 @@ def editor_format(data: dict) -> dict:
         Reference to data
 
     """
-
     data = {"data": data,
-            "cluster_data": {},
+            "clusters_data": {},
             "hulls_data": {},
             "labels_data": {}}
     
@@ -161,6 +161,8 @@ def _parse_csv(path: str, delim=';') -> dict:
 
     df[ids] = df[ids].apply(lambda x: x.split(sep="_")[0])
 
+    df = combine_mallows_urn(df, 'Mallows-Urn')
+
     categorized_names = df[ids].unique()
     gruped_points = {}
 
@@ -170,6 +172,39 @@ def _parse_csv(path: str, delim=';') -> dict:
                                    "y": selected_points["y"].to_numpy()}
 
     return gruped_points
+
+
+def combine_mallows_urn(df, culture_name):
+    """
+    Method that combines cultures starting with the same culture name
+    """
+    mallows = df[df[df.columns[0]].str.contains(culture_name)]
+    df.loc[mallows.index, df.columns[0]] = culture_name
+    return df
+
+
+def get_df_from_data(data):
+    """
+    Method that returns a dataframe from normalised data
+    """
+    return pd.DataFrame([
+        {
+            "x": data[culture_name]['x'][i],
+            "y": data[culture_name]['y'][i],
+            "type": culture_name,
+        }
+        for culture_name in data.keys()
+        for i in range(len(data[culture_name]['x']))
+    ])
+
+
+def initialize_colors(data):
+    """
+    Method that generates colors for cultures based on normalised data
+    """
+    colors = {culture_name: f"#{random.randrange(0x1000000):06x}" for culture_name in data.keys()}
+    colors["Removed"] = "black"
+    return colors
 
 
 def _parse_experiment(exp: Experiment) -> dict:

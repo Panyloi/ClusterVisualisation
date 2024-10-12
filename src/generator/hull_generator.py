@@ -72,7 +72,7 @@ def circle_intersect(O1, O2, R):
     return d <= (2 * R)
 
 
-def handle_corners_points(points, default_points_dict, num_of_points=20):
+def handle_corners_points(points, default_points_dict, num_of_points=10):
     if len(points) <= 1:
         return points
 
@@ -83,6 +83,7 @@ def handle_corners_points(points, default_points_dict, num_of_points=20):
     bourder_value = int(
         num_of_points * 0.3
     )  # 0.3 is hyperparapeter that euqals 30% of all points (TODO: adjust this value in further attmpts)
+
 
     new_points = []
     points_queue = deque()
@@ -169,7 +170,7 @@ def handle_corners_points(points, default_points_dict, num_of_points=20):
 def create_new_circuit(points, dict_circuit_points, dict_main_points):
     idxes = concave_hull_indexes(
         np.array(points)[:, :2],
-        concavity=1,  # TODO: check other numbers for parameter
+        concavity=2,  # TODO: check other numbers for parameter
         length_threshold=0,
     )
 
@@ -252,7 +253,7 @@ def greedy_selecting(points):
     num_of_sets = len(points)
     first_points_set = set(points[0])
     second_points_set = set(points[1])
-    flag = False
+
     straight_points = 0
 
     p0 = min(points[0], key=lambda x: (x[1], x[0]))
@@ -293,10 +294,12 @@ def greedy_selecting(points):
                 < distance(current_point, points_union[i])
             ):
                 if points_union[i] not in current_points_array:
-                    if not flag and i_array >= 3:
-                        flag = not flag
                     second_point = points_union[i]
-                last_point = points_union[i]
+
+                if current_points_array == second_next_points_array:
+                    last_point = second_point
+                else:
+                    last_point = points_union[i]
 
         current_point = last_point
 
@@ -331,11 +334,13 @@ def greedy_selecting(points):
     return outline_points
 
 
-def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_circle: int, segment_length: int):
+def calc_hull(data: dict, circle_radious: float, points_in_circle: int, segment_length: int):
 
     hulls = {}
 
     for i, hull_name in enumerate(data.keys()):
+
+        
 
         hulls[i] = {}
         
@@ -346,12 +351,16 @@ def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_c
 
         hulls[i]['cluster_points'] = {'x': x, 'y': y}
 
+        
+
         points_transform = np.hstack(
             (
                 x.reshape(-1, 1),
                 y.reshape(-1, 1),
             )
         )
+
+        
 
         idxes = concave_hull_indexes(
             points_transform[:, :2],
@@ -360,6 +369,9 @@ def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_c
         )
 
         _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
+        
+        if hull_name=="Interval":
+            print(_idx_points)
 
         points_transform, to_jarvis = convert_points(
             _idx_points, circle_radious, num_of_points=points_in_circle
@@ -371,6 +383,8 @@ def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_c
         )
 
         hulls[i]['polygon_points'] = _idx_points 
+
+        _idx_points = interpolate_points(_idx_points, 1000)
 
         polygon_lines = [
             (
@@ -384,15 +398,83 @@ def calc_hull(data: dict, points: np.ndarray, circle_radious: float, points_in_c
 
     return hulls
 
+def set_hull_parameters(state, circle_radious: float, points_in_circle: int, segment_length: int):
+    state['hulls_data']['parameters'] = {
+        'circle_radious': circle_radious,
+        'points_in_circle': points_in_circle,
+        'segment_length': segment_length,
+    }
+
+def calc_one_hull(hull_name, points, state):
+    hulls = {}
+
+
+    hulls[hull_name] = {}
+
+    x = np.array(points['x'])
+    y = np.array(points['y'])
+
+    hulls[hull_name]['cluster_points'] = {'x': x, 'y': y}
+
+    points_transform = np.hstack(
+        (
+            x.reshape(-1, 1),
+            y.reshape(-1, 1),
+        )
+    )
+
+    idxes = concave_hull_indexes(
+        points_transform[:, :2],
+        concavity=3,
+        length_threshold=0,
+    )
+
+    _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
+
+    points_transform, to_jarvis = convert_points(
+        _idx_points, 
+        state['hulls_data']['parameters']['circle_radious'],
+        num_of_points=state['hulls_data']['parameters']['points_in_circle']
+    )
+
+    _idx_points = make_dense_points(
+        greedy_selecting(to_jarvis),
+        segment_length=state['hulls_data']['parameters']['segment_length']
+    )
+
+    hulls[hull_name]['polygon_points'] = _idx_points 
+
+    _idx_points = interpolate_points(_idx_points, 100)
+
+    polygon_lines = [
+        (
+            _idx_points[j % len(_idx_points)],
+            _idx_points[(j + 1) % len(_idx_points)],
+        )
+        for j in range(len(_idx_points))
+    ]
+
+    hulls[hull_name]['polygon_lines'] = polygon_lines
+
+    return hulls
+
 def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
-    
+    state['hulls_data']['hulls'] = {}
     for i in hulls.keys():
-        state['hulls_data'][i] = {
-            'name': hulls[i]['name'],
+        # state['hulls_data'][i] = {
+        #     'name': hulls[i]['name'],
+        #     'cords': hulls[i]['polygon_points'],
+        #     'line_cords': hulls[i]['polygon_lines'],
+        #     'cluster_points': hulls[i]['cluster_points']
+        # }
+        state['hulls_data']['hulls'][hulls[i]['name']] = {
             'cords': hulls[i]['polygon_points'],
             'line_cords': hulls[i]['polygon_lines'],
             'cluster_points': hulls[i]['cluster_points']
         }
+        state['hulls_data']['change'] = {}
+        state['hulls_data']['undraw'] = set()
+        
     return state
 
 
