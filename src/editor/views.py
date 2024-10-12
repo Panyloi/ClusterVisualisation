@@ -471,18 +471,14 @@ class ClusterView(View):
     def remove_point(self):
         if self.picked_item:
             self.reset_pick_event()
-# -------------------------------------- HIRO changes begin --------------------------------------
             point = self.state.get_point(self.picked_item.id)
             point_hull = point['type']
             self.state.set_hull_to_undraw(point_hull)
-# --------------------------------------- HIRO changes end ---------------------------------------
 
             self.state.set_cluster("Removed", [self.picked_item.id])
             self.info_text.set_text("Removed")
 
-# -------------------------------------- HIRO changes begin --------------------------------------
             self.state.set_hull_to_change(point_hull, self.state.get_cluster(point_hull))
-# --------------------------------------- HIRO changes end ---------------------------------------
 
             artist = self.state.data['clusters_data']['artists'][self.picked_item.id]
             artist.set_color(self.state.get_point_color(self.picked_item.id))
@@ -647,11 +643,9 @@ class DBSCANView(View):
         for key, points in label_map.items():
             if key == -1: continue
             self.state.set_cluster(self.args["cluster_name"] + str(key), points)
-# -------------------------------------- HIRO changes begin --------------------------------------
             self.state.set_hull_to_undraw(self.args["cluster_name"])
             self.state.set_hull_to_change(self.args["cluster_name"] + str(key), self.state.get_cluster(self.args["cluster_name"] + str(key)))
 
-# --------------------------------------- HIRO changes end ---------------------------------------
 
             for point_id in points:
                 artist = self.state.data['clusters_data']['artists'][point_id]
@@ -762,10 +756,8 @@ class AgglomerativeView(View):
                 label_map[self.current_labels[idx]].append(point_id)
         for points in label_map.values():
             self.state.set_cluster(str(self.save_index), points)
-# -------------------------------------- HIRO changes begin --------------------------------------
             self.state.set_hull_to_undraw(self.type)
             self.state.set_hull_to_change(str(self.save_index), self.state.get_cluster(str(self.save_index)))
-# --------------------------------------- HIRO changes end ---------------------------------------
 
             self.save_index += 1
         print(self.state.get_all_clusters())
