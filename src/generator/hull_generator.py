@@ -384,6 +384,8 @@ def calc_hull(data: dict, circle_radious: float, points_in_circle: int, segment_
 
         hulls[i]['polygon_points'] = _idx_points 
 
+        _idx_points = interpolate_points(_idx_points, 1000)
+
         polygon_lines = [
             (
                 _idx_points[j % len(_idx_points)],
@@ -441,6 +443,8 @@ def calc_one_hull(hull_name, points, state):
     )
 
     hulls[hull_name]['polygon_points'] = _idx_points 
+
+    _idx_points = interpolate_points(_idx_points, 100)
 
     polygon_lines = [
         (
