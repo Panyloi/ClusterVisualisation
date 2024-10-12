@@ -13,6 +13,9 @@ editor:
 
 
 labels_generator:
+  data_processing:
+    merge_parametrized_labels: False
+
   configurations:
     iterative:
       maxiter: 100

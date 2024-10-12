@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
@@ -6,6 +6,7 @@ from matplotlib.text import Text
 import numpy as np
 from scipy.optimize import dual_annealing, basinhopping
 from scipy.spatial import KDTree, ConvexHull
+from collections import defaultdict
 
 from ..configuration import Configuration
 
@@ -13,8 +14,32 @@ CPoint = Tuple[float]
 Point  = List[float]
 CEdge  = Tuple[Tuple[float]]
 Edge   = List[List[float]]
+InData = Dict[str, Dict[str, np.ndarray]]
+MgData = Dict[str, Dict[str, Dict[str, np.ndarray]]] # short for Merged Data
 
 tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
+
+# ---------------------------------------------------------------------------- #
+#                            Data PrePostProcessing                            #
+# ---------------------------------------------------------------------------- #
+
+def merge_parametrized_labels(data: InData) -> MgData:
+    new_data = defaultdict(defaultdict(dict))
+    for key, value in data:
+        key_split = key.split(' ')
+        
+        # key has no multipoint values or too complicated values
+        if not 2 == len(key_split):
+            new_data[key] = value
+            continue
+        
+        # key has multipoint values
+        new_data[key_split[0]][key_split[1]] = value
+        
+    return data
+
+def choose_reference_point():
+    return None
 
 # ---------------------------------------------------------------------------- #
 #                                     LABEL                                    #
@@ -72,11 +97,10 @@ class Label:
     def get_point(self):
         return self.rp_x + self.r*np.sin(self.a), self.rp_y + self.r*np.cos(self.a)
     
-    def get_err(self, include_x0: bool = True):
+    def get_err(self, include_x0: bool = False):
         if include_x0:
-            return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2))
-                    #  + \
-                    # np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2))/100
+            return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
+                    + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/100
         else:
             return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
@@ -347,9 +371,12 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float):
 # ---------------------------------------------------------------------------- #
 
 
-def calc(data: dict, 
+def calc(data: InData, 
          points: np.ndarray,
          config_id: str):
+
+    if Configuration['data_processing']['merge_parametrized_labels']:
+        data = merge_parametrized_labels(data)
 
     # Generate main set convex
     hull = ConvexHull(points)
@@ -380,21 +407,36 @@ def calc(data: dict,
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    xlim = (Configuration.instance['editor']['init_xlim_low'], Configuration.instance['editor']['init_xlim_high'])
-    ylim = (Configuration.instance['editor']['init_ylim_low'], Configuration.instance['editor']['init_ylim_high'])
+    xlim = (Configuration['editor']['init_xlim_low'], Configuration['editor']['init_xlim_high'])
+    ylim = (Configuration['editor']['init_ylim_low'], Configuration['editor']['init_ylim_high'])
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
     for label_name in data.keys():
-        ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
+        
+        # normal InData
+        if 'x' in data[label_name].keys():
+            ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
 
-        tx: Text = ax.text(0, 0, label_name, size=Configuration.instance['editor']['font_size'], transform=ax.transData)
-        tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
-        text_bbox = tx.get_window_extent()
-        transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
+            tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            text_bbox = tx.get_window_extent()
+            transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
-        ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
+            ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
+        else:
+            ref_points_dict = {}
+            for label_parameter in data[label_name].keys():
+                ref_point = (data[label_name][label_parameter]['x'][0], data[label_name][label_parameter]['y'][0])
+                ref_points_dict[label_parameter] = ref_point
+
+            tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            text_bbox = tx.get_window_extent()
+            transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
+
+            ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
 
     labels_bounds = [(0, 80), (0, np.pi*2)]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
@@ -406,7 +448,7 @@ def calc(data: dict,
 
     if config_id == 'iterative':
 
-        curr_config = Configuration.instance['labels_generator']['configurations'][config_id]
+        curr_config = Configuration['labels_generator']['configurations'][config_id]
         maxiter = curr_config['maxiter']
         visit = curr_config['visit']
         initial_temp = curr_config['initial_temp']
@@ -433,7 +475,7 @@ def calc(data: dict,
     elif config_id == 'global':
 
         x0 = None
-        curr_config = Configuration.instance['labels_generator']['configurations'][config_id]
+        curr_config = Configuration['labels_generator']['configurations'][config_id]
         if curr_config['generate_greedy_x0']:
             x0 = greedy((0, 0), ll, mset)
             Label.ll_set_x0(ll, x0)
@@ -517,8 +559,8 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    xlim = (Configuration.instance['editor']['init_xlim_low'], Configuration.instance['editor']['init_xlim_high'])
-    ylim = (Configuration.instance['editor']['init_ylim_low'], Configuration.instance['editor']['init_ylim_high'])
+    xlim = (Configuration['editor']['init_xlim_low'], Configuration['editor']['init_xlim_high'])
+    ylim = (Configuration['editor']['init_ylim_low'], Configuration['editor']['init_ylim_high'])
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -528,7 +570,7 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         pt = label.get_point()
         tp = label.get_tpoint()
         rp  = label.get_root_point()
-        txt = plt.text(pt[0], pt[1], label.text, size=Configuration.instance['editor']['font_size'], ha='center', va='center')
+        txt = plt.text(pt[0], pt[1], label.text, size=Configuration['editor']['font_size'], ha='center', va='center')
         txt.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.2))
         raw_points = label.points
         raw_points.append(raw_points[0])
