@@ -24,8 +24,8 @@ tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
 # ---------------------------------------------------------------------------- #
 
 def merge_parametrized_labels(data: InData) -> MgData:
-    new_data = defaultdict(defaultdict(dict))
-    for key, value in data:
+    new_data = defaultdict(lambda: defaultdict(dict))
+    for key, value in data.items():
         key_split = key.split(' ')
         
         # key has no multipoint values or too complicated values
@@ -36,9 +36,9 @@ def merge_parametrized_labels(data: InData) -> MgData:
         # key has multipoint values
         new_data[key_split[0]][key_split[1]] = value
         
-    return data
+    return new_data
 
-def choose_reference_point():
+def choose_reference_point(xs, ys, swelled_hull):
     return None
 
 # ---------------------------------------------------------------------------- #
@@ -46,6 +46,8 @@ def choose_reference_point():
 # ---------------------------------------------------------------------------- #
 
 class Label:
+    
+    x0_error_loss_parameter_denominator = 10
 
     def __init__(self, text, r, a, width, height, root_point) -> None:
 
@@ -69,7 +71,7 @@ class Label:
 
         self.points = self.get_points()
         self.t_point = self.get_tpoint()
-    
+
     def update_params(self, r, a, t):
         self.r = r
         self.a = a
@@ -100,7 +102,7 @@ class Label:
     def get_err(self, include_x0: bool = False):
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
-                    + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/100
+                    + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/self.x0_error_loss_parameter_denominator
         return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
     def get_mpoint(self):
@@ -141,7 +143,65 @@ class Label:
     def ll_set_x0(cls, ll, x0: np.ndarray) -> None:
         for i, label in enumerate(ll):
             label.set_x0(x0[i*2], x0[i*2+1])
+            
+class MultiRefLabel(Label):
+
+    def __init__(self, text, parameters, r, a, width, height, root_points):
         
+        # data
+        self.text = text
+        self.parameters = parameters
+        
+        # params
+        self.r = r
+        self.a = a
+        self.t = 0
+        
+        # hiperparams
+        self.rps_x = [p[0] for p in root_points]
+        self.rps_y = [p[1] for p in root_points]
+        self.width = width
+        self.height = height
+        self.w2 = self.width/2
+        self.h2 = self.height/2
+        self.x0_x = None
+        self.x0_y = None
+
+        self.points = self.get_points()
+        self.t_point = self.get_tpoint()
+
+    def get_point(self):
+        return self.rps_x[0] + self.r*np.sin(self.a), self.rps_y[0] + self.r*np.cos(self.a)
+        
+    def get_err(self, include_x0: bool = False):
+        err_sum = 0
+        if include_x0:
+            for i, x in enumerate(self.rps_x):
+                err_sum += (np.sqrt((x-self.t_point[0])**2 + (self.rps_y[i]-self.t_point[1])**2))
+            err_sum += np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/self.x0_error_loss_parameter_denominator
+            return err_sum
+        
+        for i, x in enumerate(self.rps_x):
+            err_sum += (np.sqrt((x-self.t_point[0])**2 + (self.rps_y[i]-self.t_point[1])**2))
+        return err_sum
+    
+    def get_root_point(self) -> CPoint:
+        return self.rps_x[0], self.rps_y[0]
+    
+    def get_root_points(self) -> List[CPoint]:
+        return [ tuple(point) for point in zip(self.rps_x, self.rps_y)]
+    
+    def get_result(self):
+        result = {'points': self.points,
+                  'tpoint': self.t_point,
+                  'rpoint': self.get_root_point(),
+                  'rpoints': self.get_root_points(),
+                  'point': self.get_point(),
+                  'width' : self.width,
+                  'height': self.height,
+                  'parameters': self.parameters}
+        return result
+
 # ---------------------------------------------------------------------------- #
 #                                   MAIN SET                                   #
 # ---------------------------------------------------------------------------- #
@@ -370,12 +430,14 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float):
 # ---------------------------------------------------------------------------- #
 
 
-def calc(data: InData, 
+def calc(idata: InData, 
          points: np.ndarray,
          config_id: str):
 
     if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
-        data = merge_parametrized_labels(data)
+        data = merge_parametrized_labels(idata)
+    else:
+        data = idata
 
     # Generate main set convex
     hull = ConvexHull(points)
@@ -416,7 +478,7 @@ def calc(data: InData,
         
         # normal InData
         if 'x' in data[label_name].keys():
-            ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
+            ref_point = choose_reference_point(data[label_name]['x'], data[label_name]['y'], swelled_pts)
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
             tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
@@ -427,15 +489,22 @@ def calc(data: InData,
         else:
             ref_points_dict = {}
             for label_parameter in data[label_name].keys():
-                ref_point = (data[label_name][label_parameter]['x'][0], data[label_name][label_parameter]['y'][0])
-                ref_points_dict[label_parameter] = ref_point
+                ref_points_dict[label_parameter] = choose_reference_point(
+                    data[label_name][label_parameter]['x'],
+                    data[label_name][label_parameter]['y'],
+                    swelled_pts
+                )
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
             tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
             text_bbox = tx.get_window_extent()
             transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
-            ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
+            ll.append(MultiRefLabel(label_name, 
+                                    list(ref_points_dict.keys()), 
+                                    0, 1, 
+                                    transformed_text_bbox.width+4, transformed_text_bbox.height+4, 
+                                    list(ref_points_dict.values())))
 
     labels_bounds = [(0, 80), (0, np.pi*2)]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
@@ -510,23 +579,35 @@ def calc(data: InData,
 def parse_solution_to_editor(labels: dict, state: dict) -> dict:
     
     for i, label_name in enumerate(labels.keys()):
+        
+        # parse arrow set if possible
+        arrows = {}
+        if labels[label_name].get('rpoints'):
+            for i, rpoint in enumerate(labels[label_name]['rpoints']):
+                arrows[i] = {
+                    'ref_x': rpoint[0],
+                    'ref_y': rpoint[1],
+                    'att_x': labels[label_name]['tpoint'][0],
+                    'att_y': labels[label_name]['tpoint'][1],
+                    'val': labels[label_name]['parameters'][i]
+                }
+        else:
+            arrows[0] = {
+                'ref_x': labels[label_name]['rpoint'][0],
+                'ref_y': labels[label_name]['rpoint'][1],
+                'att_x': labels[label_name]['tpoint'][0],
+                'att_y': labels[label_name]['tpoint'][1],
+                'val': ""
+            }
+        
         state['labels_data'][i] = {
             'text': label_name,
             'x': labels[label_name]['point'][0],
             'y': labels[label_name]['point'][1],
-            'arrows': {
-                0: {
-                    'ref_x': labels[label_name]['rpoint'][0],
-                    'ref_y': labels[label_name]['rpoint'][1],
-                    'att_x': labels[label_name]['tpoint'][0],
-                    'att_y': labels[label_name]['tpoint'][1],
-                    'val': "a"
-                }
-            }
+            'arrows': arrows
         }
 
     return state
-
 
 
 def _debug_draw(ll: List[Label], points: np.ndarray):
@@ -599,3 +680,8 @@ def _test():
 # [ ] divide and conquare solution (by initial x0)
 # [ ] iterative x0
 # [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)
+
+#Questions:
+# - filter na nazwy zbiorów dla których nie generujemy niczego / mergujemy parametry (łatwe do zrobienia ale nie wysokie w priorytecie)
+# - czy aktualne funkcjonalności (oprócz optymalizacji) to jest wszystko
+# - 
