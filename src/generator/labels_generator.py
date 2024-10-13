@@ -1,22 +1,45 @@
-import matplotlib.font_manager
-import matplotlib.pyplot as plt
-from matplotlib.transforms import Bbox, BboxTransformFrom, BboxTransformTo, BlendedAffine2D, CompositeGenericTransform, IdentityTransform, TransformWrapper
-import numpy as np
-from scipy.optimize import dual_annealing, basinhopping
-import time
+from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
-from typing import List, Tuple, Optional
-from scipy.spatial import KDTree, ConvexHull
-from matplotlib.backends.backend_agg import RendererAgg
-from matplotlib.transforms import TransformedBbox, Affine2D, BboxTransform
+
+import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
 from matplotlib.text import Text
+import numpy as np
+from scipy.optimize import dual_annealing
+from scipy.spatial import KDTree, ConvexHull
+
+from ..configuration import Configuration
 
 CPoint = Tuple[float]
 Point  = List[float]
 CEdge  = Tuple[Tuple[float]]
 Edge   = List[List[float]]
+InData = Dict[str, Dict[str, np.ndarray]]
+MgData = Dict[str, Dict[str, Dict[str, np.ndarray]]] # short for Merged Data
 
 tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
+
+# ---------------------------------------------------------------------------- #
+#                            Data PrePostProcessing                            #
+# ---------------------------------------------------------------------------- #
+
+def merge_parametrized_labels(data: InData) -> MgData:
+    new_data = defaultdict(defaultdict(dict))
+    for key, value in data:
+        key_split = key.split(' ')
+        
+        # key has no multipoint values or too complicated values
+        if not 2 == len(key_split):
+            new_data[key] = value
+            continue
+        
+        # key has multipoint values
+        new_data[key_split[0]][key_split[1]] = value
+        
+    return data
+
+def choose_reference_point():
+    return None
 
 # ---------------------------------------------------------------------------- #
 #                                     LABEL                                    #
@@ -24,14 +47,14 @@ tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
 
 class Label:
 
-    def __init__(self, text, x, y, width, height, root_point) -> None:
+    def __init__(self, text, r, a, width, height, root_point) -> None:
 
         # data
         self.text = text
 
         # params
-        self.x = x
-        self.y = y
+        self.r = r
+        self.a = a
         self.t = 0
 
         # hiperparams
@@ -39,26 +62,27 @@ class Label:
         self.rp_y = root_point[1]
         self.width = width
         self.height = height
+        self.w2 = self.width/2
+        self.h2 = self.height/2
         self.x0_x = None
         self.x0_y = None
 
-        # refreshable
-        self.points = [tuple_add((x, y), (-self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, -self.height/2)),
-                       tuple_add((x, y), (-self.width/2, -self.height/2))]
-        
+        self.points = self.get_points()
         self.t_point = self.get_tpoint()
     
-    def update_params(self, x, y, t):
-        self.x = x
-        self.y = y
-        self.points = [tuple_add((x, y), (-self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, self.height/2)),
-                       tuple_add((x, y), (self.width/2, -self.height/2)),
-                       tuple_add((x, y), (-self.width/2, -self.height/2))]
+    def update_params(self, r, a, t):
+        self.r = r
+        self.a = a
         self.t = t
+        self.points = self.get_points()
         self.t_point = self.get_tpoint()
+
+    def get_points(self):
+        x, y = self.get_point()
+        return [tuple_add((x, y), (-self.w2, self.h2)),
+                tuple_add((x, y), (self.w2, self.h2)),
+                tuple_add((x, y), (self.w2, -self.h2)),
+                tuple_add((x, y), (-self.w2, -self.h2))]
 
     def get_tpoint(self):
         if self.t // 1 == 0:
@@ -69,25 +93,28 @@ class Label:
             return tuple_add(self.points[2], (-self.width*(self.t % 1), 0))
         else:
             return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
-
-    def get_err(self):
-        return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + \
-               np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2))/100
+        
+    def get_point(self):
+        return self.rp_x + self.r*np.sin(self.a), self.rp_y + self.r*np.cos(self.a)
+    
+    def get_err(self, include_x0: bool = False):
+        if include_x0:
+            return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
+                    + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/100
+        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
     def get_mpoint(self):
-        return self.x, (self.y - self.height/2) + self.width/2
-    
-    def get_position(self):
-        return self.x, self.y
+        x, y = self.get_point()
+        return x, (y - self.h2) + self.w2
     
     def get_root_point(self) -> CPoint:
-        return (self.rp_x, self.rp_y)
+        return self.rp_x, self.rp_y
     
     def get_result(self):
         result = {'points': self.points,
                   'tpoint': self.t_point,
-                  'rpoint': (self.rp_x, self.rp_y),
-                  'mpoint': (self.x, self.y),
+                  'rpoint': self.get_root_point(),
+                  'point': self.get_point(),
                   'width' : self.width,
                   'height': self.height}
         return result
@@ -99,8 +126,8 @@ class Label:
     def ll_get(cls, ll):
         res = []
         for label in ll:
-            res.append(label.x)
-            res.append(label.y)
+            res.append(label.r)
+            res.append(label.a)
         for label in ll:
             res.append(label.t)
         return np.array(res)
@@ -108,15 +135,12 @@ class Label:
     @classmethod
     def ll_set(cls, ll, x: np.ndarray)-> None:
         for i, label in enumerate(ll):
-            px, py = x[i*2], x[i*2+1]
-            label.update_params(px, py, x[len(ll)*2+i])
+            label.update_params(x[i*2], x[i*2+1], x[len(ll)*2+i])
 
     @classmethod
     def ll_set_x0(cls, ll, x0: np.ndarray) -> None:
         for i, label in enumerate(ll):
-            px, py = x0[i*2], x0[i*2+1]
-            label.update_params(px, py, x0[len(ll)*2+i])
-            label.set_x0(px, py)
+            label.set_x0(x0[i*2], x0[i*2+1])
         
 # ---------------------------------------------------------------------------- #
 #                                   MAIN SET                                   #
@@ -240,7 +264,7 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
 #                                     LOSS                                     #
 # ---------------------------------------------------------------------------- #
 
-def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
+def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = True):
     
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -262,7 +286,7 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
         # labels intersection
         mp = label.get_mpoint()
         candidates = nx[kd.query_ball_point(x=mp, r=label.width/2+0.001, p=np.inf)]
-        if len(candidates[candidates[:, 1] <= label.y + label.height/2]) > 4:
+        if len(candidates[candidates[:, 1] <= label.points[3][1] + label.height]) > 4:
             intersections += 5
 
         # main set penalty
@@ -270,22 +294,95 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet):
             intersections += 15
 
         # loss
-        loss += label.get_err()
+        loss += label.get_err(include_x0_in_err)
+
+    return loss*((1 + intersections)**2)
+
+def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_set: MainSet, flg_arr: List[bool], include_x0_in_err: bool = False):
+    
+    # ---------------------------------- UPDATE ---------------------------------- #
+
+    # update kd tree pts
+    npts=[]
+    for slabel in static_label_list:
+        npts.extend(slabel.points) #TODO optimize this (make copy of existing set of points)
+
+    # update label
+    label.update_params(x[0], x[1], x[2])
+    npts.extend(label.points)
+        
+    # create new KDTree
+    nx = np.array(npts)
+    kd = KDTree(nx)
+
+    # ----------------------------------- LOSS ----------------------------------- #
+
+    intersections = 0
+    loss = 0
+
+    for slabel in static_label_list:
+        # static labels intersection
+        mp = slabel.get_mpoint()
+        candidates = nx[kd.query_ball_point(x=mp, r=slabel.width/2+0.001, p=np.inf)]
+        if len(candidates[candidates[:, 1] <= slabel.points[3][1] + slabel.height]) > 4:
+            flg_arr[0] = True
+            intersections += 5
+
+        # main set penalty
+        if any(point in main_set for point in slabel.points):
+            flg_arr[0] = True
+            intersections += 15
+
+    # label intersection
+    mp = label.get_mpoint()
+    candidates = nx[kd.query_ball_point(x=mp, r=label.width/2+0.001, p=np.inf)]
+    if len(candidates[candidates[:, 1] <= label.points[3][1] + label.height]) > 4:
+        flg_arr[0] = True
+        intersections += 5
+
+    # main set penalty
+    if any(point in main_set for point in label.points):
+        flg_arr[0] = True
+        intersections += 15
+
+    # loss
+    loss += label.get_err(include_x0_in_err)
 
     return loss*((1 + intersections)**2)
 
         
 # ---------------------------------------------------------------------------- #
+#                                 HULL SWELLER                                 #
+# ---------------------------------------------------------------------------- #
+
+
+def swell_hull(hull_pts: np.ndarray, shift_mult: float):
+    middle_point = np.mean(hull_pts, axis=0)
+    new_pts = np.zeros_like(hull_pts)
+    for i in range(len(hull_pts)):
+        v = hull_pts[i] - middle_point
+        new_pts[i] = hull_pts[i] + (v/np.linalg.norm(v))*shift_mult
+    return new_pts
+
+
+# ---------------------------------------------------------------------------- #
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
-def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_size: float = 10, RADIUS: float = 2, optim_kwargs: dict = None):
+
+def calc(data: InData, 
+         points: np.ndarray,
+         config_id: str):
+
+    if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
+        data = merge_parametrized_labels(data)
 
     # Generate main set convex
     hull = ConvexHull(points)
+    swelled_pts = swell_hull(points[hull.vertices], 10)
 
-    mset     = MainSet(points[hull.vertices])
-    ll       = []
+    mset = MainSet(swelled_pts)
+    ll   = []
 
     fig, ax = plt.subplots()
     fig.add_axes(ax)
@@ -309,39 +406,101 @@ def calc(data: dict, points: np.ndarray, w: float = 6.4, h: float = 4.8, font_si
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    ax.set_xlim((-150, 150))
-    ax.set_ylim((-150, 150))
+    xlim = (Configuration['editor']['init_xlim_low'], Configuration['editor']['init_xlim_high'])
+    ylim = (Configuration['editor']['init_ylim_low'], Configuration['editor']['init_ylim_high'])
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
 
     for label_name in data.keys():
-        ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
+        
+        # normal InData
+        if 'x' in data[label_name].keys():
+            ref_point = (data[label_name]['x'][0], data[label_name]['y'][0])
 
-        tx: Text = ax.text(0, 0, label_name, size=font_size, transform=ax.transData)
-        tx.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.3))
-        text_bbox = tx.get_window_extent()
-        transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
+            tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            text_bbox = tx.get_window_extent()
+            transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
-        ll.append(Label(label_name, 0, 0, transformed_text_bbox.width, transformed_text_bbox.height, ref_point))
+            ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
+        else:
+            ref_points_dict = {}
+            for label_parameter in data[label_name].keys():
+                ref_point = (data[label_name][label_parameter]['x'][0], data[label_name][label_parameter]['y'][0])
+                ref_points_dict[label_parameter] = ref_point
 
-    labels_bounds = [(-150, 150), (-150, 150)]*len(ll)
+            tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            text_bbox = tx.get_window_extent()
+            transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
+
+            ll.append(Label(label_name, 0, 1, transformed_text_bbox.width+4, transformed_text_bbox.height+4, ref_point))
+
+    labels_bounds = [(0, 80), (0, np.pi*2)]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
 
     plt.clf()
     plt.close(fig)
+    
+    x=None
 
-    # calculate
-    x0 = greedy((0, 0), ll, mset)
-    Label.ll_set_x0(ll, x0)
+    if config_id == 'iterative':
 
-    if optim_kwargs is None:
-        # deafult configuration for fats editor lunching
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, maxiter=1, visit=2.2)
+        curr_config = Configuration['labels_generator']['configurations'][config_id]
+        maxiter = curr_config['maxiter']
+        visit = curr_config['visit']
+        initial_temp = curr_config['initial_temp']
+        restart_temp_ratio = curr_config['restart_temp_ratio']
+        accept = curr_config['accept']
+        no_local_search = curr_config['no_local_search']
+
+        res_ll = []
+        for label in ll:
+            label_bounds = [(0, 150), (0, np.pi*2), (0, 4)]
+            flg = [False]
+            lres = dual_annealing(iter_loss, bounds=label_bounds, args=(label, res_ll, mset, flg),
+                                  maxiter=maxiter, visit=visit, initial_temp=initial_temp, restart_temp_ratio=restart_temp_ratio, 
+                                  accept=accept, no_local_search=no_local_search)
+            lx = lres.x
+
+            flg[0] = False
+            loss = iter_loss(lx, label, res_ll, mset, flg) # updates the label with finall x (and calculates finall intersection flag)
+            res_ll.append(label)
+
+        x = Label.ll_get(res_ll)
+            
+
+    elif config_id == 'global':
+
+        x0 = None
+        curr_config = Configuration['labels_generator']['configurations'][config_id]
+        if curr_config['generate_greedy_x0']:
+            x0 = greedy((0, 0), ll, mset)
+            Label.ll_set_x0(ll, x0)
+
+        maxiter = curr_config['maxiter']
+        visit = curr_config['visit']
+        initial_temp = curr_config['initial_temp']
+        restart_temp_ratio = curr_config['restart_temp_ratio']
+        accept = curr_config['accept']
+        no_local_search = curr_config['no_local_search']
+
+        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), 
+                             x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
+                             restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
+        x = res.x
+    elif config_id == 'divide_and_conquare':
+        ...
+    elif config_id == 'timed':
+        ...
     else:
-        # custom configuration
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), x0=x0, **optim_kwargs)
+        raise Exception("Invalid config_id. No such configuration exists")
 
     # prep result
+    assert(x is not None)
     labels = {}
-    Label.ll_set(ll, res.x)
+    Label.ll_set(ll, x)
     for label in ll:
         labels[label.text] = label.get_result()
 
@@ -353,8 +512,8 @@ def parse_solution_to_editor(labels: dict, state: dict) -> dict:
     for i, label_name in enumerate(labels.keys()):
         state['labels_data'][i] = {
             'text': label_name,
-            'x': labels[label_name]['mpoint'][0],
-            'y': labels[label_name]['mpoint'][1],
+            'x': labels[label_name]['point'][0],
+            'y': labels[label_name]['point'][1],
             'arrows': {
                 0: {
                     'ref_x': labels[label_name]['rpoint'][0],
@@ -367,3 +526,76 @@ def parse_solution_to_editor(labels: dict, state: dict) -> dict:
         }
 
     return state
+
+
+
+def _debug_draw(ll: List[Label], points: np.ndarray):
+
+    # Generate main set convex
+    hull = ConvexHull(points)
+    swelled_pts = swell_hull(points[hull.vertices], 2)
+    mset = MainSet(swelled_pts)
+
+    fig, ax = plt.subplots()
+    fig.add_axes(ax)
+    fig.subplots_adjust(bottom=0.2)
+
+    ax.tick_params(
+        axis='x',
+        which='both',
+        bottom=False,
+        top=False,
+        labelbottom=False)
+    ax.tick_params(
+        axis='y',
+        which='both',
+        left=False,
+        right=False,
+        labelleft=False)
+    
+    ax.bbox._bbox.x0 = 0.01
+    ax.bbox._bbox.y0 = 0.15
+    ax.bbox._bbox.x1 = 0.99
+    ax.bbox._bbox.y1 = 0.99
+
+    xlim = (Configuration['editor']['init_xlim_low'], Configuration['editor']['init_xlim_high'])
+    ylim = (Configuration['editor']['init_ylim_low'], Configuration['editor']['init_ylim_high'])
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    plt.plot(mset.points[:,0], mset.points[:,1], c='black')
+    for label in ll:
+        pt = label.get_point()
+        tp = label.get_tpoint()
+        rp  = label.get_root_point()
+        txt = plt.text(pt[0], pt[1], label.text, size=Configuration['editor']['font_size'], ha='center', va='center')
+        txt.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.2))
+        raw_points = label.points
+        raw_points.append(raw_points[0])
+        raw_points = np.array(raw_points)
+        plt.plot(raw_points[:,0], raw_points[:,1])
+        plt.plot([tp[0], rp[0]], [tp[1], rp[1]])
+    plt.show()
+
+
+def _test():
+
+    points = np.array([(-10, -10), (-10, 10), (10, 10), (10, -10)])
+
+    ll   = [
+        Label("tx1", 10*np.sqrt(2), np.pi/2 + np.pi/4, 4, 1, (0, 0)),
+        Label("tx2", 13, np.pi/2 + np.pi/4, 4, 1, (0, 0))
+    ]
+
+    _debug_draw(ll, points)
+
+
+#TODO:
+# [x] try polar coordinates
+# [x] iterative approach
+# [x] hull swelling
+# [ ] iterative with forced no intersection solution
+# [ ] divide and conquare solution (by initial x0)
+# [ ] iterative x0
+# [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)

@@ -1,15 +1,10 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.collections import LineCollection
-from scipy import interpolate
 from copy import deepcopy
-from random import random
-import time
-from sklearn import preprocessing as pr
 from collections import deque
 
-from concave_hull import concave_hull, concave_hull_indexes
+import numpy as np
+from scipy import interpolate
+
+from concave_hull import concave_hull_indexes
 
 epsilon = 10e-12
 
