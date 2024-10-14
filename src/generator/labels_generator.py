@@ -39,7 +39,26 @@ def merge_parametrized_labels(data: InData) -> MgData:
     return new_data
 
 def choose_reference_point(xs, ys, swelled_hull):
-    return None
+    
+    zipped = np.array(list(zip(xs, ys)))
+
+    if zipped.size <= 2:
+        return xs[0], ys[0]
+
+    hull = ConvexHull(zipped)
+    hull_points = zipped[hull.vertices]
+    min_line_len_point = float('inf')
+    min_line_len_point_idx = None
+
+    for idx, set_point in enumerate(hull_points):
+        for i in range(len(swelled_hull) - 1):
+            p1 = swelled_hull[i]
+            p2 = swelled_hull[i+1]
+            line_len = np.abs(np.cross(p2-p1, p1-set_point)) / np.linalg.norm(p2-p1)
+            if line_len < min_line_len_point:
+                min_line_len_point_idx = idx
+
+    return hull_points[min_line_len_point_idx]
 
 # ---------------------------------------------------------------------------- #
 #                                     LABEL                                    #
