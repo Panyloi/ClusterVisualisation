@@ -66,19 +66,30 @@ def divide_and_conquare(ll):
     for label in ll:
         intersections_i = []
         for i, label_set in enumerate(merged_ll):
-            if label in label_set:
+            intersects = False
+            for member in label_set:
+                if label in member:
+                    intersects = True
+            if intersects:
                 intersections_i.append(i)
         
         # merge sets
-        shift = 0
-        for i in range(1,len(intersections_i)):
-            merged_ll[intersections_i[0]].extend(merged_ll[intersections_i[i - shift]])
-            merged_ll.pop(i - shift)
-            shift += 1
-            
-        if not intersections_i:
+        if intersections_i:
+            shift = 0
+            merged_ll[intersections_i[0]].append(label)
+            for i in range(1,len(intersections_i)):
+                merged_ll[intersections_i[0]].extend(merged_ll[intersections_i[i - shift]])
+                merged_ll.pop(i - shift)
+                shift += 1
+        else:
             merged_ll.append([label])
     
+    print(len(ll))
+    print(len(merged_ll))
+    sm = 0
+    for s in merged_ll:
+        sm += len(s)
+    print(sm)
     return merged_ll
 
 # ---------------------------------------------------------------------------- #
@@ -163,6 +174,18 @@ class Label:
     
     def set_x0(self, x0_x, x0_y):
         self.x0_x, self.x0_y = x0_x, x0_y
+
+    def __contains__(self, other):
+        
+        x, y = self.get_point()
+        ox, oy = other.get_point()
+
+        x1 = max(x-self.w2, ox-other.w2)
+        y1 = max(y-self.h2, oy-other.h2)
+        x2 = min(x+self.w2, ox+other.w2)
+        y2 = min(y+self.h2, oy+other.h2)
+
+        return x1<x2 and y1<y2
     
     @classmethod
     def ll_get(cls, ll):
