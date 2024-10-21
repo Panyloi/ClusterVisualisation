@@ -10,9 +10,17 @@ editor:
 
   # initial font size
   font_size: 10
+  label_bbox:
+    # for possible dictionary arguments refer to 
+    # https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.FancyBboxPatch.html#matplotlib.patches.FancyBboxPatch
+    boxstyle: round
+    pad: 0.2
+    facecolor: white
+    edgecolor: black
 
 
 labels_generator:
+
   data_processing:
     merge_parametrized_labels: True
 
@@ -35,7 +43,12 @@ labels_generator:
       no_local_search: True
 
     divide_and_conquare:
-      maxiter: 10
+      maxiter: 100
+      visit: 2.62
+      initial_temp: 5230
+      restart_temp_ratio: 0.00002
+      accept: -5
+      no_local_search: True
 
     timed:
       time: 5  #s

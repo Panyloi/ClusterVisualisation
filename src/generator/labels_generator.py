@@ -54,11 +54,32 @@ def choose_reference_point(xs, ys, swelled_hull):
         for i in range(len(swelled_hull) - 1):
             p1 = swelled_hull[i]
             p2 = swelled_hull[i+1]
-            line_len = np.abs(np.cross(p2-p1, p1-set_point)) / np.linalg.norm(p2-p1)
+            line_len = np.abs(np.cross(p2-p1, set_point-p1)) / np.linalg.norm(p2-p1)
             if line_len < min_line_len_point:
+                min_line_len_point = line_len
                 min_line_len_point_idx = idx
 
     return hull_points[min_line_len_point_idx]
+
+def divide_and_conquare(ll):
+    merged_ll = []
+    for label in ll:
+        intersections_i = []
+        for i, label_set in enumerate(merged_ll):
+            if label in label_set:
+                intersections_i.append(i)
+        
+        # merge sets
+        shift = 0
+        for i in range(1,len(intersections_i)):
+            merged_ll[intersections_i[0]].extend(merged_ll[intersections_i[i - shift]])
+            merged_ll.pop(i - shift)
+            shift += 1
+            
+        if not intersections_i:
+            merged_ll.append([label])
+    
+    return merged_ll
 
 # ---------------------------------------------------------------------------- #
 #                                     LABEL                                    #
@@ -399,6 +420,7 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
     intersections = 0
     loss = 0
 
+    # TODO: This whole thing can be done once per optymalization not once per loss calc
     for slabel in static_label_list:
         # static labels intersection
         mp = slabel.get_mpoint()
@@ -429,7 +451,55 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
 
     return loss*((1 + intersections)**2)
 
+def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False):
+
+    # ---------------------------------- UPDATE ---------------------------------- #
+    
+    # update kd tree pts
+    npts=[]
+    for slabel in static_label_list:
+        npts.extend(slabel.points) #TODO optimize this (make copy of existing set of points)
+    for i, label in enumerate(label_list):
+        label.update_params(x[i*2], x[i*2+1], x[len(label_list)*2 + i])
+        npts.extend(label.points)
         
+    # create new KDTree
+    nx = np.array(npts)
+    kd = KDTree(nx)
+    
+    # ----------------------------------- LOSS ----------------------------------- #
+    
+    intersections = 0
+    loss = 0
+    
+    # TODO: This whole thing can be done once per optymalization not once per loss calc
+    for slabel in static_label_list:
+        # static labels intersection
+        mp = slabel.get_mpoint()
+        candidates = nx[kd.query_ball_point(x=mp, r=slabel.width/2+0.001, p=np.inf)]
+        if len(candidates[candidates[:, 1] <= slabel.points[3][1] + slabel.height]) > 4:
+            intersections += 5
+
+        # main set penalty
+        if any(point in main_set for point in slabel.points):
+            intersections += 15
+    
+    for label in label_list:
+        # labels intersection
+        mp = label.get_mpoint()
+        candidates = nx[kd.query_ball_point(x=mp, r=label.width/2+0.001, p=np.inf)]
+        if len(candidates[candidates[:, 1] <= label.points[3][1] + label.height]) > 4:
+            intersections += 5
+
+        # main set penalty
+        if any(point in main_set for point in label.points):
+            intersections += 15
+
+        # loss
+        loss += label.get_err(include_x0_in_err)
+
+    return loss*((1 + intersections)**2)
+    
 # ---------------------------------------------------------------------------- #
 #                                 HULL SWELLER                                 #
 # ---------------------------------------------------------------------------- #
@@ -500,7 +570,7 @@ def calc(idata: InData,
             ref_point = choose_reference_point(data[label_name]['x'], data[label_name]['y'], swelled_pts)
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
-            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            tx.set_bbox(Configuration["editor"]["label_bbox"])
             text_bbox = tx.get_window_extent()
             transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
@@ -515,7 +585,7 @@ def calc(idata: InData,
                 )
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
-            tx.set_bbox(dict(boxstyle='round', facecolor='white', edgecolor='black', alpha=0.3))
+            tx.set_bbox(Configuration["editor"]["label_bbox"])
             text_bbox = tx.get_window_extent()
             transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
 
@@ -525,7 +595,7 @@ def calc(idata: InData,
                                     transformed_text_bbox.width+4, transformed_text_bbox.height+4, 
                                     list(ref_points_dict.values())))
 
-    labels_bounds = [(0, 80), (0, np.pi*2)]*len(ll)
+    labels_bounds = [(0, 150), (0, np.pi*2)]*len(ll)
     labels_bounds.extend([(0, 4)]*len(ll))
 
     plt.clf()
@@ -557,7 +627,7 @@ def calc(idata: InData,
             res_ll.append(label)
 
         x = Label.ll_get(res_ll)
-            
+        ll = res_ll
 
     elif config_id == 'global':
 
@@ -578,8 +648,39 @@ def calc(idata: InData,
                              x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
                              restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         x = res.x
+        
     elif config_id == 'divide_and_conquare':
-        ...
+        
+        curr_config = Configuration['labels_generator']['configurations'][config_id]
+        x0 = greedy((0, 0), ll, mset)
+        Label.ll_set_x0(ll, x0)
+        
+        maxiter = curr_config['maxiter']
+        visit = curr_config['visit']
+        initial_temp = curr_config['initial_temp']
+        restart_temp_ratio = curr_config['restart_temp_ratio']
+        accept = curr_config['accept']
+        no_local_search = curr_config['no_local_search']
+        
+        res_ll = []
+        for group in divide_and_conquare(ll):
+            
+            # TODO: skip single optimizations
+            
+            labels_bounds = [(0, 150), (0, np.pi*2)]*len(group)
+            labels_bounds.extend([(0, 4)]*len(group))
+            
+            lres = dual_annealing(mixed_loss, bounds=labels_bounds, args=(group, res_ll, mset),
+                                  maxiter=maxiter, visit=visit, initial_temp=initial_temp, restart_temp_ratio=restart_temp_ratio, 
+                                  accept=accept, no_local_search=no_local_search)
+            lx = lres.x
+
+            loss = mixed_loss(lx, group, res_ll, mset) # updates the label with finall x (and calculates finall intersection flag)
+            res_ll.extend(group)
+
+        x = Label.ll_get(res_ll)
+        ll = res_ll
+        
     elif config_id == 'timed':
         ...
     else:
@@ -670,7 +771,7 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         tp = label.get_tpoint()
         rp  = label.get_root_point()
         txt = plt.text(pt[0], pt[1], label.text, size=Configuration['editor']['font_size'], ha='center', va='center')
-        txt.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black', alpha=0.2))
+        txt.set_bbox(Configuration["editor"]["label_bbox"])
         raw_points = label.points
         raw_points.append(raw_points[0])
         raw_points = np.array(raw_points)
@@ -704,3 +805,8 @@ def _test():
 # - filter na nazwy zbiorów dla których nie generujemy niczego / mergujemy parametry (łatwe do zrobienia ale nie wysokie w priorytecie)
 # - czy aktualne funkcjonalności (oprócz optymalizacji) to jest wszystko
 # - 
+
+# IMPORTANT
+
+# consider the fact that the label itself is in the label set while querying for other labels in global optimization
+# think of solution to it. This might be very bad for the optimization as it will always wiggle
