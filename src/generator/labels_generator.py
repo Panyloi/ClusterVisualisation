@@ -79,17 +79,11 @@ def divide_and_conquare(ll):
             merged_ll[intersections_i[0]].append(label)
             for i in range(1,len(intersections_i)):
                 merged_ll[intersections_i[0]].extend(merged_ll[intersections_i[i - shift]])
-                merged_ll.pop(i - shift)
+                merged_ll.pop(intersections_i[i - shift])
                 shift += 1
         else:
             merged_ll.append([label])
-    
-    print(len(ll))
-    print(len(merged_ll))
-    sm = 0
-    for s in merged_ll:
-        sm += len(s)
-    print(sm)
+
     return merged_ll
 
 # ---------------------------------------------------------------------------- #
@@ -123,6 +117,9 @@ class Label:
         self.points = self.get_points()
         self.t_point = self.get_tpoint()
 
+    def __repr__(self):
+        return self.text
+
     def update_params(self, r, a, t):
         self.r = r
         self.a = a
@@ -148,7 +145,7 @@ class Label:
             return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
         
     def get_point(self):
-        return self.rp_x + self.r*np.sin(self.a), self.rp_y + self.r*np.cos(self.a)
+        return self.rp_x + self.r*np.cos(self.a), self.rp_y + self.r*np.sin(self.a)
     
     def get_err(self, include_x0: bool = False):
         if include_x0:
@@ -234,7 +231,7 @@ class MultiRefLabel(Label):
         self.t_point = self.get_tpoint()
 
     def get_point(self):
-        return self.rps_x[0] + self.r*np.sin(self.a), self.rps_y[0] + self.r*np.cos(self.a)
+        return self.rps_x[0] + self.r*np.cos(self.a), self.rps_y[0] + self.r*np.sin(self.a)
         
     def get_err(self, include_x0: bool = False):
         err_sum = 0
@@ -368,18 +365,31 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
         nx, ny = mpx + t*(lpx-mpx), mpy + t*(lpy-mpy)
 
         # set new label parameters based on what positioning
+        nt = 0
         if lpy >= mpy and lpx >= mpx:
             # upper right
-            label.update_params(nx + label.width/2, ny + label.height/2, 3)
+            nx += label.w2
+            ny += label.h2
+            nt = 3
         elif lpy >= mpy and lpx < mpx:
             # upper left
-            label.update_params(nx - label.width/2, ny + label.height/2, 2)
+            nx -= label.w2
+            ny += label.h2
+            nt = 2
         elif lpy < mpy and lpx >= mpx:
             # lower right
-            label.update_params(nx + label.width/2, ny - label.height/2, 0)
+            nx += label.width/2
+            ny -= label.height/2
+            nt = 0
         else:
             # lower left
-            label.update_params(nx - label.width/2, ny - label.height/2, 1)
+            nx -= label.width/2
+            ny -= label.height/2
+            nt = 1
+        r = np.sqrt(np.square(nx-lpx) + np.square(ny-lpy))
+        a = np.arctan2((ny-lpy), (nx-lpx))
+
+        label.update_params(r, a, nt)
 
     return Label.ll_get(ll)
 
@@ -521,7 +531,66 @@ def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[L
         # loss
         loss += label.get_err(include_x0_in_err)
 
-    return loss*((1 + intersections)**2)
+    return loss + intersections**2
+
+def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False):
+
+    # ---------------------------------- UPDATE ---------------------------------- #
+
+    for i, label in enumerate(label_list):
+        label.update_params(x[i*2], x[i*2+1], x[len(label_list)*2 + i])
+    
+    # ----------------------------------- LOSS ----------------------------------- #
+    
+    intersections = 0
+    loss = 0
+
+    for cur_label in label_list:
+
+        tp = cur_label.get_tpoint()
+        rp = cur_label.get_root_point()
+
+        # dynamic labels
+        for other_label in label_list:
+            if cur_label is not other_label:
+                
+                # label intersections
+                if other_label in cur_label:
+                    intersections += 5
+                
+                #line intersections
+                pts = other_label.get_points()
+                for point_idx in range(3):
+                    if MainSet._line_intersect(rp[0], rp[1], tp[0], tp[1], pts[point_idx][0], pts[point_idx][1], pts[point_idx+1][0], pts[point_idx+1][1]) is not None:
+                        intersections += 2
+                otp = other_label.get_tpoint()
+                orp = other_label.get_root_point()
+                if MainSet._line_intersect(rp[0], rp[1], tp[0], tp[1], orp[0], orp[1], otp[0], otp[1]) is not None:
+                    intersections += 2
+
+        # static labels
+        for other_label in static_label_list:
+            
+            # label intersections
+            if other_label in cur_label:
+                intersections += 5
+
+            #line intersections
+                pts = other_label.get_points()
+                for point_idx in range(3):
+                    if MainSet._line_intersect(rp[0], rp[1], tp[0], tp[1], pts[point_idx][0], pts[point_idx][1], pts[point_idx+1][0], pts[point_idx+1][1]) is not None:
+                        intersections += 2
+                otp = other_label.get_tpoint()
+                orp = other_label.get_root_point()
+                if MainSet._line_intersect(rp[0], rp[1], tp[0], tp[1], orp[0], orp[1], otp[0], otp[1]) is not None:
+                    intersections += 2
+        
+        if any(point in main_set for point in cur_label.points):
+            intersections += 15
+
+        loss += cur_label.get_err(include_x0_in_err)
+
+    return loss + intersections**2
     
 # ---------------------------------------------------------------------------- #
 #                                 HULL SWELLER                                 #
@@ -685,20 +754,22 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
         
-        res_ll = []
-        for group in divide_and_conquare(ll):
+        daql = divide_and_conquare(ll)
+        res_ll = [group[0] for group in daql if len(group) == 1]
+        for group in daql:
+
+            if len(group) == 1:
+                continue
             
-            # TODO: skip single optimizations
-            
-            labels_bounds = [(0, 150), (0, np.pi*2)]*len(group)
+            labels_bounds = [(0, 190), (0, np.pi*2)]*len(group)
             labels_bounds.extend([(0, 4)]*len(group))
             
-            lres = dual_annealing(mixed_loss, bounds=labels_bounds, args=(group, res_ll, mset),
+            lres = dual_annealing(mixed_square_loss, bounds=labels_bounds, args=(group, res_ll, mset),
                                   maxiter=maxiter, visit=visit, initial_temp=initial_temp, restart_temp_ratio=restart_temp_ratio, 
                                   accept=accept, no_local_search=no_local_search)
             lx = lres.x
 
-            loss = mixed_loss(lx, group, res_ll, mset) # updates the label with finall x (and calculates finall intersection flag)
+            loss = mixed_square_loss(lx, group, res_ll, mset) # updates the label with finall x
             res_ll.extend(group)
 
         x = Label.ll_get(res_ll)
@@ -722,17 +793,17 @@ def calc(idata: InData,
 def parse_solution_to_editor(labels: dict, state: dict) -> dict:
     
     for i, label_name in enumerate(labels.keys()):
-        
+
         # parse arrow set if possible
         arrows = {}
         if labels[label_name].get('rpoints'):
-            for i, rpoint in enumerate(labels[label_name]['rpoints']):
-                arrows[i] = {
+            for j, rpoint in enumerate(labels[label_name]['rpoints']):
+                arrows[j] = {
                     'ref_x': rpoint[0],
                     'ref_y': rpoint[1],
                     'att_x': labels[label_name]['tpoint'][0],
                     'att_y': labels[label_name]['tpoint'][1],
-                    'val': labels[label_name]['parameters'][i]
+                    'val': labels[label_name]['parameters'][j]
                 }
         else:
             arrows[0] = {
@@ -819,15 +890,9 @@ def _test():
 # [x] try polar coordinates
 # [x] iterative approach
 # [x] hull swelling
-# [ ] iterative with forced no intersection solution
-# [ ] divide and conquare solution (by initial x0)
+# [x] divide and conquare solution (by initial x0)
 # [ ] iterative x0
 # [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)
-
-#Questions:
-# - filter na nazwy zbiorów dla których nie generujemy niczego / mergujemy parametry (łatwe do zrobienia ale nie wysokie w priorytecie)
-# - czy aktualne funkcjonalności (oprócz optymalizacji) to jest wszystko
-# - 
 
 # IMPORTANT
 
