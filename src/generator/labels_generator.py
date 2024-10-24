@@ -607,6 +607,20 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float):
 
 
 # ---------------------------------------------------------------------------- #
+#                                 HULL SWELLER                                 #
+# ---------------------------------------------------------------------------- #
+
+
+def swell_hull(hull_pts: np.ndarray, shift_mult: float):
+    middle_point = np.mean(hull_pts, axis=0)
+    new_pts = np.zeros_like(hull_pts)
+    for i in range(len(hull_pts)):
+        v = hull_pts[i] - middle_point
+        new_pts[i] = hull_pts[i] + (v/np.linalg.norm(v))*shift_mult
+    return new_pts
+
+
+# ---------------------------------------------------------------------------- #
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
