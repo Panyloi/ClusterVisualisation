@@ -366,7 +366,8 @@ def calc_hull(data: dict, circle_radious: float, points_in_circle: int, segment_
         _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
         
         if hull_name=="Interval":
-            print(_idx_points)
+            # print(_idx_points)
+            ...
 
         points_transform, to_jarvis = convert_points(
             _idx_points, circle_radious, num_of_points=points_in_circle

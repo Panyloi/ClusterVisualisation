@@ -4,11 +4,11 @@ from matplotlib.text import Text
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
-import time
 
 # from .hull_generator import calc_hull, parse_solution_to_editor_hull
 from ..generator.hull_generator import calc_hull, parse_solution_to_editor_hull
 from .backend_customs import *
+from ..configuration import Configuration
 
 class ArrowArtist(Line2D, StateLinker):
     """
@@ -234,8 +234,8 @@ class LabelArtist(Text, StateLinker):
                          zorder=100,
                          size=size,
                          **kwargs)
-        
-        self.set_bbox(dict(boxstyle='round', pad=0.2, facecolor='white', edgecolor='black'))
+
+        self.set_bbox(Configuration["editor"]["label_bbox"])
         
         # arrow artists
         self.arrows: dict[int, ArrowArtist] = {}
