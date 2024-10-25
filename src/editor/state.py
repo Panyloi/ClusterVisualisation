@@ -373,14 +373,21 @@ class State:
     def set_raw(self, data) -> None:
         self.data = data
 
+    def default_serializer(obj):
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, OverflowError):
+            return None
+
     def save_state_to_file(self, fpath: str) -> None:
         with open(fpath, 'w') as f:
-            json.dump(self.data, f)
+            json.dump(self.data, f, default=self.default_serializer, skipkeys=True)
 
     def load_state_from_file(self, fpath: str) -> 'State':
         with open(fpath, 'r') as f:
             data = json.load(f)
-        self.data = self._retype_state(data)
+        self.data["labels_data"] = self._retype_state(data)["labels_data"]
 
 
 class StateLinker:

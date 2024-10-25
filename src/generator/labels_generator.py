@@ -16,6 +16,8 @@ CEdge  = Tuple[Tuple[float]]
 Edge   = List[List[float]]
 InData = Dict[str, Dict[str, np.ndarray]]
 MgData = Dict[str, Dict[str, Dict[str, np.ndarray]]] # short for Merged Data
+LabelList = List["Label"]
+MergedLabelList = List[List["Label"]]
 
 tuple_add = lambda x, y: (x[0] + y[0], x[1] + y[1])
 
@@ -61,7 +63,7 @@ def choose_reference_point(xs, ys, swelled_hull):
 
     return hull_points[min_line_len_point_idx]
 
-def divide_and_conquare(ll):
+def divide_and_conquare(ll: LabelList) -> MergedLabelList:
     merged_ll = []
     for label in ll:
         intersections_i = []
@@ -94,7 +96,7 @@ class Label:
     
     x0_error_loss_parameter_denominator = 10
 
-    def __init__(self, text, r, a, width, height, root_point) -> None:
+    def __init__(self, text: str, r: float, a: float, width: float, height: float, root_point: CPoint) -> None:
 
         # data
         self.text = text
@@ -117,24 +119,24 @@ class Label:
         self.points = self.get_points()
         self.t_point = self.get_tpoint()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.text
 
-    def update_params(self, r, a, t):
+    def update_params(self, r: float, a: float, t: float) -> None:
         self.r = r
         self.a = a
         self.t = t
         self.points = self.get_points()
         self.t_point = self.get_tpoint()
 
-    def get_points(self):
+    def get_points(self) -> List[CPoint]:
         x, y = self.get_point()
         return [tuple_add((x, y), (-self.w2, self.h2)),
                 tuple_add((x, y), (self.w2, self.h2)),
                 tuple_add((x, y), (self.w2, -self.h2)),
                 tuple_add((x, y), (-self.w2, -self.h2))]
 
-    def get_tpoint(self):
+    def get_tpoint(self) -> CPoint:
         if self.t // 1 == 0:
             return tuple_add(self.points[0], (self.width*(self.t % 1), 0))
         elif self.t // 1 == 1:
@@ -144,23 +146,23 @@ class Label:
         else:
             return tuple_add(self.points[3], (0, self.height*(self.t % 1)))
         
-    def get_point(self):
+    def get_point(self) -> CPoint:
         return self.rp_x + self.r*np.cos(self.a), self.rp_y + self.r*np.sin(self.a)
     
-    def get_err(self, include_x0: bool = False):
+    def get_err(self, include_x0: bool = False) -> float:
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
                     + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/self.x0_error_loss_parameter_denominator
         return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
-    def get_mpoint(self):
+    def get_mpoint(self) -> CPoint:
         x, y = self.get_point()
         return x, (y - self.h2) + self.w2
     
     def get_root_point(self) -> CPoint:
         return self.rp_x, self.rp_y
     
-    def get_result(self):
+    def get_result(self) -> Dict[str, List[CPoint] | float | CPoint]:
         result = {'points': self.points,
                   'tpoint': self.t_point,
                   'rpoint': self.get_root_point(),
@@ -169,10 +171,10 @@ class Label:
                   'height': self.height}
         return result
     
-    def set_x0(self, x0_x, x0_y):
+    def set_x0(self, x0_x: float, x0_y: float) -> None:
         self.x0_x, self.x0_y = x0_x, x0_y
 
-    def __contains__(self, other):
+    def __contains__(self, other: "Label") -> bool:
         
         x, y = self.get_point()
         ox, oy = other.get_point()
@@ -185,7 +187,7 @@ class Label:
         return x1<x2 and y1<y2
     
     @classmethod
-    def ll_get(cls, ll):
+    def ll_get(cls, ll: LabelList) -> np.ndarray:
         res = []
         for label in ll:
             res.append(label.r)
@@ -195,18 +197,18 @@ class Label:
         return np.array(res)
     
     @classmethod
-    def ll_set(cls, ll, x: np.ndarray)-> None:
+    def ll_set(cls, ll: LabelList, x: np.ndarray)-> None:
         for i, label in enumerate(ll):
             label.update_params(x[i*2], x[i*2+1], x[len(ll)*2+i])
 
     @classmethod
-    def ll_set_x0(cls, ll, x0: np.ndarray) -> None:
+    def ll_set_x0(cls, ll: LabelList, x0: np.ndarray) -> None:
         for i, label in enumerate(ll):
             label.set_x0(x0[i*2], x0[i*2+1])
             
 class MultiRefLabel(Label):
 
-    def __init__(self, text, parameters, r, a, width, height, root_points):
+    def __init__(self, text: str, parameters: List[str], r: float, a: float, width: float, height: float, root_points: List[CPoint]):
         
         # data
         self.text = text
@@ -230,10 +232,10 @@ class MultiRefLabel(Label):
         self.points = self.get_points()
         self.t_point = self.get_tpoint()
 
-    def get_point(self):
+    def get_point(self) -> CPoint:
         return self.rps_x[0] + self.r*np.cos(self.a), self.rps_y[0] + self.r*np.sin(self.a)
         
-    def get_err(self, include_x0: bool = False):
+    def get_err(self, include_x0: bool = False) -> float:
         err_sum = 0
         if include_x0:
             for i, x in enumerate(self.rps_x):
@@ -251,7 +253,7 @@ class MultiRefLabel(Label):
     def get_root_points(self) -> List[CPoint]:
         return [ tuple(point) for point in zip(self.rps_x, self.rps_y)]
     
-    def get_result(self):
+    def get_result(self) -> Dict[str, CPoint | List[CPoint] | float]:
         result = {'points': self.points,
                   'tpoint': self.t_point,
                   'rpoint': self.get_root_point(),
@@ -328,7 +330,7 @@ class MainSet:
         return MainSet._ccw(Ax, Ay, Cx, Cy, Dx, Dy) != MainSet._ccw(Bx, By, Cx, Cy, Dx, Dy) and \
                MainSet._ccw(Ax, Ay, Bx, By, Cx, Cy) != MainSet._ccw(Ax, Ay, Bx, By, Dx, Dy)
 
-    def __contains__(self, point: Point) -> bool:
+    def __contains__(self, point: CPoint) -> bool:
         x, y = point
 
         # easy case
@@ -397,7 +399,7 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
 #                                     LOSS                                     #
 # ---------------------------------------------------------------------------- #
 
-def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = True):
+def loss(x: np.ndarray, label_list: LabelList, main_set: MainSet, include_x0_in_err: bool = True) -> float:
     
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -431,7 +433,7 @@ def loss(x: np.ndarray, label_list: List[Label], main_set: MainSet, include_x0_i
 
     return loss*((1 + intersections)**2)
 
-def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_set: MainSet, flg_arr: List[bool], include_x0_in_err: bool = False):
+def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_set: MainSet, flg_arr: List[bool], include_x0_in_err: bool = False) -> float:
     
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -484,7 +486,7 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
 
     return loss*((1 + intersections)**2)
 
-def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False):
+def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False) -> float:
 
     # ---------------------------------- UPDATE ---------------------------------- #
     
@@ -533,7 +535,7 @@ def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[L
 
     return loss + intersections**2
 
-def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False):
+def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False) -> float:
 
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -597,7 +599,7 @@ def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list:
 # ---------------------------------------------------------------------------- #
 
 
-def swell_hull(hull_pts: np.ndarray, shift_mult: float):
+def swell_hull(hull_pts: np.ndarray, shift_mult: float) -> np.ndarray:
     middle_point = np.mean(hull_pts, axis=0)
     new_pts = np.zeros_like(hull_pts)
     for i in range(len(hull_pts)):
@@ -611,7 +613,7 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float):
 # ---------------------------------------------------------------------------- #
 
 
-def swell_hull(hull_pts: np.ndarray, shift_mult: float):
+def swell_hull(hull_pts: np.ndarray, shift_mult: float) -> np.ndarray:
     middle_point = np.mean(hull_pts, axis=0)
     new_pts = np.zeros_like(hull_pts)
     for i in range(len(hull_pts)):
@@ -627,7 +629,7 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float):
 
 def calc(idata: InData, 
          points: np.ndarray,
-         config_id: str):
+         config_id: str) -> Dict:
 
     if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
         data = merge_parametrized_labels(idata)
@@ -886,18 +888,6 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         plt.plot(raw_points[:,0], raw_points[:,1])
         plt.plot([tp[0], rp[0]], [tp[1], rp[1]])
     plt.show()
-
-
-def _test():
-
-    points = np.array([(-10, -10), (-10, 10), (10, 10), (10, -10)])
-
-    ll   = [
-        Label("tx1", 10*np.sqrt(2), np.pi/2 + np.pi/4, 4, 1, (0, 0)),
-        Label("tx2", 13, np.pi/2 + np.pi/4, 4, 1, (0, 0))
-    ]
-
-    _debug_draw(ll, points)
 
 
 #TODO:

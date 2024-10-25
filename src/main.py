@@ -19,7 +19,7 @@ from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull, 
 
 def draw_maps(raw_data: Union[str, Experiment],
               out_path: str | None, delim=';',
-              config_id: str = 'iterative') -> Optional[State]:
+              config_id: str = 'divide_and_conquare') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
