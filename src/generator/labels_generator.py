@@ -368,8 +368,12 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
 
         # set new label parameters based on what positioning
         nt = 0
+        nt = 0
         if lpy >= mpy and lpx >= mpx:
             # upper right
+            nx += label.w2
+            ny += label.h2
+            nt = 3
             nx += label.w2
             ny += label.h2
             nt = 3
@@ -378,13 +382,26 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
             nx -= label.w2
             ny += label.h2
             nt = 2
+            nx -= label.w2
+            ny += label.h2
+            nt = 2
         elif lpy < mpy and lpx >= mpx:
             # lower right
             nx += label.width/2
             ny -= label.height/2
             nt = 0
+            nx += label.width/2
+            ny -= label.height/2
+            nt = 0
         else:
             # lower left
+            nx -= label.width/2
+            ny -= label.height/2
+            nt = 1
+        r = np.sqrt(np.square(nx-lpx) + np.square(ny-lpy))
+        a = np.arctan2((ny-lpy), (nx-lpx))
+
+        label.update_params(r, a, nt)
             nx -= label.width/2
             ny -= label.height/2
             nt = 1
@@ -455,6 +472,7 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
     intersections = 0
     loss = 0
 
+    # TODO: This whole thing can be done once per optymalization not once per loss calc
     # TODO: This whole thing can be done once per optymalization not once per loss calc
     for slabel in static_label_list:
         # static labels intersection
@@ -628,10 +646,14 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float) -> np.ndarray:
 
 
 def calc(idata: InData, 
+def calc(idata: InData, 
          points: np.ndarray,
          config_id: str) -> Dict:
 
     if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
+        data = merge_parametrized_labels(idata)
+    else:
+        data = idata
         data = merge_parametrized_labels(idata)
     else:
         data = idata
@@ -676,8 +698,10 @@ def calc(idata: InData,
         # normal InData
         if 'x' in data[label_name].keys():
             ref_point = choose_reference_point(data[label_name]['x'], data[label_name]['y'], swelled_pts)
+            ref_point = choose_reference_point(data[label_name]['x'], data[label_name]['y'], swelled_pts)
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(Configuration["editor"]["label_bbox"])
             tx.set_bbox(Configuration["editor"]["label_bbox"])
             text_bbox = tx.get_window_extent()
             transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
@@ -691,8 +715,14 @@ def calc(idata: InData,
                     data[label_name][label_parameter]['y'],
                     swelled_pts
                 )
+                ref_points_dict[label_parameter] = choose_reference_point(
+                    data[label_name][label_parameter]['x'],
+                    data[label_name][label_parameter]['y'],
+                    swelled_pts
+                )
 
             tx: Text = ax.text(0, 0, label_name, size=Configuration['editor']['font_size'], transform=ax.transData)
+            tx.set_bbox(Configuration["editor"]["label_bbox"])
             tx.set_bbox(Configuration["editor"]["label_bbox"])
             text_bbox = tx.get_window_extent()
             transformed_text_bbox = Bbox(ax.transData.inverted().transform(text_bbox))
@@ -736,6 +766,7 @@ def calc(idata: InData,
 
         x = Label.ll_get(res_ll)
         ll = res_ll
+        ll = res_ll
 
     elif config_id == 'global':
 
@@ -759,6 +790,7 @@ def calc(idata: InData,
                              x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
                              restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         x = res.x
+        
         
     elif config_id == 'divide_and_conquare':
         
@@ -833,10 +865,32 @@ def parse_solution_to_editor(labels: dict, state: dict) -> dict:
                 'val': ""
             }
         
+
+        # parse arrow set if possible
+        arrows = {}
+        if labels[label_name].get('rpoints'):
+            for j, rpoint in enumerate(labels[label_name]['rpoints']):
+                arrows[j] = {
+                    'ref_x': rpoint[0],
+                    'ref_y': rpoint[1],
+                    'att_x': labels[label_name]['tpoint'][0],
+                    'att_y': labels[label_name]['tpoint'][1],
+                    'val': labels[label_name]['parameters'][j]
+                }
+        else:
+            arrows[0] = {
+                'ref_x': labels[label_name]['rpoint'][0],
+                'ref_y': labels[label_name]['rpoint'][1],
+                'att_x': labels[label_name]['tpoint'][0],
+                'att_y': labels[label_name]['tpoint'][1],
+                'val': ""
+            }
+        
         state['labels_data'][i] = {
             'text': label_name,
             'x': labels[label_name]['point'][0],
             'y': labels[label_name]['point'][1],
+            'arrows': arrows
             'arrows': arrows
         }
 
@@ -885,6 +939,7 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         rp  = label.get_root_point()
         txt = plt.text(pt[0], pt[1], label.text, size=Configuration['editor']['font_size'], ha='center', va='center')
         txt.set_bbox(Configuration["editor"]["label_bbox"])
+        txt.set_bbox(Configuration["editor"]["label_bbox"])
         raw_points = label.points
         raw_points.append(raw_points[0])
         raw_points = np.array(raw_points)
@@ -898,8 +953,14 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
 # [x] iterative approach
 # [x] hull swelling
 # [x] divide and conquare solution (by initial x0)
+# [x] divide and conquare solution (by initial x0)
 # [ ] iterative x0
 # [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)
+
+# IMPORTANT
+
+# consider the fact that the label itself is in the label set while querying for other labels in global optimization
+# think of solution to it. This might be very bad for the optimization as it will always wiggle
 
 # IMPORTANT
 

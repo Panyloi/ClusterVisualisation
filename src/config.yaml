@@ -22,7 +22,7 @@ editor:
 labels_generator:
 
   data_processing:
-    merge_parametrized_labels: False
+    merge_parametrized_labels: True
 
   configurations:
     iterative:
