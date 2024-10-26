@@ -373,10 +373,10 @@ class State:
         else:
             state_cp["data"] = old_data["data"]
 
-        if "cluster_data" in state.keys():
-            state_cp["cluster_data"] = state["cluster_data"]
+        if "clusters_data" in state.keys():
+            state_cp["clusters_data"] = state["clusters_data"]
         else:
-            state_cp["cluster_data"] = old_data["cluster_data"]
+            state_cp["clusters_data"] = old_data["clusters_data"]
             
         if "hulls_data" in state.keys():
             state_cp["hulls_data"] = state["hulls_data"]
@@ -393,7 +393,7 @@ class State:
 
     def _prepare_serialazable_data(self) -> dict:
         serializable_data = {}
-        for block_name in ("data", "cluster_data", "hulls_data", "labels_data"):
+        for block_name in ("data", "clusters_data", "hulls_data", "labels_data"):
             try:
                 json.dumps(self.data[block_name])
                 serializable_data[block_name] = self.data[block_name]
