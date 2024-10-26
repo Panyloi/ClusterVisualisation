@@ -5,6 +5,7 @@ Module with main exported functions of the package
 import sys
 import logging
 from typing import Optional, Union
+import os
 
 import matplotlib.pyplot as plt
 from mapel.core.objects.Experiment import Experiment
@@ -158,6 +159,8 @@ def draw_maps(raw_data: Union[str, Experiment],
     st.draw(ax)
 
     bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
+    
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig.savefig(out_path, bbox_inches=bbox, pad_inches=0)
 
     return None

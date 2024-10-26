@@ -35,9 +35,9 @@ labels_generator:
 
     global:
       generate_greedy_x0: True
-      maxiter: 100
-      visit: 2.62
-      initial_temp: 5230
+      maxiter: 1500
+      visit: 4
+      initial_temp: 7230
       restart_temp_ratio: 0.00002
       accept: -5
       no_local_search: True

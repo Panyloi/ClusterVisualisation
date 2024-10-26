@@ -152,7 +152,7 @@ class Label:
     def get_err(self, include_x0: bool = False) -> float:
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
-                    + np.sqrt((self.x0_x - self.x)**2 + (self.x0_y - self.y)**2)/self.x0_error_loss_parameter_denominator
+                    + np.sqrt((self.x0_x - self.t_point[0])**2 + (self.x0_y - self.t_point[1])**2)/self.x0_error_loss_parameter_denominator
         return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
     
     def get_mpoint(self) -> CPoint:
@@ -399,7 +399,7 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
 #                                     LOSS                                     #
 # ---------------------------------------------------------------------------- #
 
-def loss(x: np.ndarray, label_list: LabelList, main_set: MainSet, include_x0_in_err: bool = True) -> float:
+def loss(x: np.ndarray, label_list: LabelList, main_set: MainSet, include_x0_in_err: bool = False) -> float:
     
     # ---------------------------------- UPDATE ---------------------------------- #
 
@@ -422,16 +422,16 @@ def loss(x: np.ndarray, label_list: LabelList, main_set: MainSet, include_x0_in_
         mp = label.get_mpoint()
         candidates = nx[kd.query_ball_point(x=mp, r=label.width/2+0.001, p=np.inf)]
         if len(candidates[candidates[:, 1] <= label.points[3][1] + label.height]) > 4:
-            intersections += 5
+            intersections += 1
 
         # main set penalty
         if any(point in main_set for point in label.points):
-            intersections += 15
+            intersections += 3
 
         # loss
         loss += label.get_err(include_x0_in_err)
 
-    return loss*((1 + intersections)**2)
+    return loss + (intersections**2)*100
 
 def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_set: MainSet, flg_arr: List[bool], include_x0_in_err: bool = False) -> float:
     
@@ -484,7 +484,7 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
     # loss
     loss += label.get_err(include_x0_in_err)
 
-    return loss*((1 + intersections)**2)
+    return loss + (intersections**2)*100
 
 def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False) -> float:
 
@@ -533,7 +533,7 @@ def mixed_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[L
         # loss
         loss += label.get_err(include_x0_in_err)
 
-    return loss + intersections**2
+    return loss + (intersections**2)*100
 
 def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list: List[Label], main_set: MainSet, include_x0_in_err: bool = False) -> float:
 
@@ -592,7 +592,7 @@ def mixed_square_loss(x: np.ndarray, label_list: List[Label], static_label_list:
 
         loss += cur_label.get_err(include_x0_in_err)
 
-    return loss + intersections**2
+    return loss + (intersections**2)*100
     
 # ---------------------------------------------------------------------------- #
 #                                 HULL SWELLER                                 #
@@ -731,7 +731,7 @@ def calc(idata: InData,
             lx = lres.x
 
             flg[0] = False
-            loss = iter_loss(lx, label, res_ll, mset, flg) # updates the label with finall x (and calculates finall intersection flag)
+            _loss = iter_loss(lx, label, res_ll, mset, flg) # updates the label with finall x (and calculates finall intersection flag)
             res_ll.append(label)
 
         x = Label.ll_get(res_ll)
@@ -752,7 +752,10 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
 
-        res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset), 
+        # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset, curr_config['generate_greedy_x0']),
+        #                      x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
+        #                      restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
+        res = dual_annealing(mixed_square_loss, bounds=labels_bounds, args=(ll, [], mset, curr_config['generate_greedy_x0']),
                              x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
                              restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         x = res.x
@@ -785,7 +788,7 @@ def calc(idata: InData,
                                   accept=accept, no_local_search=no_local_search)
             lx = lres.x
 
-            loss = mixed_square_loss(lx, group, res_ll, mset) # updates the label with finall x
+            _loss = mixed_square_loss(lx, group, res_ll, mset) # updates the label with finall x
             res_ll.extend(group)
 
         x = Label.ll_get(res_ll)
