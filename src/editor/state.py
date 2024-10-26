@@ -339,31 +339,49 @@ class State:
     # ----------------------------------- MISC ----------------------------------- #
 
     @staticmethod
-    def _retype_state(state: dict) -> dict:
+    def _retype_state(state: dict, old_data: dict) -> dict:
         state_cp = deepcopy(state)
+        
+        if "labels_data" in state.keys():
+            for key in state['labels_data']:
+                try:
+                    int(key) # prune strings early
+                    label_data = state_cp['labels_data'].pop(key)
 
-        for key in state['labels_data']:
-            try:
-                int(key) # prune strings early
-                label_data = state_cp['labels_data'].pop(key)
+                    label_data['x'] = float(label_data['x'])
+                    label_data['y'] = float(label_data['y'])
 
-                label_data['x'] = float(label_data['x'])
-                label_data['y'] = float(label_data['y'])
+                    label_data_cp = deepcopy(label_data)
+                    for arrow_key in label_data['arrows']:
+                        arrow_data = label_data_cp['arrows'].pop(arrow_key)
 
-                label_data_cp = deepcopy(label_data)
-                for arrow_key in label_data['arrows']:
-                    arrow_data = label_data_cp['arrows'].pop(arrow_key)
+                        arrow_data['ref_x'] = float(arrow_data['ref_x'])
+                        arrow_data['ref_y'] = float(arrow_data['ref_y'])
+                        arrow_data['att_x'] = float(arrow_data['att_x'])
+                        arrow_data['att_y'] = float(arrow_data['att_y'])
 
-                    arrow_data['ref_x'] = float(arrow_data['ref_x'])
-                    arrow_data['ref_y'] = float(arrow_data['ref_y'])
-                    arrow_data['att_x'] = float(arrow_data['att_x'])
-                    arrow_data['att_y'] = float(arrow_data['att_y'])
+                        label_data_cp['arrows'][int(arrow_key)] = arrow_data
 
-                    label_data_cp['arrows'][int(arrow_key)] = arrow_data
+                    state_cp['labels_data'][int(key)] = label_data_cp
+                except ValueError:
+                    state_cp['labels_data'][key] = float(state_cp['labels_data'][key])
+        else:
+            state_cp["labels_data"] = old_data["label_data"]
 
-                state_cp['labels_data'][int(key)] = label_data_cp
-            except ValueError:
-                state_cp['labels_data'][key] = float(state_cp['labels_data'][key])
+        if "data" in state.keys():
+            state_cp["data"] = state["data"]
+        else:
+            state_cp["data"] = old_data["data"]
+
+        if "cluster_data" in state.keys():
+            state_cp["cluster_data"] = state["cluster_data"]
+        else:
+            state_cp["cluster_data"] = old_data["cluster_data"]
+            
+        if "hulls_data" in state.keys():
+            state_cp["hulls_data"] = state["hulls_data"]
+        else:
+            state_cp["hulls_data"] = old_data["hulls_data"]
         
         return state_cp
 
@@ -373,21 +391,24 @@ class State:
     def set_raw(self, data) -> None:
         self.data = data
 
-    def default_serializer(obj):
-        try:
-            json.dumps(obj)
-            return obj
-        except (TypeError, OverflowError):
-            return None
+    def _prepare_serialazable_data(self) -> dict:
+        serializable_data = {}
+        for block_name in ("data", "cluster_data", "hulls_data", "labels_data"):
+            try:
+                json.dumps(self.data[block_name])
+                serializable_data[block_name] = self.data[block_name]
+            except Exception as e:
+                logging.info(f"Block {block_name} is not serializable")
+        return serializable_data
 
     def save_state_to_file(self, fpath: str) -> None:
         with open(fpath, 'w') as f:
-            json.dump(self.data, f, default=self.default_serializer, skipkeys=True)
+            json.dump(self._prepare_serialazable_data(), f, skipkeys=True)
 
     def load_state_from_file(self, fpath: str) -> 'State':
         with open(fpath, 'r') as f:
             data = json.load(f)
-        self.data["labels_data"] = self._retype_state(data)["labels_data"]
+        self.data = self._retype_state(data, self.data)
 
 
 class StateLinker:
