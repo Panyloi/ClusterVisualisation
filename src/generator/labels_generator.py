@@ -400,14 +400,6 @@ def greedy(middle_point: Point, ll: List[Label], ms: MainSet) -> np.ndarray:
             nt = 1
         r = np.sqrt(np.square(nx-lpx) + np.square(ny-lpy))
         a = np.arctan2((ny-lpy), (nx-lpx))
-
-        label.update_params(r, a, nt)
-            nx -= label.width/2
-            ny -= label.height/2
-            nt = 1
-        r = np.sqrt(np.square(nx-lpx) + np.square(ny-lpy))
-        a = np.arctan2((ny-lpy), (nx-lpx))
-
         label.update_params(r, a, nt)
 
     return Label.ll_get(ll)
@@ -644,16 +636,11 @@ def swell_hull(hull_pts: np.ndarray, shift_mult: float) -> np.ndarray:
 #                                    CALLER                                    #
 # ---------------------------------------------------------------------------- #
 
-
-def calc(idata: InData, 
 def calc(idata: InData, 
          points: np.ndarray,
          config_id: str) -> Dict:
 
     if Configuration['labels_generator']['data_processing']['merge_parametrized_labels']:
-        data = merge_parametrized_labels(idata)
-    else:
-        data = idata
         data = merge_parametrized_labels(idata)
     else:
         data = idata
@@ -890,7 +877,6 @@ def parse_solution_to_editor(labels: dict, state: dict) -> dict:
             'text': label_name,
             'x': labels[label_name]['point'][0],
             'y': labels[label_name]['point'][1],
-            'arrows': arrows
             'arrows': arrows
         }
 
