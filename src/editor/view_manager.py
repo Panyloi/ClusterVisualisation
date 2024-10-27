@@ -380,8 +380,12 @@ class View(ABC, StateLinker):
         kwargs : dict
             Additional keyword arguments.
         """
+        import time
+        s = time.time()
         self.undraw()
         self.vm.get_view(view_id).draw(*args, **kwargs)
+        e = time.time()
+        print(f"{e-s}s")
 
 
 class ViewElement(ABC, StateLinker):
