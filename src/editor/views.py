@@ -11,20 +11,16 @@ class Home(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-
-    def draw(self, *args, **kwargs) -> None:
-        super().draw()
-
-        self.state.draw(self.vm.ax)
-
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, [0.25, 0.05, 0.1, 0.075], "Cluster", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, [0.35, 0.05, 0.1, 0.075], "Hulls", ViewsEnum.HULLS))
 
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+
         # connect auto refreshing
         self.vem.refresh_connect(self.vm.fig)
-        self.cem.add(GlobalEvent('refresh_event', self.state.draw(self.vm.ax)))
 
         plt.draw()
 
@@ -40,16 +36,6 @@ class LabelsView(View):
         self.picked_item: LabelArtist | None = None
         self.pick_pos: tuple[float, float] | None = None
         self.events_stack = []
-
-    def draw(self, *args, **kwargs) -> None:
-        super().draw()
-        self.events_stack.clear()
-
-        # get picked arrow if exists
-        event = kwargs.get('event', None)
-        self.picked_item = kwargs.get('picked_item', None)
-        if event is not None:
-            self.pick_event(event)
 
         # buttons
         self.vem.add(ChangeViewButton(self, [0.025, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
@@ -68,6 +54,18 @@ class LabelsView(View):
                                     self.font_size_update, self.font_size_submit))
         self.vem.add(LimitedTextBox(self, [0.825, 0.05, 0.10, 0.075],
                                     self.arrow_size_update, self.arrow_size_submit))
+
+        self.vem.hide()
+
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+        self.events_stack.clear()
+
+        # get picked arrow if exists
+        event = kwargs.get('event', None)
+        self.picked_item = kwargs.get('picked_item', None)
+        if event is not None:
+            self.pick_event(event)
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -251,12 +249,6 @@ class ArrowsView(View):
         super().__init__(view_manager)
         self.picked_item: ArrowArtist | None = None
 
-    def draw(self, *args, **kwargs) -> None:
-        super().draw()
-
-        # get picked arrow if exists
-        self.picked_item = kwargs.get('picked_item', None)
-
         # buttons
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "-", self.delete_arrow))
@@ -272,6 +264,14 @@ class ArrowsView(View):
                                     self.arrow_rfx_update, self.arrow_rfx_submit, "Ref:"))
         self.vem.add(LimitedTextBox(self, [0.70, 0.05, 0.10, 0.075],
                                     self.arrow_rfy_update, self.arrow_rfy_submit))
+
+        self.vem.hide()
+
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+
+        # get picked arrow if exists
+        self.picked_item = kwargs.get('picked_item', None)
 
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         # self.cem.add(self.vm.fig.canvas.mpl_connect('key_press_event', self.key_press_event))
@@ -412,6 +412,17 @@ class ClusterView(View):
         self.events_stack = []
         self.info_text = None
 
+        # buttons
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Agglo", ViewsEnum.AGGLOMERATIVE))
+        self.vem.add(ChangeViewButton(self, [0.3, 0.05, 0.1, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
+        self.vem.add(NormalButton(self, [0.4, 0.05, 0.1, 0.075], "Remove", self.remove_point))
+        self.vem.add(NormalButton(self, [0.56, 0.05, 0.12, 0.075], "Hulls", self.draw_hull))
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.12, 0.075], "Labels", self.draw_labels))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Reset", self.reset))
+
+        self.vem.hide()
+
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
@@ -422,15 +433,6 @@ class ClusterView(View):
         #     self.pick_event(event)
 
         self.info_text = Text(0, 0, "Info")
-
-        # buttons
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Agglo", ViewsEnum.AGGLOMERATIVE))
-        self.vem.add(ChangeViewButton(self, [0.3, 0.05, 0.1, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
-        self.vem.add(NormalButton(self, [0.4, 0.05, 0.1, 0.075], "Remove", self.remove_point))
-        self.vem.add(NormalButton(self, [0.56, 0.05, 0.12, 0.075], "Hulls", self.draw_hull))
-        self.vem.add(NormalButton(self, [0.68, 0.05, 0.12, 0.075], "Labels", self.draw_labels))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Reset", self.reset))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -546,6 +548,13 @@ class DBSCANView(View):
         self.current = {"cluster": None, "labels": None}
         self.info_text = None
 
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Back", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Save all", self.reset))
+
+        self.vem.hide()
+
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
@@ -571,11 +580,6 @@ class DBSCANView(View):
         # adding and removing manually todo add remove to vem
         # self.vem.add(self.widget_cluster_name)
         self.vem.add(self.widget_scalar)
-
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Back", ViewsEnum.CLUSTER))
-        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Save all", self.reset))
 
         self.draw_cluster()
         plt.draw()
@@ -679,6 +683,15 @@ class AgglomerativeView(View):
         self.current_labels = None
         self.save_index = 0
 
+        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],
+                                      "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075],
+                                      "Back", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075],
+                                  "Save cluster", self.save_cluster))
+
+        self.vem.hide()
+
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
@@ -701,12 +714,6 @@ class AgglomerativeView(View):
 
         plt.subplots_adjust(bottom=0.3, left=0.4, top=0.9, right=0.9)
 
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075],
-                                      "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075],
-                                      "Back", ViewsEnum.CLUSTER))
-        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075],
-                                  "Save cluster", self.save_cluster))
         # self.vem.add(NormalButton(self, [0.44, 0.05, 0.17, 0.075],
         #                           "Remove points", self.remove_points))
         # self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075],
@@ -788,17 +795,18 @@ class HullView(View):
         self.picked_item: HullArtist | None = None
         self.events_stack = []
 
+        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
+        self.vem.add(NormalButton(self, [0.15, 0.05, 0.15, 0.075], "Remove Line", self.remove_line))
+        self.vem.add(NormalButton(self, [0.30, 0.05, 0.15, 0.075], "Remove Hull", self.remove_hull))
+        self.vem.hide()
+
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
         self.events_stack.clear()
 
         self.picked_item = kwargs.get('picked_item', None)
- 
-        
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.15, 0.05, 0.1, 0.075], "Remove Line", self.remove_line))
-        self.vem.add(NormalButton(self, [0.25, 0.05, 0.1, 0.075], "Remove Hull", self.remove_hull))
+
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))

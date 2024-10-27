@@ -106,7 +106,7 @@ class ViewElementManager:
         """
         for view_element in self.elements:
             view_element.refresh()
-        
+
     def deconstruct(self) -> None:
         """
         Removes all view elements from the manager.
@@ -115,6 +115,19 @@ class ViewElementManager:
             view_element.remove()
         self.elements.clear()
 
+    def hide(self) -> None:
+        """
+        Hides all view elements
+        """
+        for view_element in self.elements:
+            view_element.hide()
+
+    def show(self) -> None:
+        """
+        Shows all view elements
+        """
+        for view_element in self.elements:
+            view_element.show()
 
 class CanvasEventManager:
     """
@@ -199,7 +212,7 @@ class CanvasEventManager:
         # if not maching just call disconnect
         if not isinstance(self.events_stack[-1], UniqueEvent):
             return self.disconnect()
-        
+
         self.events_stack.pop().disconnect()
         self._clear_empty_events()
         self._reconnect_events()
@@ -211,10 +224,10 @@ class CanvasEventManager:
 
         if not self.events_stack:
             return None
-        
+
         if not isinstance(self.events_stack[-1], SharedEvent):
             return self.disconnect()
-        
+
         while self.events_stack:
             if isinstance(self.events_stack[-1], SharedEvent):
                 self.events_stack.pop().disconnect()
@@ -301,7 +314,7 @@ class SharedEvent(Event):
     def __init__(self, ev_type: str, ev_callback: Callable) -> None:
         super().__init__(ev_type, ev_callback)
 
-    
+
 class EmptyEvent(Event):
     """
     EmptyEvent does nothing. It's used to divide SharedEvent groups
@@ -321,7 +334,7 @@ class View(ABC, StateLinker):
     """
     Base class for views.
     """
-    
+
     def __init__(self, view_manager: ViewManager) -> None:
         self.vm = view_manager
         self.vem = ViewElementManager()
@@ -341,6 +354,7 @@ class View(ABC, StateLinker):
 
         """
         logging.info(f"{self.__class__} is drawing.")
+        self.vem.show()
 
     @abstractmethod
     def undraw(self) -> None:
@@ -348,8 +362,9 @@ class View(ABC, StateLinker):
         Undraws the view.
         """
         logging.info(f"{self.__class__} is undrawing.")
-        self.vem.deconstruct()
-        self.cem.disconnect()
+        self.vem.hide()
+        # self.vem.deconstruct()
+        # self.cem.disconnect()
         self.vm.fig.canvas.flush_events()
 
     def change_view(self, view_id: ViewsEnum, *args, **kwargs):
@@ -377,7 +392,7 @@ class ViewElement(ABC, StateLinker):
     def __init__(self) -> None:
         """Initialize the ViewElement."""
         logging.info(f"{self.__class__} is creating.")
-    
+
     @abstractmethod
     def remove(self) -> None:
         """Abstract method to remove the view element from the display."""
@@ -388,6 +403,16 @@ class ViewElement(ABC, StateLinker):
         """Abstract method to refresh the view element."""
         logging.info(f"{self.__class__} is refreshing.")
 
+    @abstractmethod
+    def hide(self) -> None:
+        """Hide the view element. Makes the element inactive and invisible"""
+        logging.info(f"{self.__class__} is hiding")
+
+    @abstractmethod
+    def show(self) -> None:
+        """Show the view element. Makes the element active and visible"""
+        logging.info(f"{self.__class__} is showing")
+
 
 # --------------------------- MIDDLE LEVEL CLASSES --------------------------- #
 
@@ -396,8 +421,8 @@ class ViewButton(ViewElement):
     """
     Class representing an abstract button view element.
     """
-    
-    def __init__(self, parent_view: View, axes: list[float], 
+
+    def __init__(self, parent_view: View, axes: list[float],
                  label: str, callback: Callable) -> None:
         """Initialize the ViewButton.
 
@@ -430,6 +455,16 @@ class ViewButton(ViewElement):
         """Refresh the button."""
         return super().refresh()
 
+    def hide(self) -> None:
+        super().hide()
+        self.button_ref.active = False
+        self.button_ax.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.button_ref.active = True
+        self.button_ax.set_visible(True)
+
 
 class ViewTextBox(ViewElement):
     """
@@ -456,13 +491,24 @@ class ViewTextBox(ViewElement):
     @abstractmethod
     def remove(self):
         """Remove the text box from the display."""
-        super().remove() 
+        super().remove()
         self.pv.vm.fig.delaxes(self.label_ax)
 
     @abstractmethod
     def refresh(self) -> None:
         """Refresh the text box."""
         return super().refresh()
+
+    def hide(self) -> None:
+        """Hide the view element. Makes the element inactive and invisible"""
+        super().hide()
+        self.box_ref.active = False
+        self.label_ax.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.box_ref.active = True
+        self.label_ax.set_visible(True)
 
 # ------------------------------ OUTPUT CLASSES ------------------------------ #
 
@@ -486,7 +532,7 @@ class ChangeViewButton(ViewButton):
         """
         super().__init__(parent_view, axes, label, 
                          lambda ev: parent_view.change_view(new_view, ev))
-        
+
     def remove(self):
         """Remove the button from the display."""
         return super().remove()
@@ -762,6 +808,16 @@ class ViewRadioButtons(ViewElement):
     def refresh(self) -> None:
         return super().refresh()
 
+    def hide(self) -> None:
+        super().hide()
+        self.ref.active = False
+        self.ax.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.ref.active = True
+        self.ax.set_visible(True)
+
 
 class ViewSlider(ViewElement):
 
@@ -780,3 +836,13 @@ class ViewSlider(ViewElement):
 
     def refresh(self) -> None:
         return super().refresh()
+
+    def hide(self) -> None:
+        super().hide()
+        self.ref.active = False
+        self.ax.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.ref.active = True
+        self.ax.set_visible(True)
