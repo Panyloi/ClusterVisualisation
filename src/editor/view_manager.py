@@ -357,14 +357,22 @@ class View(ABC, StateLinker):
         self.vem.show()
 
     @abstractmethod
-    def undraw(self) -> None:
+    def hide(self) -> None:
         """
-        Undraws the view.
+        Hides the view.
         """
-        logging.info(f"{self.__class__} is undrawing.")
+        logging.info(f"{self.__class__} is hiding.")
         self.vem.hide()
-        # self.vem.deconstruct()
-        # self.cem.disconnect()
+        self.cem.disconnect()
+        self.vm.fig.canvas.flush_events()
+
+    def remove(self) -> None:
+        """
+        Fully deconstructs the view. Used to be called "undraw"
+        """
+        logging.info(f"{self.__class__} is removed.")
+        self.cem.disconnect()
+        self.vem.deconstruct()
         self.vm.fig.canvas.flush_events()
 
     def change_view(self, view_id: ViewsEnum, *args, **kwargs):
@@ -382,7 +390,7 @@ class View(ABC, StateLinker):
         """
         import time
         s = time.time()
-        self.undraw()
+        self.hide()
         self.vm.get_view(view_id).draw(*args, **kwargs)
         e = time.time()
         print(f"{e-s}s")
