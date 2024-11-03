@@ -160,7 +160,7 @@ def _parse_csv(path: str, delim=';') -> dict:
         
     """
 
-    df  = pd.read_csv(path, sep=delim)
+    df  = pd.read_csv(path, sep=delim, engine='python')
     ids = df.columns[0]
 
     df[ids] = df[ids].apply(lambda x: x.split(sep="_")[0])

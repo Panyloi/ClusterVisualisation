@@ -17,6 +17,9 @@ from .editor.views import parse_solution_to_editor, Editor
 from .generator.labels_generator import calc
 from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull, set_hull_parameters
 
+# disabling excessive Pillow logging
+logging.getLogger('PIL').setLevel(logging.WARNING)
+
 
 def draw_maps(raw_data: Union[str, Experiment],
               out_path: str | None, delim=';',
