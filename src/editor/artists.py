@@ -145,6 +145,16 @@ class ArrowArtist(Line2D, StateLinker):
 
         # delete arrow from state
         self.state.delete_arrow(self.parent_label.id, self.id)
+
+    def hide(self) -> None:
+        self.set_visible(False)
+        # disables picking by decreasing radius
+        self.set_picker(0)
+
+    def show(self) -> None:
+        self.set_visible(True)
+        # enables picking by increasing radius
+        self.set_picker(5)
         
     @staticmethod
     def arrow(ax: Axes, *args, **kwargs) -> 'ArrowArtist':
@@ -281,6 +291,14 @@ class LabelArtist(Text, StateLinker):
         dict_cpy = list(self.arrows.values()).copy()
         for arrow in dict_cpy:
             arrow.remove()
+
+    def hide(self) -> None:
+        self.set_visible(False)
+        self.set_picker(None)
+
+    def show(self) -> None:
+        self.set_visible(True)
+        self.set_picker(True)
     
     @staticmethod
     def text(ax: Axes, sid: int, **kwargs) -> 'LabelArtist':
@@ -564,6 +582,18 @@ class HullArtist(StateLinker):
         self.state.delete_hull(self.id)
 
     @staticmethod
+    def hide_hulls(ax: Axes) -> None:
+        for child in ax.get_children():
+            if type(child) is LineCollection:
+                child.set_visible(False)
+
+    @staticmethod
+    def show_hulls(ax: Axes) -> None:
+        for child in ax.get_children():
+            if type(child) is LineCollection:
+                child.set_visible(True)
+
+    @staticmethod
     def hull(ax: Axes, sid: str, **kwargs) -> 'HullArtist':
         h = HullArtist(ax, sid)
         # if not h.state.get_hulls_view_state():
@@ -601,6 +631,14 @@ class PointArtist(Circle, StateLinker):
     def remove(self) -> None:
         super().remove()
 
+    def hide(self) -> None:
+        self.set_visible(False)
+        self.set_picker(None)
+
+    def show(self) -> None:
+        self.set_visible(True)
+        self.set_picker(True)
+
     @staticmethod
     def point(ax: Axes, sid: int, **kwargs) -> 'PointArtist':
         circle = PointArtist(ax, sid, **kwargs)
@@ -622,8 +660,27 @@ class PointArtist(Circle, StateLinker):
             if isinstance(child, PointArtist):
                 yield child
 
-# ------------------------------ DRAW DEFINITION ----------------------------- #
+# ----------------------------------- UTIL ---------------------------------- #
 
+def hide_labels_and_hulls(self, ax: Axes):
+    HullArtist.hide_hulls(ax)
+    for arrow in ArrowArtist.get_all_arrows(ax):
+        arrow.hide()
+    for label in LabelArtist.get_all_labels(ax):
+        label.hide()
+
+State.hide_labels_and_hulls = hide_labels_and_hulls
+
+def show_labels_and_hulls(self, ax: Axes):
+    HullArtist.show_hulls(ax)
+    for arrow in ArrowArtist.get_all_arrows(ax):
+        arrow.show()
+    for label in LabelArtist.get_all_labels(ax):
+        label.show()
+
+State.show_labels_and_hulls = show_labels_and_hulls
+
+# ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
     # clear ax
@@ -666,12 +723,11 @@ def draw(self, ax: Axes) -> None:
     ax.bbox._bbox.x1 = 0.99
     ax.bbox._bbox.y1 = 0.99
 
-    ax.set_xlim((-190, 190))
-    ax.set_ylim((-150, 150))
+    ax.set_xlim(-190, 190)
+    ax.set_ylim(-150, 150)
 
     plt.draw()
     logging.info(f"State redraw")
-    # todo check why state redraws three times while launching
 
 
 State.draw = draw

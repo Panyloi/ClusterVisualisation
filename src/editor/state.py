@@ -108,6 +108,12 @@ class State:
         """This function should be overriten later after initialization of artists"""
         raise NotImplementedError
 
+    def hide_labels_and_hulls(self, ax: Axes):
+        raise NotImplementedError
+
+    def show_labels_and_hulls(self, ax: Axes):
+        raise NotImplementedError
+
     # ---------------------------------- GETTERS --------------------------------- #
 
     @KeyErrorWrap("")

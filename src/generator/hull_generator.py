@@ -596,7 +596,7 @@ def calc_hull(
             convert_points(_idx_points, circle_radious, num_of_points=points_in_circle)
         )
 
-        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 1, 0.1)
+        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 10, 0.1)
 
         selected_points = greedy_selecting_1(to_jarvis)
 
