@@ -787,10 +787,15 @@ class HullView(View):
         self.dragged_item: HullArtist | None = None
         self.picked_item: HullArtist | None = None
         self.events_stack = []
+        self.seq_remove_line_1 = 0
+        self.seq_remove_line_2 = 0
+        self.event_xdata = 0
+        self.event_ydata = 0
+        self.line_1_id = 0
+        self.line_2_id = 0
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
-
         self.events_stack.clear()
 
         self.picked_item = kwargs.get('picked_item', None)
@@ -799,6 +804,8 @@ class HullView(View):
         self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
         self.vem.add(NormalButton(self, [0.15, 0.05, 0.1, 0.075], "Remove Line", self.remove_line))
         self.vem.add(NormalButton(self, [0.25, 0.05, 0.1, 0.075], "Remove Hull", self.remove_hull))
+
+        self.cem.add(SharedEvent('button_press_event', self.press_event))
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
@@ -809,7 +816,21 @@ class HullView(View):
     def pick_event(self, event: PickEvent) -> None:
         logging.info(f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
                      ID: {getattr(event.artist, 'id', None)}""")
+        
         if isinstance(event.artist, HullArtist):
+            
+            if self.seq_remove_line_1 == 1:
+                self.line_1_id = getattr(event.artist, 'id', None)
+                print("ID_1")
+                print(self.line_1_id)
+                self.seq_remove_line_1 += 1
+
+            elif self.seq_remove_line_1 == 3:
+                self.line_2_id = getattr(event.artist, 'id', None)
+                print("ID_2")
+                print(self.line_2_id)
+                self.seq_remove_line_1 = -1
+
             self.events_stack.append(event.artist.get_state())
             self.picked_item  = event.artist
             self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
@@ -817,9 +838,19 @@ class HullView(View):
             # update fields
             self.vem.refresh()
 
+    def press_event(self, event: MouseEvent) -> None:
+        self.seq_remove_line_1 += 1
+
     def remove_line(self) -> None:
+        self.seq_remove_line_1 = 0
+
+    def _exec_remove_line(self):
         ...
-    
+
+    def get_closest_hull(self, coordx, coordy):
+        ...
+
+
     def remove_hull(self) -> None:
         if self.picked_item is None:
             return

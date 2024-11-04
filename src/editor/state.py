@@ -150,12 +150,37 @@ class State:
 
     # ------------------------------- HULLS_GETTERS ------------------------------ #
     # TODO: update parameters for dict
+
+    @KeyErrorWrap(1)
+    def get_hull_line_size(self) -> float:
+        return self.data['hulls_data']['line_size']
+
+    @KeyErrorWrap({})
+    def get_hull_hull_line(self, hull_name: str) -> dict:
+        return self.data['hulls_data'][hull_name]['hull_line']
+
+    @KeyErrorWrap(1)
+    def get_hulls_view_state(self) -> bool:
+        return self.data['hulls_data']['view_state']
+
+
+    @KeyErrorWrap((0, 0))
+    def get_hull_line_points(self, hull_name: str, hull_line_id: int) -> tuple[float, float]:
+        return self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x1'],\
+               self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y1'],\
+               self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x2'],\
+               self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y2']
+    
+    @KeyErrorWrap("")
+    def get_hull_line_val(self, hull_name: str, hull_line_id: int) -> str:
+        return self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['val']
+
     @KeyErrorWrap([])
-    def get_hull_polygon_cords(self, hull_name: int) -> list[tuple[float, float]]:
+    def get_hull_polygon_cords(self, hull_name: str) -> list[tuple[float, float]]:
         return self.data['hulls_data']['hulls'][hull_name]['cords']
 
     @KeyErrorWrap([])
-    def get_hull_lines_cords(self, hull_name: int) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    def get_hull_lines_cords(self, hull_name: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         return self.data['hulls_data']['hulls'][hull_name]['line_cords']
     
     @KeyErrorWrap([])
@@ -193,6 +218,25 @@ class State:
     def set_hull_to_change(self, hull_name, points):
         self.data['hulls_data']['change'][hull_name] = points
 
+    @KeyErrorWrap(1)
+    def set_hulls_view_state(self, in_view: bool) -> None:
+        self.data['hulls_data']['view_state'] = in_view
+
+
+    @KeyErrorWrap(None)
+    def set_hull_line_pos(self, hull_name: int, hull_line_id: int, x1: float, y1: float, x2: float, y2: float) -> None:
+        self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x1'] = x1
+        self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y1'] = y1
+        self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x2'] = x2
+        self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y2'] = y2
+
+    @KeyErrorWrap(None)
+    def set_hull_line_val(self, hull_name: int, hull_line_id: int, val: str) -> None:
+        self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['val'] = val
+    
+    @KeyErrorWrap(None)
+    def set_hull_line_size(self, size: float) -> None:
+        self.data['hulls_data']['hull_line_size'] = size
     # ------------------------------- CLUSTER GETTERS ------------------------------ #
     @KeyErrorWrap(None)
     def get_cluster(self, cluster_name: str) -> pd.DataFrame:
@@ -328,8 +372,12 @@ class State:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
     
     @KeyErrorWrap(None)
-    def delete_hull(self, hull_name: int) -> None:
+    def delete_hull(self, hull_name: str) -> None:
         self.data['hulls_data']['hulls'].pop(hull_name)
+
+    @KeyErrorWrap(None)
+    def delete_hull_line(self, hull_name: str, hull_line_id: int) -> None:
+        self.data['hulls_data'][hull_name]['hull_line'].pop(hull_line_id)
 
     def delete_hulls(self) -> None:
         keys = list(self.data['hulls_data']['hulls'].keys())
