@@ -140,7 +140,7 @@ def handle_corners_points(points, default_points_dict, num_of_points=10):
                 last_point = points_union[i]
 
 
-        calculated_angle = calculate_angle(current_point, last_point, second_point)
+        # calculated_angle = calculate_angle(current_point, last_point, second_point)
         # print(calculated_angle)
         current_point = last_point
         if default_points_dict[(current_point[0], current_point[1])] not in visited_points.keys():
@@ -275,8 +275,19 @@ return:
 
 """
 def greedy_selecting_1(points):
-    if len(points) <= 1:
-        return points[0]
+    if len(points) <= 3:
+        points_transform = []
+        for i in range(len(points)):
+            points_transform.extend(points[i])
+        idxes = concave_hull_indexes(
+                points_transform,
+                concavity=float("inf"),
+                length_threshold=0,
+            )
+        
+        _idx_points = [points_transform[idxes[j]] for j in range(len(idxes))]
+
+        return _idx_points
 
     num_of_sets = len(points)
     first_points_set = set(points[0])
@@ -408,6 +419,22 @@ def sort_elements_in_concave_hull(points):
     return new_points
 
 
+def the_same_circle(point1, point2):
+    if point1[0] == point2[0]:
+        if point1[1] == point2[1]:
+            return True
+    return False
+
+
+def get_all_other_intersect_circles(points, point, dist):
+    result = []
+
+    for _point in points:
+        if circle_intersect(_point, point, dist) and not the_same_circle(_point, point):
+            result.append(_point)
+    return result
+
+
 def join_closest_points(points, circle_points_to_main, main_points_to_circle, dist, segment_length):
     
 
@@ -416,6 +443,8 @@ def join_closest_points(points, circle_points_to_main, main_points_to_circle, di
     not_same_points = True
     points_to_join = []
     points_transform = []
+    visited_points = set()
+
 
     for i in range(len(points) - 1):
         first_point = circle_points_to_main[points[i][0]]
@@ -461,6 +490,63 @@ def join_closest_points(points, circle_points_to_main, main_points_to_circle, di
     new_points.append(points[-1])
     return new_points
 
+def join_closest_points_copy(points, circle_points_to_main, main_points_to_circle, dist, segment_length):
+    
+
+    # empty_sets = True
+    # not_same_points = True
+    # points_to_join = []
+    
+    points_transform = []
+    new_points = []
+    visited_points = set()
+    curr_points = set()
+    hull_points = list(main_points_to_circle.keys())
+    Q = deque()
+
+    for i in range(len(points)):
+        first_point = circle_points_to_main[points[i][0]]
+        curr_points = set()
+        points_transform = []
+        Q.append(first_point)
+
+        while Q:
+            q_point = Q.popleft()
+            
+            if q_point in visited_points:
+                continue
+
+            curr_points.add(q_point)
+            visited_points.add(q_point)
+            
+            curr_intersect = get_all_other_intersect_circles(hull_points, q_point, dist)
+            
+            for _point in curr_intersect:
+                if _point not in visited_points:
+                    Q.append(_point)
+
+        if len(curr_points) == 0:
+            continue
+        elif len(curr_points) == 1:
+            new_points.append(points[i])
+        else:
+            for curr_point in curr_points:
+                points_transform.extend(main_points_to_circle[curr_point])
+
+            idxes = concave_hull_indexes(
+                    points_transform,
+                    concavity=float("inf"),
+                    length_threshold=0,
+                )
+            
+            _idx_points = [points_transform[idxes[j]] for j in range(len(idxes))]
+            new_points.append(_idx_points)
+    
+    return new_points
+        
+        
+    
+
 
 
 def calc_hull(
@@ -478,8 +564,8 @@ def calc_hull(
 
         x = deepcopy(data[hull_name]["x"])
         y = deepcopy(data[hull_name]["y"])
-        x = np.repeat(x, 2)
-        y = np.repeat(y, 2)
+        # x = np.repeat(x, 2)
+        # y = np.repeat(y, 2)
         hulls[i]["cluster_points"] = {"x": x, "y": y}
 
         points_transform = np.hstack(
@@ -489,11 +575,11 @@ def calc_hull(
             )
         )
 
-        try:
-            distances = pdist(np.unique(points_transform, axis=0))
-            print(f"DISTANCES {np.min(distances)}")
-        except Exception:
-            pass
+        # try:
+        #     distances = pdist(np.unique(points_transform, axis=0))
+        #     print(f"DISTANCES {np.min(distances)}")
+        # except Exception:
+        #     pass
 
         points_transform = np.unique(points_transform, axis=0)
 
@@ -510,7 +596,7 @@ def calc_hull(
             convert_points(_idx_points, circle_radious, num_of_points=points_in_circle)
         )
 
-        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 1, 0.1)
+        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 10, 0.1)
 
         selected_points = greedy_selecting_1(to_jarvis)
 
@@ -527,6 +613,8 @@ def calc_hull(
         _idx_points = _idx_points[np.sort(_idx_points_unique)]
         _idx_points = interpolate_points(_idx_points, 1000)
         
+        hulls[i]["interpolate_points"] = _idx_points
+
         # _idx_points = interpolate_points(_idx_points[1:], 1000)
 
         polygon_lines = [
@@ -559,39 +647,62 @@ def calc_one_hull(hull_name, points, state):
 
     x = np.array(points["x"])
     y = np.array(points["y"])
-
+    # x = np.repeat(x, 2)
+    # y = np.repeat(y, 2)
     hulls[hull_name]["cluster_points"] = {"x": x, "y": y}
-
+    print(f"HULL NAME {hull_name}")
     points_transform = np.hstack(
         (
             x.reshape(-1, 1),
             y.reshape(-1, 1),
         )
     )
+    points_transform = np.unique(points_transform, axis=0)
+    
 
     idxes = concave_hull_indexes(
         points_transform[:, :2],
-        concavity=3,
+        concavity=1,
         length_threshold=0,
     )
 
     _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
+    _idx_points = sort_elements_in_concave_hull(_idx_points)
 
-    points_transform, to_jarvis = convert_points(
+    points_transform, to_jarvis, circuit_points, main_points_of_circuit = convert_points(
         _idx_points,
         state["hulls_data"]["parameters"]["circle_radious"],
         num_of_points=state["hulls_data"]["parameters"]["points_in_circle"],
     )
 
+    to_jarvis = join_closest_points_copy(to_jarvis, circuit_points, main_points_of_circuit, 1.5, 0.1)
+
+
+    # to_jarvis = handle_corners_points(to_jarvis, circuit_points,state["hulls_data"]["parameters"]["points_in_circle"])
+    if hull_name == "nauty-72":  
+        print(to_jarvis)
+
+    selected_points = greedy_selecting_1(to_jarvis)
+
+    _idx_points = domain_expansion(
+            selected_points, circuit_points, drawing_point_radius=1.5, multiplier=1
+        )
+
     _idx_points = make_dense_points(
-        greedy_selecting_3(to_jarvis),
+        _idx_points,
         segment_length=state["hulls_data"]["parameters"]["segment_length"],
     )
 
     hulls[hull_name]["polygon_points"] = _idx_points
 
-    _idx_points = interpolate_points(_idx_points, 100)
+    _, _idx_points_unique = np.unique(_idx_points, axis=0, return_index=True)
 
+    _idx_points = np.array(_idx_points)
+    _idx_points = _idx_points[np.sort(_idx_points_unique)]
+    _idx_points = interpolate_points(_idx_points, 1000)
+    
+    hulls[hull_name]["interpolate_points"] = _idx_points
+    
     polygon_lines = [
         (
             _idx_points[j % len(_idx_points)],
@@ -618,6 +729,7 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
             "cords": hulls[i]["polygon_points"],
             "line_cords": hulls[i]["polygon_lines"],
             "cluster_points": hulls[i]["cluster_points"],
+            "interpolate_points": hulls[i]["interpolate_points"]
         }
         state["hulls_data"]["change"] = {}
         state["hulls_data"]["undraw"] = set()
