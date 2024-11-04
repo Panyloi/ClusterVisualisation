@@ -596,7 +596,7 @@ def calc_hull(
             convert_points(_idx_points, circle_radious, num_of_points=points_in_circle)
         )
 
-        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 10, 0.1)
+        to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 1, 0.1)
 
         selected_points = greedy_selecting_1(to_jarvis)
 
@@ -733,5 +733,17 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
         }
         state["hulls_data"]["change"] = {}
         state["hulls_data"]["undraw"] = set()
+        state["hulls_data"][hulls[i]["name"]] = dict()
+        state["hulls_data"][hulls[i]["name"]]["hull_line"] = dict()
+        
+        for j, line in enumerate(hulls[i]["polygon_lines"]):
+            state["hulls_data"][hulls[i]["name"]]["hull_line"][j] = {
+                'x1': line[0][0],
+                'y1': line[0][1],
+                'x2': line[1][0],
+                'y2': line[1][1],
+                'val': hulls[i]["name"]
+            }
+
 
     return state
