@@ -339,6 +339,13 @@ class View(ABC, StateLinker):
         self.vm = view_manager
         self.vem = ViewElementManager()
         self.cem = CanvasEventManager(self.vm.fig.canvas)
+        self.change_button_y = 0.936
+        self.change_button_length = 0.1
+        self.change_button_height = 0.06
+        self.home_ax = [0.05, self.change_button_y, self.change_button_length, self.change_button_height]
+        self.clusters_ax = [0.15, self.change_button_y, self.change_button_length, self.change_button_height]
+        self.hulls_ax = [0.25, self.change_button_y, self.change_button_length, self.change_button_height]
+        self.labels_ax = [0.35, self.change_button_y, self.change_button_length, self.change_button_height]
 
     @abstractmethod
     def draw(self, *args, **kwargs) -> None:
@@ -544,6 +551,10 @@ class ChangeViewButton(ViewButton):
         """
         super().__init__(parent_view, axes, label, 
                          lambda ev: parent_view.change_view(new_view, ev))
+        self.button_ax.spines[['top', 'bottom', 'right', 'left']].set_visible(False)
+        self.button_ref.color = "white"
+        self.button_ref.hovercolor = "gainsboro"
+        self.button_ax.set_facecolor("white")
 
     def remove(self):
         """Remove the button from the display."""
@@ -552,7 +563,12 @@ class ChangeViewButton(ViewButton):
     def refresh(self) -> None:
         """Refresh the button."""
         return super().refresh()
-    
+
+    def highlight(self) -> None:
+        self.button_ax.set_facecolor("whitesmoke")
+        self.button_ref.color = "whitesmoke"
+        self.button_ref.label.set_alpha(0.25)
+
 
 class NormalButton(ViewButton):
     """

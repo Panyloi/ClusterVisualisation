@@ -532,7 +532,7 @@ def draw(self, ax: Axes) -> None:
     ax.bbox._bbox.x0 = 0.01
     ax.bbox._bbox.y0 = 0.15
     ax.bbox._bbox.x1 = 0.99
-    ax.bbox._bbox.y1 = 0.99
+    ax.bbox._bbox.y1 = 0.935
 
     ax.set_xlim(-190, 190)
     ax.set_ylim(-150, 150)
