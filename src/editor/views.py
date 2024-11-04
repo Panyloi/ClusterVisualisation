@@ -11,13 +11,16 @@ class Home(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.15, 0.05, 0.1, 0.075], "Labels", ViewsEnum.LABELS))
-        self.vem.add(ChangeViewButton(self, [0.25, 0.05, 0.1, 0.075], "Cluster", ViewsEnum.CLUSTER))
-        self.vem.add(ChangeViewButton(self, [0.35, 0.05, 0.1, 0.075], "Hulls", ViewsEnum.HULLS))
+        view_button = ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME)
+        view_button.highlight()
+        self.vem.add(view_button)
+        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
+
 
         self.state.show_labels_and_hulls(self.vm.ax)
         self.vm.ax.set_xlim(-190, 190)
@@ -42,21 +45,26 @@ class LabelsView(View):
         self.events_stack = []
 
         # buttons
-        self.vem.add(ChangeViewButton(self, [0.025, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.125, 0.05, 0.05, 0.075], "+", self.add_label))
-        self.vem.add(NormalButton(self, [0.175, 0.05, 0.05, 0.075], "-", self.delete_label))
-        self.vem.add(NormalButton(self, [0.55, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
-        self.vem.add(NormalButton(self, [0.775, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
-        self.vem.add(NormalButton(self, [0.775, 0.05, 0.05, 0.0375], "v", self.font_size_down))
-        self.vem.add(NormalButton(self, [0.925, 0.0875, 0.05, 0.0375], "^", self.arrow_size_up))
-        self.vem.add(NormalButton(self, [0.925, 0.05, 0.05, 0.0375], "v", self.arrow_size_down))
+        view_button = ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS)
+        view_button.highlight()
+        self.vem.add(view_button)
+        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(NormalButton(self, [0.075, 0.05, 0.05, 0.075], "+", self.add_label))
+        self.vem.add(NormalButton(self, [0.125, 0.05, 0.05, 0.075], "-", self.delete_label))
+        self.vem.add(NormalButton(self, [0.575, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
+        self.vem.add(NormalButton(self, [0.575, 0.05, 0.05, 0.0375], "v", self.font_size_down))
+        self.vem.add(NormalButton(self, [0.75, 0.0875, 0.05, 0.0375], "^", self.arrow_size_up))
+        self.vem.add(NormalButton(self, [0.75, 0.05, 0.05, 0.0375], "v", self.arrow_size_down))
+        self.vem.add(NormalButton(self, [0.825, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
 
         # displays
-        self.vem.add(ShiftingTextBox(self, [0.275, 0.05, 0.25, 0.075],
+        self.vem.add(ShiftingTextBox(self, [0.2, 0.05, 0.25, 0.075],
                                      self.label_name_update, self.label_name_submit))
-        self.vem.add(LimitedTextBox(self, [0.675, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.475, 0.05, 0.10, 0.075],
                                     self.font_size_update, self.font_size_submit))
-        self.vem.add(LimitedTextBox(self, [0.825, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.65, 0.05, 0.10, 0.075],
                                     self.arrow_size_update, self.arrow_size_submit))
 
         self.vem.hide()
@@ -258,19 +266,24 @@ class ArrowsView(View):
         self.picked_item: ArrowArtist | None = None
 
         # buttons
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.15, 0.05, 0.05, 0.075], "-", self.delete_arrow))
-        self.vem.add(BlockingButton(self, [0.50, 0.05, 0.05, 0.075], "p", self.sh_point_picker))
-        self.vem.add(BlockingButton(self, [0.80, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
+        view_button = ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS)
+        view_button.highlight()
+        self.vem.add(view_button)
+        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Delete", self.delete_arrow))
+        self.vem.add(BlockingButton(self, [0.35, 0.05, 0.05, 0.075], "p", self.sh_point_picker))
+        self.vem.add(BlockingButton(self, [0.7, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
 
         # displays
-        self.vem.add(LimitedTextBox(self, [0.30, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.15, 0.05, 0.10, 0.075],
                                     self.arrow_shx_update, self.arrow_shx_submit, "Att:"))
-        self.vem.add(LimitedTextBox(self, [0.40, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.25, 0.05, 0.10, 0.075],
                                     self.arrow_shy_update, self.arrow_shy_submit))
-        self.vem.add(LimitedTextBox(self, [0.60, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.5, 0.05, 0.10, 0.075],
                                     self.arrow_rfx_update, self.arrow_rfx_submit, "Ref:"))
-        self.vem.add(LimitedTextBox(self, [0.70, 0.05, 0.10, 0.075],
+        self.vem.add(LimitedTextBox(self, [0.6, 0.05, 0.10, 0.075],
                                     self.arrow_rfy_update, self.arrow_rfy_submit))
 
         self.vem.hide()
@@ -421,12 +434,22 @@ class ClusterMainView(View):
         self.hulls_off = True
 
         # buttons
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Agglo", ViewsEnum.AGGLOMERATIVE))
-        self.vem.add(ChangeViewButton(self, [0.3, 0.05, 0.1, 0.075], "DBSCAN", ViewsEnum.DBSCAN))
-        self.vem.add(NormalButton(self, [0.4, 0.05, 0.1, 0.075], "Remove", self.remove_point))
-        self.vem.add(NormalButton(self, [0.5, 0.05, 0.2, 0.075], "Toggle hulls", self.draw_hull))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
+        view_button = ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER)
+        view_button.highlight()
+        self.vem.add(view_button)
+        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(ChangeViewButton(self, [0.75, self.change_button_y, self.change_button_length, self.change_button_height], "Agglo", ViewsEnum.AGGLOMERATIVE))
+        self.vem.add(ChangeViewButton(self, [0.85, self.change_button_y, self.change_button_length, self.change_button_height], "DBSCAN", ViewsEnum.DBSCAN))
+        self.vem.add(NormalButton(self, [0.05, 0.05, 0.1, 0.075], "Remove", self.remove_point))
+        self.vem.add(NormalButton(self, [0.17, 0.05, 0.15, 0.075], "Toggle hulls", self.draw_hull))
+        reset_b = NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters)
+        reset_b.button_ax.set_facecolor("lightcoral")
+        reset_b.button_ref.color = "lightcoral"
+        reset_b.button_ref.hovercolor = "crimson"
+        # todo fix color being updated only after movement
+        self.vem.add(reset_b)
 
         self.vem.hide()
 
@@ -546,10 +569,17 @@ class ClusteringSubViewBase(View):
         )
 
         self.vem.add(self.widget_cluster_name)
-        self.vem.add(ChangeViewButton(self, [0.1, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, [0.2, 0.05, 0.1, 0.075], "Back", ViewsEnum.CLUSTER))
-        self.vem.add(NormalButton(self, [0.65, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
-        self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Reset", self.reset))
+        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.05, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        reset_b = NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset)
+        reset_b.button_ax.set_facecolor("lightcoral")
+        reset_b.button_ref.color = "lightcoral"
+        reset_b.button_ref.hovercolor = "crimson"
+        self.vem.add(reset_b)
         # In concrete class: add to vem the view specific elements and call vem.hide()
 
     @abstractmethod
@@ -585,7 +615,9 @@ class ClusteringSubViewBase(View):
         super().hide()
         self.dehighlight_previous_cluster()
         self.info_text.remove()
-        plt.subplots_adjust(bottom=0.15, left=0.01, right=0.99, top=0.99)
+        plt.subplots_adjust(bottom=0.15, left=0.01, right=0.99, top=0.935)
+        for artist in self.state.data['clusters_data']['artists']:
+            artist.set_alpha(1)
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
 
@@ -648,9 +680,10 @@ class ClusteringSubViewBase(View):
         for key, points in label_map.items():
             if key == -1:
                 continue
-            self.state.set_cluster(cluster_name + str(key), points)
+            new_cluster_name = cluster_name + str(key)
+            self.state.set_cluster(new_cluster_name, points)
             self.state.set_hull_to_undraw(cluster_name)
-            self.state.set_hull_to_change(cluster_name + str(key), self.state.get_cluster(cluster_name + str(key)))
+            self.state.set_hull_to_change(new_cluster_name, self.state.get_cluster(new_cluster_name))
 
             for point_id in points:
                 artist = self.state.data['clusters_data']['artists'][point_id]
@@ -717,9 +750,14 @@ class HullView(View):
         self.picked_item: HullArtist | None = None
         self.events_stack = []
 
-        self.vem.add(ChangeViewButton(self, [0.05, 0.05, 0.1, 0.075], "Home", ViewsEnum.HOME))
-        self.vem.add(NormalButton(self, [0.15, 0.05, 0.15, 0.075], "Remove Line", self.remove_line))
-        self.vem.add(NormalButton(self, [0.30, 0.05, 0.15, 0.075], "Remove Hull", self.remove_hull))
+        view_button = ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS)
+        view_button.highlight()
+        self.vem.add(view_button)
+        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.3, 0.05, 0.15, 0.075], "Remove Line", self.remove_line))
+        self.vem.add(NormalButton(self, [0.50, 0.05, 0.15, 0.075], "Remove Hull", self.remove_hull))
         self.vem.hide()
 
     def draw(self, *args, **kwargs) -> None:
