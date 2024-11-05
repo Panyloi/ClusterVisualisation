@@ -25,6 +25,8 @@ class ViewsEnum(Enum):
     CLUSTER = 4
     AGGLOMERATIVE = 5
     DBSCAN  = 6
+    CREATEHULL = 7
+    REMOVELINE = 8
 
 
 class ViewManager:

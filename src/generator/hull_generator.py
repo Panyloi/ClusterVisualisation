@@ -678,9 +678,7 @@ def calc_one_hull(hull_name, points, state):
     to_jarvis = join_closest_points_copy(to_jarvis, circuit_points, main_points_of_circuit, 1.5, 0.1)
 
 
-    # to_jarvis = handle_corners_points(to_jarvis, circuit_points,state["hulls_data"]["parameters"]["points_in_circle"])
-    if hull_name == "nauty-72":  
-        print(to_jarvis)
+    to_jarvis = handle_corners_points(to_jarvis, circuit_points,state["hulls_data"]["parameters"]["points_in_circle"])
 
     selected_points = greedy_selecting_1(to_jarvis)
 
@@ -729,9 +727,23 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
             "cords": hulls[i]["polygon_points"],
             "line_cords": hulls[i]["polygon_lines"],
             "cluster_points": hulls[i]["cluster_points"],
-            "interpolate_points": hulls[i]["interpolate_points"]
+            "interpolate_points": hulls[i]["interpolate_points"],
+            "hole_in_hulls": [],
+            "artist": None
         }
         state["hulls_data"]["change"] = {}
         state["hulls_data"]["undraw"] = set()
+        state["hulls_data"][hulls[i]["name"]] = dict()
+        state["hulls_data"][hulls[i]["name"]]["hull_line"] = dict()
+        
+        # for j, line in enumerate(hulls[i]["polygon_lines"]):
+        #     state["hulls_data"][hulls[i]["name"]]["hull_line"][j] = {
+        #         'x1': line[0][0],
+        #         'y1': line[0][1],
+        #         'x2': line[1][0],
+        #         'y2': line[1][1],
+        #         'val': hulls[i]["name"]
+        #     }
+
 
     return state
