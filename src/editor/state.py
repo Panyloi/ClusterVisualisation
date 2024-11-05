@@ -186,6 +186,10 @@ class State:
         return self.data['hulls_data']['hulls'][hull_name]['cords']
 
     @KeyErrorWrap([])
+    def get_hull_interpolated_cords(self, hull_name: str) -> list[tuple[float, float]]:
+        return self.data['hulls_data']['hulls'][hull_name]['interpolate_points']
+
+    @KeyErrorWrap([])
     def get_hull_lines_cords(self, hull_name: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         return self.data['hulls_data']['hulls'][hull_name]['line_cords']
     
@@ -209,10 +213,62 @@ class State:
                 'cords': new_hull[hull_name]['polygon_points'],
                 'line_cords': new_hull[hull_name]['polygon_lines'],
                 'cluster_points': new_hull[hull_name]['cluster_points'],
+                "interpolate_points": new_hull[hull_name]["interpolate_points"],
+                "hole_in_hulls": [],
+                "artist": None
             }
 
         self.data['hulls_data']['undraw'] = set()
         self.data['hulls_data']['change'] = {}
+
+    @KeyErrorWrap([])
+    def redefine_hull(self, hull_name: str):
+
+        hull_resources = self.data['hulls_data']['hulls'][hull_name]
+        del self.data['hulls_data']['hulls'][hull_name]
+
+        print(hull_resources['artist'])
+        self.data['hulls_data']['hulls'][hull_name] = {
+            "cords": hull_resources["polygon_points"],
+            "line_cords": hull_resources["polygon_lines"],
+            "cluster_points": hull_resources["cluster_points"],
+            "interpolate_points": hull_resources["interpolate_points"],
+            "hole_in_hulls": [],
+            "artist": None
+        }
+
+    @KeyErrorWrap([])
+    def add_hull(self, hull_name: str, cords = [], line_cords = [], cluster_points = [], interpolate_points = []):
+
+        self.data['hulls_data']['hulls'][hull_name] = {
+            "cords": cords,
+            "line_cords": line_cords,
+            "cluster_points": cluster_points,
+            "interpolate_points": interpolate_points,
+            "hole_in_hulls": [],
+            "artist": None
+        }
+
+    @KeyErrorWrap([])
+    def get_hull_view_state(self) -> bool:
+        return self.data["hulls_data"]["view_state"]
+    
+    @KeyErrorWrap([])
+    def get_all_hulls_name(self) -> bool:
+        return self.data["hulls_data"]['hulls'].keys()
+
+    KeyErrorWrap([])
+    def get_hulls_artist(self, hull_name: str):
+        return self.data['hulls_data']['hulls'][hull_name]['artist']
+
+    @KeyErrorWrap([])
+    def get_hole_in_hulls(self, hull_name: str) -> None:
+        return self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls']
+
+
+    @KeyErrorWrap(1)
+    def get_hulls_render_name(self) -> None:
+        return self.data['hulls_data']['render_name'] + 1
 
     # ------------------------------- HULLS SETTERS ------------------------------ #
 
@@ -227,6 +283,10 @@ class State:
     @KeyErrorWrap(1)
     def set_hulls_view_state(self, in_view: bool) -> None:
         self.data['hulls_data']['view_state'] = in_view
+
+    @KeyErrorWrap(1)
+    def set_hulls_render_name(self, name: int) -> None:
+        self.data['hulls_data']['render_name'] = name
 
 
     @KeyErrorWrap(None)
@@ -243,6 +303,53 @@ class State:
     @KeyErrorWrap(None)
     def set_hull_line_size(self, size: float) -> None:
         self.data['hulls_data']['hull_line_size'] = size
+
+
+    @KeyErrorWrap(None)
+    def _hull_set_point(self, point_id, x, y) -> None:
+        df = self.data['clusters_data']['points']
+        df.loc[point_id] = [x, y, 'mine']
+
+        df_1 = self.data['clusters_data']['colors']
+        df_1['mine'] = f"#{0x0000000}"
+
+    @KeyErrorWrap(None)
+    def _hull_remove_point(self, point_id) -> None:
+        df = self.data['clusters_data']['points']
+        df = df.drop(point_id)
+
+        df_1 = self.data['clusters_data']['colors']
+        if 'mine' in df_1.keys():
+            del df_1['mine']
+        # df_1 = df_1.drop('mine')
+
+
+    @KeyErrorWrap([])
+    def set_hull_polygon_cords(self, hull_name: str, new_cords) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['cords'] = new_cords
+
+    @KeyErrorWrap([])
+    def set_hull_lines_cords(self, hull_name: str, new_line_cords) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['line_cords'] = new_line_cords
+
+    @KeyErrorWrap([])
+    def save_hulls_artist(self, hull_name: str, artist) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['artist'] = artist
+
+    @KeyErrorWrap([])
+    def set_hull_interpolated_cords(self, hull_name: str, new_cords) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['interpolate_points'] = new_cords
+
+    @KeyErrorWrap([])
+    def set_hole_in_hulls(self, hull_name: str, points: tuple[tuple[float, float], tuple[float, float]]) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls'].append(points)
+
+    @KeyErrorWrap([])
+    def remove_hole_in_hulls(self, hull_name: str, points: tuple[tuple[float, float], tuple[float, float]]) -> None:
+        self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls'].remove(points)
+    
+
+
     # ------------------------------- CLUSTER GETTERS ------------------------------ #
     @KeyErrorWrap(None)
     def get_cluster(self, cluster_name: str) -> pd.DataFrame:

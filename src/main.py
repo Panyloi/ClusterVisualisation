@@ -145,6 +145,7 @@ def draw_maps(raw_data: Union[str, Experiment],
     state_dict["labels_data"]['arrow_size'] = 1.0
 
     # hulls generator
+    state_dict['hulls_data']['render_name'] = 1
     state_dict["hulls_data"]["view_state"] = True
     set_hull_parameters(state_dict, 0.1, 20, 20)
     hulls = calc_hull(normalized_data, 0.1, 20, 20)

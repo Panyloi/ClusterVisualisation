@@ -541,7 +541,7 @@ class HullArtist(StateLinker):
     Class for properly managing hulls
     """
 
-    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
+    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, hull_view: bool = False, **kwargs) -> None:
         """init
 
         Parameters
@@ -556,6 +556,7 @@ class HullArtist(StateLinker):
 
         self.id = sid
         self.ax = ax
+        self.line_collection = None
         if polygon is None:
             self.polygon_cords = self.state.get_hull_polygon_cords(self.id)
         else:
@@ -565,21 +566,26 @@ class HullArtist(StateLinker):
 
 
         # hull line artists
-        # if self.state.get_hulls_view_state():
-        self.hull_lines: dict[int, HullLineArtist] = {}
-        for hull_line_id in self.state.get_hull_hull_line(self.id):
-            x1, y1, x2, y2 = self.state.get_hull_line_points(self.id, hull_line_id)
+        if hull_view:
+            print("JAK")
+            self.hull_lines: dict[int, HullLineArtist] = {}
+            for hull_line_id in self.state.get_hull_hull_line(self.id):
+                x1, y1, x2, y2 = self.state.get_hull_line_points(self.id, hull_line_id)
 
-            val = self.state.get_hull_line_val(self.id, hull_line_id)
-            self.hull_lines[hull_line_id] = HullLineArtist.hull_line(ax, hull_line_id, x1, y1, x2, y2, self, val)
+                val = self.state.get_hull_line_val(self.id, hull_line_id)
+                self.hull_lines[hull_line_id] = HullLineArtist.hull_line(ax, hull_line_id, x1, y1, x2, y2, self, val)
 
     def get_state(self) -> int:
         """state getter for position undo operation"""
         return self.id
 
     def remove(self) -> None:
-        super().remove()
-        self.state.delete_hull(self.id)
+
+        for i in self.ax.collections:
+            print(i)
+        if self.line_collection in self.ax.collections:
+            self.line_collection.remove()
+
 
     @staticmethod
     def hide_hulls(ax: Axes) -> None:
@@ -594,18 +600,23 @@ class HullArtist(StateLinker):
                 child.set_visible(True)
 
     @staticmethod
-    def hull(ax: Axes, sid: str, **kwargs) -> 'HullArtist':
-        h = HullArtist(ax, sid)
-        # if not h.state.get_hulls_view_state():
-        # ax.add_collection(LineCollection(segments=h.polygon_lines, colors='black'))
+    def hull(ax: Axes, sid: str, hull_view: bool = False, **kwargs) -> 'HullArtist':
+        h = HullArtist(ax, sid, hull_view=hull_view)
+
+        if not hull_view:
+            h.line_collection = LineCollection(segments=h.polygon_lines, colors='black')
+            HullArtist.state.save_hulls_artist(sid, h)
+            ax.add_collection(h.line_collection)
     
     @staticmethod
-    def get_by_id(ax: Axes, sid: int) -> 'None | HullArtist':
+    def get_by_id(ax: Axes, sid: str) -> 'None | HullArtist':
         children = ax.get_children()
         for child in children:
-            if isinstance(child, HullArtist):
-                if child.id == sid:
-                    return child
+            if isinstance(child, LineCollection):
+                # print(child)
+                hull_line_collection = HullArtist.state.get_hulls_artist(sid)
+                if child == hull_line_collection.line_collection:
+                    return hull_line_collection
         return None
     
     @staticmethod
