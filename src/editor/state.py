@@ -175,7 +175,8 @@ class State:
         # print("ZEGNAM")
 
         for hull_name in self.data['hulls_data']['undraw']:
-            del self.data['hulls_data']['hulls'][hull_name]
+            if hull_name in self.data['hulls_data']['hulls']:
+                del self.data['hulls_data']['hulls'][hull_name]
 
         for hull_name in self.data['hulls_data']['change'].keys():
             new_hull = calc_one_hull(hull_name, self.data['hulls_data']['change'][hull_name], self.data)
@@ -340,7 +341,7 @@ class State:
     def delete_hulls(self) -> None:
         keys = list(self.data['hulls_data']['hulls'].keys())
         for key in keys:
-            self.data['hulls_data']['hulls'].pop(key)
+            self.delete_hull(key)
 
     # ----------------------------------- MISC ----------------------------------- #
 
