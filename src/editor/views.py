@@ -542,15 +542,17 @@ class ClusterMainView(View):
         # todo after merge with hulls make sure we don't have old hulls stay in memory
         if self.hulls_off:
             self.hulls_off = False
+            for child in self.vm.ax.get_children():
+                if type(child) is LineCollection:
+                    child.remove()
             self.state.update_hulls()
 
             for hull_name in self.state.data['hulls_data']['hulls'].keys():
                 HullArtist.hull(self.vm.ax, hull_name)
-            plt.draw()
         else:
             self.hulls_off = True
             HullArtist.hide_hulls(self.vm.ax)
-            plt.draw()
+        plt.draw()
 
 
 class ClusteringSubViewBase(View):
@@ -561,15 +563,8 @@ class ClusteringSubViewBase(View):
         self.info_text = None
         self.previous_cluster_name = None
         self.current_labels = None
+        self.widget_cluster_name = None
 
-        self.widget_cluster_name = ViewRadioButtons(
-            self,
-            [0.05, 0.15, 0.3, 0.75],
-            sorted(list(self.state.get_all_clusters().keys())),
-            self.update_plot,
-        )
-
-        self.vem.add(self.widget_cluster_name)
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
@@ -590,6 +585,14 @@ class ClusteringSubViewBase(View):
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
+
+        self.widget_cluster_name = ViewRadioButtons(
+            self,
+            [0.05, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())),
+            self.update_plot,
+        )
+        self.vem.add(self.widget_cluster_name)
 
         # clear ax by hiding elements
         self.state.hide_labels_and_hulls(self.vm.ax)
@@ -621,6 +624,7 @@ class ClusteringSubViewBase(View):
             artist.set_alpha(1)
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
+        self.widget_cluster_name.remove()
 
     def dehighlight_previous_cluster(self):
         """Resets currently picked cluster points to their original look"""
