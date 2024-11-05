@@ -358,13 +358,190 @@ class LabelArtist(Text, StateLinker):
         for child in children:
             if isinstance(child, LabelArtist):
                 yield child
+
+class HullLineArtist(Line2D, StateLinker):
+    """
+    Class wrapper for Line2D to implement additional getters, 
+    setters and linking with HullArtist.
+    """
+
+    def __init__(self, ax: Axes, sid: int, x1: float, y1: float, 
+                 x2: float, y2: float, 
+                 parent_hull: 'HullArtist', val: str, **kwargs) -> None:
+        """init
+        
+        Parameters
+        ----------
+        ax: Axes
+            Main chart ax
+        sid: int
+            Id of the created hull
+        x1, y1: float
+            Coordinates of parent label
+        x2, y2: float
+            ...
+        parent_hull: HullArtist
+            The parent hull
+        val: str
+            The anotation string
+
+        """
+        
+        # custom init
+        self.ax            = ax
+        self.id            = sid
+        self.val           = val
+        self.parent_hull   = parent_hull
+        self.x1            = x1
+        self.y1            = y1
+        self.x2            = x2
+        self.y2            = y2
+
+        s = self.state.get_hull_line_size()
+
+        super().__init__([x1, x2], [y1, y2], picker=True, 
+                         pickradius=5, zorder=70, color='black', linewidth=s, **kwargs)
+        
+    def set(self, *, x1: float | None = None, y1: float | None = None, 
+                 x2: float | None = None, y2: float | None = None,
+                 val: str | None = None):
+        """
+        Setter for all ArrowArtist attributes.
+
+        Parameters
+        ----------
+        x1, y1: float
+            ...
+        x2, y2: float
+            ...
+        val: str
+            The annotation string
+
+        """
+
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.val = val if val is not None else self.val
+
+        self._update_state()
+
+        return super().set(xdata=[self.x1, self.x2], ydata=[self.y1, self.y2])
     
+    def set_sh_by_raw(self, rx: float, ry: float) -> None:
+        """set attachment shift by raw point on chart
+
+        Parameters
+        ----------
+        rx, ry: float
+            Coordinates of the chart point
+            
+        Notes
+        -----
+        This operation also snaps the shift to the closest outline of the label.
+        
+        """
+        
+        rbbx = self.parent_label.get_window_extent()
+        bbx = self.ax.transData.inverted().transform(rbbx)
+        x, y = rx, ry
+        if y < bbx[0][1]:
+            y = bbx[0][1]
+        if y > bbx[1][1]:
+            y = bbx[1][1]
+        if x < bbx[0][0]:
+            x = bbx[0][0]
+        if x > bbx[1][0]:
+            x = bbx[1][0]
+        
+        self.set(shx=x-self.x, shy=y-self.y)
+        
+    def get_shs(self) -> tuple[float, float]:
+        """shift point values getter"""
+        return self.shx, self.shy
+    
+    def get_rfs(self) -> tuple[float, float]:
+        """reference point values getter"""
+        return self.rfx, self.rfy
+    
+    def _update_state(self) -> None:
+        """update all arrow attributes to global state"""
+
+        self.state.set_hull_line_pos(self.parent_hull.id, self.id, 
+                                     self.x1, self.y1, self.x2, self.y2)
+        self.state.set_hull_line_val(self.parent_hull.id, self.id, self.val)
+
+    def _update_size(self, size: float) -> None:
+        """update arrow size"""
+        self.set_linewidth(size)
+        
+    def remove(self) -> None:
+        """remove line from chart and parent hull dict"""
+        super().remove()
+        
+        # delete hull line from parent hull
+        self.parent_hull.lines.pop(self.id)
+
+        # delete hull line from state
+        self.state.delete_hull_line(self.parent_hull.id, self.id)
+        
+    @staticmethod
+    def hull_line(ax: Axes, *args, **kwargs) -> 'HullLineArtist':
+        """arrow creator
+        
+        Parameters
+        ----------
+
+        ax: Axes
+            Main chart ax
+        *args:
+            args passed to ArrowArtist __init__
+        **kwargs:
+            kwargs passed to ArrowArtist __init__
+
+        Return
+        ------
+        ArrowArtist:
+            The created arrow
+            
+        """
+        la = HullLineArtist(ax, *args, **kwargs)
+        ax.add_line(la)
+        return la
+    
+    @staticmethod
+    def update_all_arrows_size(ax: Axes, size: float) -> None:
+        """update all arrows"""
+        for child in ax.get_children():
+            if isinstance(child, HullLineArtist):
+                child._update_size(size)
+        HullLineArtist.state.set_hull_line_size(size)
+    
+    @staticmethod
+    def get_by_id(ax: Axes, sid: int) -> 'None | HullLineArtist':
+        """hull line getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, HullLineArtist):
+                if child.id == sid:
+                    return child
+        return None
+    
+    @staticmethod
+    def get_all_arrows(ax: Axes):
+        """hull line getter by state id"""
+        children = ax.get_children()
+        for child in children:
+            if isinstance(child, HullLineArtist):
+                yield child
+
 class HullArtist(StateLinker):
     """
     Class for properly managing hulls
     """
 
-    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, **kwargs) -> None:
+    def __init__(self, ax: Axes, sid: str, polygon: List[Tuple[float, float]] | None = None, hull_view: bool = False, **kwargs) -> None:
         """init
 
         Parameters
@@ -379,19 +556,36 @@ class HullArtist(StateLinker):
 
         self.id = sid
         self.ax = ax
+        self.line_collection = None
         if polygon is None:
             self.polygon_cords = self.state.get_hull_polygon_cords(self.id)
         else:
             self.polygon_cords = polygon
         self.polygon_lines = self.state.get_hull_lines_cords(self.id)
 
+
+
+        # hull line artists
+        if hull_view:
+            print("JAK")
+            self.hull_lines: dict[int, HullLineArtist] = {}
+            for hull_line_id in self.state.get_hull_hull_line(self.id):
+                x1, y1, x2, y2 = self.state.get_hull_line_points(self.id, hull_line_id)
+
+                val = self.state.get_hull_line_val(self.id, hull_line_id)
+                self.hull_lines[hull_line_id] = HullLineArtist.hull_line(ax, hull_line_id, x1, y1, x2, y2, self, val)
+
     def get_state(self) -> int:
         """state getter for position undo operation"""
         return self.id
 
     def remove(self) -> None:
-        super().remove()
-        self.state.delete_hull(self.id)
+
+        for i in self.ax.collections:
+            print(i)
+        if self.line_collection in self.ax.collections:
+            self.line_collection.remove()
+
 
     @staticmethod
     def hide_hulls(ax: Axes) -> None:
@@ -406,17 +600,23 @@ class HullArtist(StateLinker):
                 child.set_visible(True)
 
     @staticmethod
-    def hull(ax: Axes, sid: str, **kwargs) -> 'HullArtist':
-        h = HullArtist(ax, sid)
-        ax.add_collection(LineCollection(segments=h.polygon_lines, colors='black'))
+    def hull(ax: Axes, sid: str, hull_view: bool = False, **kwargs) -> 'HullArtist':
+        h = HullArtist(ax, sid, hull_view=hull_view)
+
+        if not hull_view:
+            h.line_collection = LineCollection(segments=h.polygon_lines, colors='black')
+            HullArtist.state.save_hulls_artist(sid, h)
+            ax.add_collection(h.line_collection)
     
     @staticmethod
-    def get_by_id(ax: Axes, sid: int) -> 'None | HullArtist':
+    def get_by_id(ax: Axes, sid: str) -> 'None | HullArtist':
         children = ax.get_children()
         for child in children:
-            if isinstance(child, HullArtist):
-                if child.id == sid:
-                    return child
+            if isinstance(child, LineCollection):
+                # print(child)
+                hull_line_collection = HullArtist.state.get_hulls_artist(sid)
+                if child == hull_line_collection.line_collection:
+                    return hull_line_collection
         return None
     
     @staticmethod
