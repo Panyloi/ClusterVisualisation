@@ -22,8 +22,8 @@ class Home(View):
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-
         self.state.show_labels_and_hulls(self.vm.ax)
+        self.vm.list_manager.hide_button()
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
 
@@ -33,6 +33,7 @@ class Home(View):
         plt.draw()
 
     def hide(self) -> None:
+        self.vm.list_manager.show_button()
         super().hide()
 
 
@@ -596,6 +597,7 @@ class ClusteringSubViewBase(View):
 
         # clear ax by hiding elements
         self.state.hide_labels_and_hulls(self.vm.ax)
+        self.vm.list_manager.hide_button()
 
         # make points more transparent
         for artist in self.state.data['clusters_data']['artists']:
@@ -625,6 +627,7 @@ class ClusteringSubViewBase(View):
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
         self.widget_cluster_name.remove()
+        self.vm.list_manager.show_button()
 
     def dehighlight_previous_cluster(self):
         """Resets currently picked cluster points to their original look"""
@@ -1400,6 +1403,6 @@ class Editor:
                            RemoveHullLineView(vm)])  # must be the same as ViewsEnum
         vm.run()
 
-        # dispalay
+        # display
         # plt.ion()
         plt.show(block=True)
