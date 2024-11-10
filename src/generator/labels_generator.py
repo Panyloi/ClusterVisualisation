@@ -465,7 +465,6 @@ def iter_loss(x: np.ndarray, label: Label, static_label_list: List[Label], main_
     loss = 0
 
     # TODO: This whole thing can be done once per optymalization not once per loss calc
-    # TODO: This whole thing can be done once per optymalization not once per loss calc
     for slabel in static_label_list:
         # static labels intersection
         mp = slabel.get_mpoint()

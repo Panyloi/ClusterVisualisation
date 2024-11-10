@@ -382,7 +382,7 @@ class State:
         cluster_name = df.loc[point_id, 'type']
         return self.data['clusters_data']['colors'][cluster_name]
 
-    @KeyErrorWrap(None) #todo sometimes data is null, needs fix
+    @KeyErrorWrap(None)
     def get_normalised_clusters(self) -> dict:
         df = self.data['clusters_data']['points']
         data = {type_name: {'x': np.array(type_data['x']), 'y': np.array(type_data['y'])} for type_name, type_data in df.groupby('type')}
