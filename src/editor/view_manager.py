@@ -100,12 +100,16 @@ class ViewElementManager:
         self.elements.append(el)
         return el
 
+    def remove(self, el: 'ViewElement') -> None:
+        el.remove()
+        self.elements.remove(el)
+
     def refresh_connect(self, fig: Figure) -> None:
         fig.canvas.mpl_connect('refresh_event', self.refresh)
 
     def refresh(self, *args, **kwargs) -> None:
         """
-        Refreshes all view elements.
+        Refreshes all view elements. Only needed for TextBox elements.
         """
         for view_element in self.elements:
             view_element.refresh()

@@ -15,25 +15,21 @@ class ClusterMainView(View):
 
         # buttons
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
+        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         self.vem.add(ChangeViewButton(self, [0.75, self.change_button_y, self.change_button_length, self.change_button_height], "Agglo", ViewsEnum.AGGLOMERATIVE))
         self.vem.add(ChangeViewButton(self, [0.85, self.change_button_y, self.change_button_length, self.change_button_height], "DBSCAN", ViewsEnum.DBSCAN))
         self.vem.add(NormalButton(self, [0.05, 0.05, 0.1, 0.075], "Remove", self.remove_point))
         self.vem.add(NormalButton(self, [0.17, 0.05, 0.15, 0.075], "Toggle hulls", self.draw_hull))
+        reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
+        self.info = self.vem.add(ViewText(self.vm.ax, 0, 0, "Info"))
 
-        view_button = ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER)
         view_button.highlight()
-        self.vem.add(view_button)
 
-        reset_b = NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters)
         reset_b.button_ax.set_facecolor("lightcoral")
         reset_b.button_ref.color = "lightcoral"
         reset_b.button_ref.hovercolor = "crimson"
-        self.vem.add(reset_b)
-
-        self.info = ViewText(self.vm.ax, 0, 0, "Info")
-        self.vem.add(self.info)
 
         self.vem.hide()
 
@@ -58,7 +54,6 @@ class ClusterMainView(View):
         self.vm.ax.set_ylim(df['y'].min()-10, df['y'].max()+10)
         self.info.text_ref.set_position((self.vm.ax.get_xlim()[0] + 3, self.vm.ax.get_ylim()[1] - 10))
 
-        self.vem.refresh()
         plt.draw()
 
     def hide(self) -> None:
@@ -148,15 +143,12 @@ class ClusteringSubViewBase(View):
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
         self.vem.add(NormalButton(self, [0.05, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset))
+        self.info = self.vem.add(ViewText(self.vm.ax, 0, 0, ""))
 
-        reset_b = NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset)
         reset_b.button_ax.set_facecolor("lightcoral")
         reset_b.button_ref.color = "lightcoral"
         reset_b.button_ref.hovercolor = "crimson"
-        self.vem.add(reset_b)
-
-        self.info = ViewText(self.vm.ax, 0, 0, "")
-        self.vem.add(self.info)
         # In concrete class: add to vem the view specific elements and call vem.hide()
 
     @abstractmethod
@@ -167,13 +159,14 @@ class ClusteringSubViewBase(View):
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        self.widget_cluster_name = ViewRadioButtons(
-            self,
-            [0.05, 0.15, 0.3, 0.75],
-            sorted(list(self.state.get_all_clusters().keys())),
-            self.update_plot,
+        self.widget_cluster_name = self.vem.add(
+            ViewRadioButtons(
+                self,
+                [0.05, 0.15, 0.3, 0.75],
+                sorted(list(self.state.get_all_clusters().keys())),
+                self.update_plot
+            )
         )
-        self.vem.add(self.widget_cluster_name)
 
         # clear ax by hiding elements
         self.state.hide_labels_and_hulls(self.vm.ax)
@@ -202,7 +195,7 @@ class ClusteringSubViewBase(View):
             artist.set_alpha(1)
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
-        self.widget_cluster_name.remove()
+        self.vem.remove(self.widget_cluster_name)
         self.vm.list_manager.show_button()
 
     def dehighlight_previous_cluster(self):
@@ -274,11 +267,15 @@ class ClusteringSubViewBase(View):
                 artist = self.state.data['clusters_data']['artists'][point_id]
                 artist.set_color(self.state.get_point_color(point_id))
 
-        self.widget_cluster_name.remove()
-        self.widget_cluster_name = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75],
-                                                    sorted(list(self.state.get_all_clusters().keys())),
-                                                    self.update_plot)
-        self.vem.add(self.widget_cluster_name)
+        self.vem.remove(self.widget_cluster_name)
+        self.widget_cluster_name = self.vem.add(
+            ViewRadioButtons(
+                self,
+                [0.05, 0.15, 0.3, 0.75],
+                sorted(list(self.state.get_all_clusters().keys())),
+                self.update_plot
+            )
+        )
 
         self.info.text_ref.set_text("Saved")
         plt.draw()
@@ -286,10 +283,15 @@ class ClusteringSubViewBase(View):
     def reset(self):
         """Resets clusters back to the original state"""
         self.state.reset_clusters()
-        self.widget_cluster_name.remove()
-        self.widget_cluster_name = ViewRadioButtons(self, [0.05, 0.15, 0.3, 0.75],
-            sorted(list(self.state.get_all_clusters().keys())), self.update_plot)
-        self.vem.add(self.widget_cluster_name)
+        self.vem.remove(self.widget_cluster_name)
+        self.widget_cluster_name = self.vem.add(
+            ViewRadioButtons(
+                self,
+                [0.05, 0.15, 0.3, 0.75],
+                sorted(list(self.state.get_all_clusters().keys())),
+                self.update_plot
+            )
+        )
         self.update_plot(None)
 
 
@@ -297,10 +299,9 @@ class DBSCANView(ClusteringSubViewBase):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
 
-        self.widget_scalar = ViewSlider(
-            self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self.update_plot
+        self.widget_scalar = self.vem.add(
+            ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self.update_plot)
         )
-        self.vem.add(self.widget_scalar)
         self.vem.hide()
 
     def count_clustering(self, points_xy):
@@ -309,13 +310,20 @@ class DBSCANView(ClusteringSubViewBase):
 class AgglomerativeView(ClusteringSubViewBase):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.widget_linkage = ViewRadioButtons(self, [0.4, 0.15, 0.1, 0.1],
-            ["ward", "complete", "average", "single"], self.update_plot, 3)
-        self.widget_scalar = ViewSlider(self, [0.55, 0.17, 0.3, 0.05],
-            "", 0.01, 2.5, self.update_plot)
+        self.widget_linkage = self.vem.add(
+            ViewRadioButtons(
+                self,
+                [0.4, 0.15, 0.1, 0.1],
+                ["ward", "complete", "average", "single"],
+                self.update_plot,
+                3
+            )
+        )
 
-        self.vem.add(self.widget_linkage)
-        self.vem.add(self.widget_scalar)
+        self.widget_scalar = self.vem.add(
+            ViewSlider(self, [0.55, 0.17, 0.3, 0.05],"", 0.01, 2.5, self.update_plot)
+        )
+
         self.vem.hide()
 
     def count_clustering(self, points_xy):

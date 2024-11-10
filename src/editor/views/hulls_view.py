@@ -1,200 +1,146 @@
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from scipy import interpolate
 from ..view_manager import *
+from src.generator.hull_generator import interpolate_points
 
 class HullView(View):
 
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
-        self.dragged_item: HullArtist | None = None
-        self.picked_item: HullArtist | None = None
-        self.events_stack = []
-        self.seq_remove_line_1 = 0
-        self.seq_remove_line_2 = 0
-        self.event_xdata = 0
-        self.event_ydata = 0
-        self.line_1_id = 0
-        self.line_2_id = 0
+        self.mode: str = 'main'
+        self.pick_pos: tuple[float, float] | None = None
+        self.is_adding_points: bool = False
+        self.points_to_add = []
+        self.pointer_points = []
+        self.remove_line_state = 0
+        self.removed_lines = []
 
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
+        view_button = self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
-        self.vem.add(ChangeViewButton(self, [0.3, 0.05, 0.15, 0.075], "Create hulls", ViewsEnum.CREATEHULL))
-        self.vem.add(ChangeViewButton(self, [0.50, 0.05, 0.15, 0.075], "Remove line", ViewsEnum.REMOVELINE))
 
-        view_button = ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS)
+        self.add_line_button: NormalButton = self.vem.add(NormalButton(self, [0.05, 0.05, 0.2, 0.075],
+                                                                       "Add line", lambda: self.switch_mode('add')))
+        self.remove_line_button: NormalButton = self.vem.add(NormalButton(self, [0.25, 0.05, 0.2, 0.075],
+                                                                          "Remove line", lambda: self.switch_mode('remove')))
+        self.confirm_button: NormalButton = self.vem.add(NormalButton(self, [0.74, 0.05, 0.1, 0.075], "Confirm", self.confirm))
+        self.reset_button: NormalButton = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset))
+        self.cancel_button: NormalButton = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Cancel", self.cancel))
+
         view_button.highlight()
-        self.vem.add(view_button)
+        self.reset_button.button_ax.set_facecolor("lightcoral")
+        self.reset_button.button_ref.color = "lightcoral"
+        self.reset_button.button_ref.hovercolor = "crimson"
 
-        # self.vem.add(NormalButton(self, [0.3, 0.05, 0.15, 0.075], "Remove Line", self.remove_line))
-        # self.vem.add(NormalButton(self, [0.50, 0.05, 0.15, 0.075], "Remove Hull", self.remove_hull))
         self.vem.hide()
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        # HullArtist.hide_hulls(self.vm.ax)
-        self.state.show_labels_and_hulls(self.vm.ax)
-        self.vm.ax.set_xlim(-190, 190)
-        self.vm.ax.set_ylim(-150, 150)
-        self.events_stack.clear()
-        self.picked_item = kwargs.get('picked_item', None)
+        self.state.hide_labels_and_hulls(self.vm.ax)
+        HullArtist.show_hulls(self.vm.ax)
+        self.confirm_button.hide()
 
+        df = self.state.get_all_points()
+        self.vm.ax.set_xlim(df['x'].min() - 10, df['x'].max() + 10)
+        self.vm.ax.set_ylim(df['y'].min() - 10, df['y'].max() + 10)
+
+        # remove current hulls
         for child in self.vm.ax.get_children():
             if type(child) is LineCollection:
                 child.remove()
 
+        # add new hulls
         for hull_name in self.state.data['hulls_data']['hulls'].keys():
             HullArtist.hull(self.vm.ax, hull_name)
-
-        # events
-        self.cem.add(SharedEvent('pick_event', self.pick_event))
-
-        self.vem.refresh()
-        plt.draw()
-
-    def pick_event(self, event: PickEvent) -> None:
-        logging.info(
-            f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
-            ID: {getattr(event.artist, 'id', None)}"""
-        )
-
-        if isinstance(event.artist, HullArtist):
-
-            if self.seq_remove_line_1 == 1:
-                self.line_1_id = getattr(event.artist, 'id', None)
-                print("ID_1")
-                print(self.line_1_id)
-                self.seq_remove_line_1 += 1
-
-            elif self.seq_remove_line_1 == 3:
-                self.line_2_id = getattr(event.artist, 'id', None)
-                print("ID_2")
-                print(self.line_2_id)
-                self.seq_remove_line_1 = -1
-
-            self.events_stack.append(event.artist.get_state())
-            self.picked_item = event.artist
-            self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
-
-            # update fields
-            self.vem.refresh()
-
-    def press_event(self, event: MouseEvent) -> None:
-        logging.info(f"""{self.__class__} POS: {event.xdata}, {event.ydata}""")
-
-    def remove_line(self) -> None:
-        self.seq_remove_line_1 = 0
-
-    def _exec_remove_line(self):
-        ...
-
-    def get_closest_hull(self, coordx, coordy):
-        ...
-
-    def remove_hull(self) -> None:
-        if self.picked_item is None:
-            return
-
-        self.pick_event.remove()
-        self.picked_item = None
-        self.vem.refresh()
-
-    def hide(self) -> None:
-        super().hide()
-
-
-class CreateNewHullView(View):
-
-    def __init__(self, view_manager: ViewManager) -> None:
-        super().__init__(view_manager)
-        self.pick_pos: tuple[float, float] | None = None
-        self.events_stack = []
-        self.is_adding_points: bool = False
-        self.points_to_add = []
-        self.pointer_points = []
-
-        # buttons
-        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
-        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
-        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
-        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.HULLS))
-
-        self.pointer_end_add_points = NormalButton(self, [0.075, 0.05, 0.2, 0.075], "End adding", self.end_add_points)
-        self.vem_pointer_end_add_points = self.vem.add(self.pointer_end_add_points)
-
-        self.pointer_add_points = NormalButton(self, [0.075, 0.05, 0.2, 0.075], "Add points", self.create_from_existing)
-        self.vem_pointer_add_points = self.vem.add(self.pointer_add_points)
-
-        self.vem.hide()
-
-    def draw(self, *args, **kwargs) -> None:
-        super().draw()
-
-        self.state.show_labels_and_hulls(self.vm.ax)
-        self.vm.ax.set_xlim(-190, 190)
-        self.vm.ax.set_ylim(-150, 150)
-        self.events_stack.clear()
-        self.picked_item = kwargs.get('picked_item', None)
 
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_press_event', self.press_event))
 
-        for child in self.vm.ax.get_children():
-            if type(child) is LineCollection:
-                child.remove()
-
-        for hull_name in self.state.data['hulls_data']['hulls'].keys():
-            HullArtist.hull(self.vm.ax, hull_name)
-
-        self.vem.refresh()
         plt.draw()
 
-    def hide(self) -> None:
-        super().hide()
+    def switch_mode(self, mode_name):
+        """ Switch mode -> toggle buttons, change reset with cancel and vice versa"""
+        self.mode = mode_name
+        if self.mode == 'main':
+            self.add_line_button.show()
+            self.remove_line_button.show()
+            self.reset_button.show()
+            self.confirm_button.hide()
+            self.confirm_button.hide()
+        else:
+            self.add_line_button.hide()
+            self.remove_line_button.hide()
+            self.reset_button.hide()
+            self.confirm_button.show()
+            self.cancel_button.show()
+        plt.draw()
+
+    def cancel(self):
+        """ Switch to main mode and cancel every action since last switch """
+        # todo code action like resetting picked points etc
+        self.switch_mode('main')
+
+    def reset(self):
+        """ Reset hulls to before changes"""
+        # can be used for testing
+        ...
 
     def pick_event(self, event: PickEvent) -> None:
         logging.info(
             f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
             ID: {getattr(event.artist, 'id', None)}"""
         )
+        """ 
+            Hull artist doesn't inherit after Artist, so it can't ever be picked up 
+            Instead LineCollection can be used
+        """
 
-        if isinstance(event.artist, HullArtist):
-
-            if self.seq_remove_line_1 == 1:
-                self.line_1_id = getattr(event.artist, 'id', None)
-                print("ID_1")
-                print(self.line_1_id)
-                self.seq_remove_line_1 += 1
-
-            elif self.seq_remove_line_1 == 3:
-                self.line_2_id = getattr(event.artist, 'id', None)
-                print("ID_2")
-                print(self.line_2_id)
-                self.seq_remove_line_1 = -1
-
-            self.events_stack.append(event.artist.get_state())
-            self.picked_item = event.artist
-            self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
-
-            # update fields
-            self.vem.refresh()
+        # if isinstance(event.artist, LineCollection):
+        #   pass
 
     def press_event(self, event: MouseEvent) -> None:
-        if self.is_adding_points:
-            logging.info(f"""{self.__class__} POS: {event.xdata}, {event.ydata}""")
+        logging.info(f"""{self.__class__} POS: {event.xdata}, {event.ydata}""")
+        print(event)
+        if event.inaxes != self.vm.ax:
+            return
+
+        if self.mode == "add":
+            print("creating mode")
             self.points_to_add.append((event.xdata, event.ydata))
-
-            self.state._hull_set_point(len(self.points_to_add) * (-1), event.xdata, event.ydata)
+            self.state.hull_set_point(-len(self.points_to_add), event.xdata, event.ydata)
             self.pointer_points.append(
-                PointArtist.point(self.vm.ax, len(self.points_to_add) * (-1), facecolor="red", edgecolor="red"))
+                PointArtist.point(self.vm.ax, -len(self.points_to_add), facecolor="red", edgecolor="red")
+            )
+        elif self.mode == "remove":
+            print("removing mode")
+            if self.remove_line_state <= 2:
+                self.remove_line_state += 1
 
-            self.vem.refresh()
+                self.points_to_add.append((event.xdata, event.ydata))
+                self.state.hull_set_point(-len(self.points_to_add), event.xdata, event.ydata)
+                self.pointer_points.append(
+                    PointArtist.point(self.vm.ax, -len(self.points_to_add), facecolor="red", edgecolor="red")
+                )
+            elif self.remove_line_state == 3:
+                self.remove_line_state = 0
+                self.is_adding_points = False
+                self.remove_line_from_hull()
+        elif self.mode == "main":
+            return
+
+        plt.draw()
+
+    def confirm(self):
+        if self.mode == "add":
+            self.calculate_new_hull()
             plt.draw()
+        elif self.mode == "remove":
+            self.remove_line_state = 1
 
-    def search_for_hull_name_in_hole(self, point, _hull_name=""):
+    def search_for_hull_name_in_hole(self, point: tuple[float, float], _hull_name: str = "") -> (str, tuple[float, float]):
         hulls_name = self.state.get_all_hulls_name()
         best_dist = float("inf")
         best_hull_name = ""
@@ -218,10 +164,7 @@ class CreateNewHullView(View):
 
         return best_hull_name, best_cord
 
-    def distance(self, point_1, point_2):
-        return np.sqrt((point_1[0] - point_2[0]) ** 2 + (point_1[1] - point_2[1]) ** 2)
-
-    def find_closest_edge_point_in_hull(self, hull_name, point):
+    def find_closest_edge_point_in_hull(self, hull_name: str, point: tuple[float, float]) -> (tuple[float, float], int):
         hull_cords = self.state.get_hull_interpolated_cords(hull_name)
         best_cords = (0, 0)
         best_dist = float("inf")
@@ -235,48 +178,6 @@ class CreateNewHullView(View):
                 best_idx = i
 
         return best_cords, best_idx
-
-    def create_from_existing(self):
-        self.is_adding_points = True
-
-        self.pointer_add_points.remove()
-        self.vem.elements.remove(self.vem_pointer_add_points)
-
-        self.vem.refresh()
-
-        self.pointer_end_add_points = NormalButton(self, [0.075, 0.05, 0.2, 0.075], "End adding", self.end_add_points)
-        self.vem_pointer_end_add_points = self.vem.add(self.pointer_end_add_points)
-
-        self.vem.refresh()
-        plt.draw()
-
-    def end_add_points(self):
-        self.is_adding_points = False
-        self.calculate_new_hull()
-
-        self.pointer_end_add_points.remove()
-        self.vem.elements.remove(self.vem_pointer_end_add_points)
-
-        self.vem.refresh()
-
-        self.pointer_add_points = NormalButton(self, [0.075, 0.05, 0.2, 0.075], "Add points", self.create_from_existing)
-        self.vem_pointer_add_points = self.vem.add(self.pointer_add_points)
-
-        self.vem.refresh()
-        plt.draw()
-
-    def interpolate_points(self, points, num=100):
-        if len(points) < 3:
-            return points
-        u3 = np.linspace(0, 1, num, endpoint=True)
-
-        np_points = np.array(points)
-        x = np_points[:, 0]
-        y = np_points[:, 1]
-
-        tck, _ = interpolate.splprep([x, y], k=3, s=0)
-        new_points = interpolate.splev(u3, tck)
-        return list(zip(new_points[0], new_points[1]))
 
     def calculate_new_hull(self):
         # self.state -> doable
@@ -293,7 +194,7 @@ class CreateNewHullView(View):
 
         if hull_name == "":
 
-            interpolated_points = self.interpolate_points(self.points_to_add)
+            interpolated_points = interpolate_points(self.points_to_add)
             polygon_lines = [
                 (
                     interpolated_points[j % len(interpolated_points)],
@@ -316,13 +217,12 @@ class CreateNewHullView(View):
 
             for i, pointer_point in enumerate(self.pointer_points):
                 pointer_point.remove()
-                self.state._hull_remove_point(i * (-1))
+                self.state.hull_remove_point(i * (-1))
 
             self.pointer_points = []
 
             self.points_to_add = []
 
-            self.vem.refresh()
             plt.draw()
             return
         hull_interpolated_points = self.state.get_hull_interpolated_cords(hull_name)
@@ -336,7 +236,7 @@ class CreateNewHullView(View):
 
         print(point_1, point_2)
         print(f"IDX: {idx_1} {idx_2}")
-        interpolated_points = self.interpolate_points(self.points_to_add[1:-1])
+        interpolated_points = interpolate_points(self.points_to_add[1:-1])
 
         for index, (line_point_1, line_point_2) in enumerate(lines):
             if ((point_1[0] == line_point_1[0] and point_1[1] == line_point_1[1])
@@ -374,7 +274,6 @@ class CreateNewHullView(View):
 
         hull_artist = HullArtist.get_by_id(self.vm.ax, hull_name)
         hull_artist.remove()
-        self.vem.refresh()
 
         self.state.remove_hole_in_hulls(hull_name, hole_cord)
 
@@ -385,123 +284,13 @@ class CreateNewHullView(View):
 
         for i, pointer_point in enumerate(self.pointer_points):
             pointer_point.remove()
-            self.state._hull_remove_point(i * (-1))
+            self.state.hull_remove_point(i * (-1))
 
         self.pointer_points = []
 
         self.points_to_add = []
 
-        self.vem.refresh()
         plt.draw()
-
-    def hide(self) -> None:
-        super().hide()
-
-
-class RemoveHullLineView(View):
-
-    def __init__(self, view_manager: ViewManager) -> None:
-        super().__init__(view_manager)
-        self.pick_pos: tuple[float, float] | None = None
-        self.events_stack = []
-        self.is_adding_points: bool = False
-        self.points_to_add = []
-        self.pointer_points = []
-        self.remove_line_state = 0
-
-        self.removed_lines = []
-
-        # buttons
-        self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
-        self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
-        self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
-        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.HULLS))
-
-        self.pointer_remove_line = NormalButton(self, [0.075, 0.05, 0.2, 0.075], "Remove line", self.remove_line)
-        self.vem_pointer_remove_line = self.vem.add(self.pointer_remove_line)
-
-        reset_b = NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_removing_line)
-        reset_b.button_ax.set_facecolor("lightcoral")
-        reset_b.button_ref.color = "lightcoral"
-        reset_b.button_ref.hovercolor = "crimson"
-        self.vem.add(reset_b)
-
-        self.vem.hide()
-
-    def draw(self, *args, **kwargs) -> None:
-
-        super().draw()
-
-        self.state.show_labels_and_hulls(self.vm.ax)
-        self.vm.ax.set_xlim(-190, 190)
-        self.vm.ax.set_ylim(-150, 150)
-        self.events_stack.clear()
-        self.picked_item = kwargs.get('picked_item', None)
-
-        for child in self.vm.ax.get_children():
-            if type(child) is LineCollection:
-                child.remove()
-
-        for hull_name in self.state.data['hulls_data']['hulls'].keys():
-            HullArtist.hull(self.vm.ax, hull_name)
-        # events
-        self.cem.add(SharedEvent('pick_event', self.pick_event))
-        self.cem.add(SharedEvent('button_press_event', self.press_event))
-        self.vem.refresh()
-        plt.draw()
-
-    def hide(self) -> None:
-        super().hide()
-
-    def pick_event(self, event: PickEvent) -> None:
-        logging.info(
-            f"""{self.__class__} EVENT: {event} ARTIST: {event.artist} 
-            ID: {getattr(event.artist, 'id', None)}"""
-        )
-
-        if isinstance(event.artist, HullArtist):
-
-            if self.seq_remove_line_1 == 1:
-                self.line_1_id = getattr(event.artist, 'id', None)
-                print("ID_1")
-                print(self.line_1_id)
-                self.seq_remove_line_1 += 1
-
-            elif self.seq_remove_line_1 == 3:
-                self.line_2_id = getattr(event.artist, 'id', None)
-                print("ID_2")
-                print(self.line_2_id)
-                self.seq_remove_line_1 = -1
-
-            self.events_stack.append(event.artist.get_state())
-            self.picked_item = event.artist
-            self.pick_pos = (event.mouseevent.xdata, event.mouseevent.ydata)
-
-            # update fields
-            self.vem.refresh()
-
-    def press_event(self, event: MouseEvent) -> None:
-        logging.info(f"""{self.__class__} POS: {event.xdata}, {event.ydata}""")
-
-        if self.is_adding_points:
-            if self.remove_line_state <= 2:
-                self.remove_line_state += 1
-
-                self.points_to_add.append((event.xdata, event.ydata))
-
-                self.state._hull_set_point(len(self.points_to_add) * (-1), event.xdata, event.ydata)
-                self.pointer_points.append(
-                    PointArtist.point(self.vm.ax, len(self.points_to_add) * (-1), facecolor="red", edgecolor="red"))
-
-                self.vem.refresh()
-                plt.draw()
-
-            if self.remove_line_state == 3:
-                self.remove_line_state = 0
-                self.is_adding_points = False
-
-                self.remove_line_from_hull()
 
     def remove_line(self):
         self.is_adding_points = True
@@ -537,7 +326,7 @@ class RemoveHullLineView(View):
 
         for i, pointer_point in enumerate(self.pointer_points):
             pointer_point.remove()
-            self.state._hull_remove_point(i * (-1))
+            self.state.hull_remove_point(i * (-1))
 
         self.pointer_points = []
 
@@ -547,7 +336,6 @@ class RemoveHullLineView(View):
         if hull_name_1 == hull_name_2:
             self.exec_remove_line_from_hull(hull_name_1, cord_1, cord_2)
 
-        self.vem.refresh()
         plt.draw()
 
     def exec_remove_line_from_hull(self, hull_name, point1, point2):
@@ -589,14 +377,18 @@ class RemoveHullLineView(View):
 
         hull_artist = HullArtist.get_by_id(self.vm.ax, hull_name)
         hull_artist.remove()
-        self.vem.refresh()
 
         self.state.set_hull_interpolated_cords(hull_name, final_cords)
         self.state.set_hull_lines_cords(hull_name, final_lines)
 
         HullArtist.hull(self.vm.ax, hull_name)
-        self.vem.refresh()
         plt.draw()
 
     def hide(self) -> None:
         super().hide()
+        self.vm.ax.set_xlim(-190, 190)
+        self.vm.ax.set_ylim(-150, 150)
+
+    @staticmethod
+    def distance(point_1: tuple[float, float], point_2: tuple[float, float]) -> float:
+        return np.sqrt((point_1[0] - point_2[0]) ** 2 + (point_1[1] - point_2[1]) ** 2)

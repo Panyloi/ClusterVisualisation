@@ -155,53 +155,37 @@ class State:
         return self.data['labels_data']['arrow_size']
 
     # ------------------------------- HULLS_GETTERS ------------------------------ #
-    # TODO: update parameters for dict
 
-    @KeyErrorWrap(1)
     def get_hull_line_size(self) -> float:
         return self.data['hulls_data']['line_size']
 
-    @KeyErrorWrap({})
     def get_hull_hull_line(self, hull_name: str) -> dict:
         return self.data['hulls_data'][hull_name]['hull_line']
 
-    @KeyErrorWrap(1)
     def get_hulls_view_state(self) -> bool:
         return self.data['hulls_data']['view_state']
 
-
-    @KeyErrorWrap((0, 0))
-    def get_hull_line_points(self, hull_name: str, hull_line_id: int) -> tuple[float, float]:
+    def get_hull_line_points(self, hull_name: str, hull_line_id: int) -> tuple[Any, Any, Any, Any]:
         return self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x1'],\
                self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y1'],\
                self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x2'],\
                self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y2']
     
-    @KeyErrorWrap("")
     def get_hull_line_val(self, hull_name: str, hull_line_id: int) -> str:
         return self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['val']
 
-    @KeyErrorWrap([])
     def get_hull_polygon_cords(self, hull_name: str) -> list[tuple[float, float]]:
         return self.data['hulls_data']['hulls'][hull_name]['cords']
 
-    @KeyErrorWrap([])
     def get_hull_interpolated_cords(self, hull_name: str) -> list[tuple[float, float]]:
         return self.data['hulls_data']['hulls'][hull_name]['interpolate_points']
 
-    @KeyErrorWrap([])
     def get_hull_lines_cords(self, hull_name: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         return self.data['hulls_data']['hulls'][hull_name]['line_cords']
     
-    @KeyErrorWrap([])
     def update_hulls(self):
         if len(self.data['hulls_data']['undraw']) == 0 and len(self.data['hulls_data']['change']) == 0:
             return
-
-        # print("WITAM")
-        # print(self.data['hulls_data']['undraw'])
-        # print(self.data['hulls_data']['change'])
-        # print("ZEGNAM")
 
         for hull_name in self.data['hulls_data']['undraw']:
             if hull_name in self.data['hulls_data']['hulls']:
@@ -222,7 +206,6 @@ class State:
         self.data['hulls_data']['undraw'] = set()
         self.data['hulls_data']['change'] = {}
 
-    @KeyErrorWrap([])
     def redefine_hull(self, hull_name: str):
 
         hull_resources = self.data['hulls_data']['hulls'][hull_name]
@@ -238,7 +221,6 @@ class State:
             "artist": None
         }
 
-    @KeyErrorWrap([])
     def add_hull(self, hull_name: str, cords = [], line_cords = [], cluster_points = [], interpolate_points = []):
 
         self.data['hulls_data']['hulls'][hull_name] = {
@@ -250,72 +232,55 @@ class State:
             "artist": None
         }
 
-    @KeyErrorWrap([])
     def get_hull_view_state(self) -> bool:
         return self.data["hulls_data"]["view_state"]
     
-    @KeyErrorWrap([])
     def get_all_hulls_name(self) -> bool:
         return self.data["hulls_data"]['hulls'].keys()
 
-    KeyErrorWrap([])
     def get_hulls_artist(self, hull_name: str):
         return self.data['hulls_data']['hulls'][hull_name]['artist']
 
-    @KeyErrorWrap([])
     def get_hole_in_hulls(self, hull_name: str) -> None:
         return self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls']
 
-
-    @KeyErrorWrap(1)
     def get_hulls_render_name(self) -> None:
         return self.data['hulls_data']['render_name'] + 1
 
     # ------------------------------- HULLS SETTERS ------------------------------ #
 
-    @KeyErrorWrap(None)
     def set_hull_to_undraw(self, hull_name):
         self.data['hulls_data']['undraw'].add(hull_name)
 
-    @KeyErrorWrap(None)
     def set_hull_to_change(self, hull_name, points):
         self.data['hulls_data']['change'][hull_name] = points
 
-    @KeyErrorWrap(1)
     def set_hulls_view_state(self, in_view: bool) -> None:
         self.data['hulls_data']['view_state'] = in_view
 
-    @KeyErrorWrap(1)
     def set_hulls_render_name(self, name: int) -> None:
         self.data['hulls_data']['render_name'] = name
 
-
-    @KeyErrorWrap(None)
     def set_hull_line_pos(self, hull_name: int, hull_line_id: int, x1: float, y1: float, x2: float, y2: float) -> None:
         self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x1'] = x1
         self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y1'] = y1
         self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x2'] = x2
         self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y2'] = y2
 
-    @KeyErrorWrap(None)
     def set_hull_line_val(self, hull_name: int, hull_line_id: int, val: str) -> None:
         self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['val'] = val
-    
-    @KeyErrorWrap(None)
+
     def set_hull_line_size(self, size: float) -> None:
         self.data['hulls_data']['hull_line_size'] = size
 
-
-    @KeyErrorWrap(None)
-    def _hull_set_point(self, point_id, x, y) -> None:
+    def hull_set_point(self, point_id: int, x: float, y: float) -> None:
         df = self.data['clusters_data']['points']
         df.loc[point_id] = [x, y, 'mine']
 
         df_1 = self.data['clusters_data']['colors']
         df_1['mine'] = f"#{0x0000000}"
 
-    @KeyErrorWrap(None)
-    def _hull_remove_point(self, point_id) -> None:
+    def hull_remove_point(self, point_id) -> None:
         df = self.data['clusters_data']['points']
         df = df.drop(point_id)
 
@@ -324,65 +289,51 @@ class State:
             del df_1['mine']
         # df_1 = df_1.drop('mine')
 
-
-    @KeyErrorWrap([])
     def set_hull_polygon_cords(self, hull_name: str, new_cords) -> None:
         self.data['hulls_data']['hulls'][hull_name]['cords'] = new_cords
 
-    @KeyErrorWrap([])
     def set_hull_lines_cords(self, hull_name: str, new_line_cords) -> None:
         self.data['hulls_data']['hulls'][hull_name]['line_cords'] = new_line_cords
 
-    @KeyErrorWrap([])
     def save_hulls_artist(self, hull_name: str, artist) -> None:
         self.data['hulls_data']['hulls'][hull_name]['artist'] = artist
 
-    @KeyErrorWrap([])
     def set_hull_interpolated_cords(self, hull_name: str, new_cords) -> None:
         self.data['hulls_data']['hulls'][hull_name]['interpolate_points'] = new_cords
 
-    @KeyErrorWrap([])
     def set_hole_in_hulls(self, hull_name: str, points: tuple[tuple[float, float], tuple[float, float]]) -> None:
         self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls'].append(points)
 
-    @KeyErrorWrap([])
     def remove_hole_in_hulls(self, hull_name: str, points: tuple[tuple[float, float], tuple[float, float]]) -> None:
         self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls'].remove(points)
-    
+
 
 
     # ------------------------------- CLUSTER GETTERS ------------------------------ #
-    @KeyErrorWrap(None)
     def get_cluster(self, cluster_name: str) -> pd.DataFrame:
         df = self.data['clusters_data']['points']
         return df[df['type'] == cluster_name]
 
-    @KeyErrorWrap(None)
     def get_all_clusters(self) -> dict:
         df = self.data['clusters_data']['points']
         return df.groupby('type').apply(lambda x: x[['x', 'y']].values.tolist()).to_dict()
 
-    @KeyErrorWrap(None)
     def get_all_points(self) -> pd.DataFrame:
         return self.data['clusters_data']['points']
 
-    @KeyErrorWrap(None)
     def get_point(self, point_id) -> dict:
         df = self.data['clusters_data']['points'].loc[point_id]
         return df.to_dict()
 
-    @KeyErrorWrap(None)
     def get_point_pos(self, point_id) -> tuple:
         df = self.data['clusters_data']['points']
         return df.loc[point_id, 'x'], df.loc[point_id, 'y']
 
-    @KeyErrorWrap(None)
     def get_point_color(self, point_id) -> str:
         df = self.data['clusters_data']['points']
         cluster_name = df.loc[point_id, 'type']
         return self.data['clusters_data']['colors'][cluster_name]
 
-    @KeyErrorWrap(None)
     def get_normalised_clusters(self) -> dict:
         df = self.data['clusters_data']['points']
         data = {type_name: {'x': np.array(type_data['x']), 'y': np.array(type_data['y'])} for type_name, type_data in df.groupby('type')}
@@ -392,39 +343,31 @@ class State:
 
     # ---------------------------------- SETTERS --------------------------------- #
 
-    @KeyErrorWrap(None)
     def set_label_text(self, label_id: int, text: str) -> None:
         self.data['labels_data'][label_id]['text'] = text
-        
-    @KeyErrorWrap(None)
+
     def set_label_pos(self, label_id: int, x: float, y: float) -> None:
         self.data['labels_data'][label_id]['x'] = x
         self.data['labels_data'][label_id]['y'] = y
 
-    @KeyErrorWrap(None)
     def set_arrow_att_pos(self, label_id: int, arrow_id: int, att_x: float, att_y: float) -> None:
         self.data['labels_data'][label_id]['arrows'][arrow_id]['att_x'] = att_x
         self.data['labels_data'][label_id]['arrows'][arrow_id]['att_y'] = att_y
 
-    @KeyErrorWrap(None)
     def set_arrow_ref_pos(self, label_id: int, arrow_id: int, ref_x: float, ref_y: float) -> None:
         self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_x'] = ref_x
         self.data['labels_data'][label_id]['arrows'][arrow_id]['ref_y'] = ref_y
 
-    @KeyErrorWrap(None)
     def set_arrow_val(self, label_id: int, arrow_id: int, val: str) -> None:
         self.data['labels_data'][label_id]['arrows'][arrow_id]['val'] = val
 
-    @KeyErrorWrap(None)
     def set_label_size(self, size: float) -> None:
         self.data['labels_data']['size'] = size
 
-    @KeyErrorWrap(None)
     def set_arrow_size(self, size: float) -> None:
         self.data['labels_data']['arrow_size'] = size
 
     # ------------------------------- CLUSTER SETTERS ------------------------------ #
-    @KeyErrorWrap(None)
     def set_cluster(self, cluster_name: str, points: list) -> None:
         if cluster_name not in self.data['clusters_data']['colors'].keys():
             self.data['clusters_data']['colors'][cluster_name] = f"#{random.randrange(0x1000000):06x}"
@@ -432,7 +375,6 @@ class State:
         df.loc[df.index.isin(points), 'type'] = cluster_name
         self.data['clusters_data']['points'] = df
 
-    @KeyErrorWrap(None)
     def reset_clusters(self) -> None:
         self.data['clusters_data']['points'] = pd.DataFrame([
             {
@@ -445,7 +387,7 @@ class State:
         ])
 
     # ------------------------------------ ADD ----------------------------------- #
-    
+
     @KeyErrorWrap(-1)
     def add_empty_label(self) -> int:
         nid = max( filter(lambda x: True if isinstance(x, int) else False,
@@ -458,7 +400,7 @@ class State:
             'arrows': {}
         }
         return nid
-    
+
     @KeyErrorWrap(-1)
     def add_empty_arrow(self, label_id: int) -> int:
         if self.get_label_arrows(label_id):
@@ -474,22 +416,18 @@ class State:
             'val': ""
         }
         return nid
-    
+
     # ---------------------------------- DELETE ---------------------------------- #
-    
-    @KeyErrorWrap(None)
+
     def delete_label(self, label_id: int) -> None:
         self.data['labels_data'].pop(label_id)
-        
-    @KeyErrorWrap(None)
+
     def delete_arrow(self, label_id: int, arrow_id: int) -> None:
         self.data['labels_data'][label_id]['arrows'].pop(arrow_id)
-    
-    @KeyErrorWrap(None)
+
     def delete_hull(self, hull_name: str) -> None:
         self.data['hulls_data']['hulls'].pop(hull_name)
 
-    @KeyErrorWrap(None)
     def delete_hull_line(self, hull_name: str, hull_line_id: int) -> None:
         self.data['hulls_data'][hull_name]['hull_line'].pop(hull_line_id)
 

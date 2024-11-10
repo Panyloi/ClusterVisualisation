@@ -15,6 +15,7 @@ class LabelsView(View):
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        view_button = self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(NormalButton(self, [0.075, 0.05, 0.05, 0.075], "+", self.add_label))
         self.vem.add(NormalButton(self, [0.125, 0.05, 0.05, 0.075], "-", self.delete_label))
         self.vem.add(NormalButton(self, [0.575, 0.0875, 0.05, 0.0375], "^", self.font_size_up))
@@ -23,9 +24,7 @@ class LabelsView(View):
         self.vem.add(NormalButton(self, [0.75, 0.05, 0.05, 0.0375], "v", self.arrow_size_down))
         self.vem.add(NormalButton(self, [0.825, 0.05, 0.10, 0.075], "+arrow", self.add_arrow))
 
-        view_button = ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS)
         view_button.highlight()
-        self.vem.add(view_button)
 
         # displays
         self.vem.add(ShiftingTextBox(self, [0.2, 0.05, 0.25, 0.075],
@@ -238,13 +237,12 @@ class ArrowsView(View):
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        view_button = self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Delete", self.delete_arrow))
         self.vem.add(BlockingButton(self, [0.35, 0.05, 0.05, 0.075], "p", self.sh_point_picker))
         self.vem.add(BlockingButton(self, [0.7, 0.05, 0.05, 0.075], "p", self.rf_point_picker))
 
-        view_button = ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS)
         view_button.highlight()
-        self.vem.add(view_button)
 
         # displays
         self.vem.add(LimitedTextBox(self, [0.15, 0.05, 0.10, 0.075],
