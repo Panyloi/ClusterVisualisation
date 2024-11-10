@@ -821,6 +821,29 @@ class LimitedTextBox(ViewTextBox):
         return line
 
 
+class ViewText(ViewElement):
+
+    def __init__(self, ax: Axes, x: float, y: float, label: str) -> None:
+        super().__init__()
+        self.text_ref = Text(x, y, label)
+        ax.add_artist(self.text_ref)
+
+    def remove(self):
+        super().remove()
+        self.text_ref.remove()
+
+    def refresh(self) -> None:
+        return super().refresh()
+
+    def hide(self) -> None:
+        super().hide()
+        self.text_ref.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.text_ref.set_visible(True)
+
+
 class ViewRadioButtons(ViewElement):
 
     def __init__(self, parent_view: View, axes: list[float],

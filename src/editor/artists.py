@@ -694,8 +694,8 @@ State.show_labels_and_hulls = show_labels_and_hulls
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
-    # clear ax
-    ax.clear()
+    # ax.clear() #maybe not needed, it removes info text
+
     # draw points
     self.data['clusters_data']['artists'] = []
     for point_id in self.data['clusters_data']['points'].index:
