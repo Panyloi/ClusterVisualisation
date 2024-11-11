@@ -408,6 +408,7 @@ class HullView(View):
         if hull_name_1 == hull_name_2:
             self.exec_remove_line_from_hull(hull_name_1, cord_1, cord_2)
 
+        self.vem.refresh()
         plt.draw()
 
     def exec_remove_line_from_hull(self, hull_name, point1, point2):
@@ -454,6 +455,7 @@ class HullView(View):
         self.state.set_hull_lines_cords(hull_name, final_lines)
 
         HullArtist.hull(self.vm.ax, hull_name)
+        self.vem.refresh()
         plt.draw()
 
     def hide(self) -> None:

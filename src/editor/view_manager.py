@@ -928,8 +928,16 @@ class CheckList(ViewElement):
         return self.get_actives()[name]
 
     def check_all(self) -> None:
-        for i in range(self.len):
-            self.ref.set_active(i)
+        status = self.ref.get_status()
+        for i in range(len(status)):
+            if not status[i]:
+                self.ref.set_active(i)
+
+    def uncheck_all(self) -> None:
+        status = self.ref.get_status()
+        for i in range(len(status)):
+            if status[i]:
+                self.ref.set_active(i)
 
     def get_actives(self) -> dict[str: bool]:
         labels = [label.get_text() for label in self.ref.labels]
@@ -942,7 +950,8 @@ class CheckList(ViewElement):
         super().__init__() # added for logs
         self.ref = CheckButtons(self.ax, labels, new_actives)
         self.ref.on_clicked(self.callback)
-        plt.draw() #not sure if draw should be called automatically or not
+        self.hide() # clear "exes" that still show
+        self.show()
 
     def remove(self) -> None:
         super().remove()
@@ -1007,7 +1016,6 @@ class CheckListManager(StateLinker):
         else:
             artist.hide()
         plt.draw()
-
 
     def get_only_active(self) -> list[str]:
         return [name for name, val in self.check_list.get_actives().items() if val]
