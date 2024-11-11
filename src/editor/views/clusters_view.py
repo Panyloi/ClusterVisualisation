@@ -40,6 +40,7 @@ class ClusterMainView(View):
         self.state.hide_labels_and_hulls(self.vm.ax)
         self.hulls_off = True
         self.vm.list_manager.clusters_view_hull_off = True
+        self.vm.list_manager.hide_button()
 
         # make points more transparent
         for artist in self.state.data['clusters_data']['artists']:
@@ -65,12 +66,34 @@ class ClusterMainView(View):
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
         self.vm.list_manager.clusters_view_hull_off = False
+        self.vm.list_manager.show_button()
 
-    def reset_clusters(self):
+    def reset_clusters(self): #todo really ugly, gotta clean up later
         self.state.reset_clusters()
         for artist in self.state.data['clusters_data']['artists']:
             artist.set_color(self.state.get_point_color(artist.id))
-        plt.draw()
+
+        HullArtist.remove_hulls(self.vm.ax)
+        self.state.update_hulls()
+
+        self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys())))
+        selected_hulls = self.vm.list_manager.get_only_active()
+        for hull_name in self.state.get_normalised_clusters():
+            artist = HullArtist.hull(self.vm.ax, hull_name)
+            if self.hulls_off:
+                artist.hide()
+            elif artist.id not in selected_hulls:
+                artist.hide()
+        if self.hulls_off:
+            self.vm.list_manager.check_list.hide()
+        # todo doesnt work cause dunno how to use Hull Artist
+        # the problem is that I remove only LineCollections, but when using algorithm I use
+        # self.state.set_hull_to_undraw(cluster_name)
+        # self.state.set_hull_to_change(new_cluster_name, self.state.get_cluster(new_cluster_name))
+        # which presumably smites the original hulls from existance, after which HullArtist.hull doesnt work
+
+        # what I would want is to be able to remove all hull artist when reseting and recalulate them again
+        # unless it takes too much time ofc
 
     def remove_point(self):
         if self.picked_item:
@@ -117,15 +140,19 @@ class ClusterMainView(View):
             self.hulls_off = False
             HullArtist.remove_hulls(self.vm.ax)
             self.state.update_hulls()
+            self.vm.list_manager.show_button()
 
+            self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys())))
             selected_hulls = self.vm.list_manager.get_only_active()
             for hull_name in self.state.data['hulls_data']['hulls'].keys():
                 artist: HullArtist = HullArtist.hull(self.vm.ax, hull_name)
                 if artist.id not in selected_hulls:
                     artist.hide()
+
         else:
             self.hulls_off = True
             HullArtist.hide_hulls(self.vm.ax)
+            self.vm.list_manager.hide_button()
         plt.draw()
         self.vm.list_manager.clusters_view_hull_off = self.hulls_off
 
@@ -156,7 +183,7 @@ class ClusteringSubViewBase(View):
     @abstractmethod
     def count_clustering(self, points_xy):
         """Return the fit results of a clustering algorithm"""
-        pass
+        NotImplementedError()
 
     def draw(self, *args, **kwargs) -> None:
         super().draw()
@@ -315,7 +342,7 @@ class AgglomerativeView(ClusteringSubViewBase):
         self.widget_linkage = self.vem.add(
             ViewRadioButtons(
                 self,
-                [0.4, 0.15, 0.1, 0.1],
+                [0.4, 0.12, 0.1, 0.16],
                 ["ward", "complete", "average", "single"],
                 self.update_plot,
                 3
