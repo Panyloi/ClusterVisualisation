@@ -456,7 +456,7 @@ class HullArtist(StateLinker):
 
         self.id = sid
         self.ax = ax
-        self.line_collection = None
+        self.line_collection: None | LineCollection = None
         if polygon is None:
             self.polygon_cords = self.state.get_hull_polygon_cords(self.id)
         else:
@@ -478,12 +478,14 @@ class HullArtist(StateLinker):
         return self.id
 
     def remove(self) -> None:
-
-        for i in self.ax.collections:
-            print(i)
         if self.line_collection in self.ax.collections:
             self.line_collection.remove()
 
+    def hide(self) -> None:
+        self.line_collection.set_visible(False)
+
+    def show(self) -> None:
+        self.line_collection.set_visible(True)
 
     @staticmethod
     def hide_hulls(ax: Axes) -> None:
@@ -498,22 +500,29 @@ class HullArtist(StateLinker):
                 child.set_visible(True)
 
     @staticmethod
-    def hull(ax: Axes, sid: str, hull_view: bool = False, **kwargs) -> 'HullArtist':
-        h = HullArtist(ax, sid, hull_view=hull_view)
+    def remove_hulls(ax: Axes) -> None:
+        for child in ax.get_children():
+            if type(child) is LineCollection:
+                child.remove()
 
-        if not hull_view:
-            h.line_collection = LineCollection(segments=h.polygon_lines, colors='black', picker=True)
-            HullArtist.state.save_hulls_artist(sid, h)
-            ax.add_collection(h.line_collection)
-    
     @staticmethod
-    def get_by_id(ax: Axes, sid: str) -> 'None | HullArtist':
-        children = ax.get_children()
-        for child in children:
-            if isinstance(child, LineCollection):
-                hull_line_collection = HullArtist.state.get_hulls_artist(sid)
-                if child == hull_line_collection.line_collection:
-                    return hull_line_collection
+    def hull(ax: Axes, sid: str, hull_view: bool = False, **kwargs) -> 'HullArtist':
+        hull = HullArtist(ax, sid, hull_view=hull_view)
+        if not hull_view:
+            hull.line_collection = LineCollection(segments=hull.polygon_lines, colors='black', picker=True)
+            HullArtist.state.save_hulls_artist(sid, hull)
+            ax.add_collection(hull.line_collection)
+        return hull
+
+    @staticmethod
+    def get_artist_by_id(sid: str) -> 'None | HullArtist':
+        return HullArtist.state.get_hulls_artist(sid)
+
+    @staticmethod
+    def get_line_by_id(sid: str) -> 'None | LineCollection':
+        artist = HullArtist.get_artist_by_id(sid)
+        if artist:
+            return artist.line_collection
         return None
     
     @staticmethod

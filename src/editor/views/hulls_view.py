@@ -274,7 +274,7 @@ class HullView(View):
                            + [((polygon_lines[-1][1]), (line_second_part_hull_points[0][0]))]
                            + line_second_part_hull_points)
 
-        hull_artist = HullArtist.get_by_id(self.vm.ax, hull_name)
+        hull_artist = HullArtist.get_line_by_id(hull_name)
         hull_artist.remove()
 
         self.state.remove_hole_in_hulls(hull_name, hole_cord)
@@ -377,7 +377,7 @@ class HullView(View):
             final_cords = cords[end_index + 1: start_index]
             final_lines = lines[line_end_index + 1: line_start_index]
 
-        hull_artist = HullArtist.get_by_id(self.vm.ax, hull_name)
+        hull_artist = HullArtist.get_line_by_id(hull_name)
         hull_artist.remove()
 
         self.state.set_hull_interpolated_cords(hull_name, final_cords)

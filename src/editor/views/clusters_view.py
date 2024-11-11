@@ -39,6 +39,7 @@ class ClusterMainView(View):
         # clear ax by hiding elements
         self.state.hide_labels_and_hulls(self.vm.ax)
         self.hulls_off = True
+        self.vm.list_manager.clusters_view_hull_off = True
 
         # make points more transparent
         for artist in self.state.data['clusters_data']['artists']:
@@ -63,6 +64,7 @@ class ClusterMainView(View):
             artist.set_alpha(1)
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
+        self.vm.list_manager.clusters_view_hull_off = False
 
     def reset_clusters(self):
         self.state.reset_clusters()
@@ -111,21 +113,21 @@ class ClusterMainView(View):
         plt.draw()
 
     def draw_hull(self):
-        # pretty sure hulls don't get removed properly
-        # todo after merge with hulls make sure we don't have old hulls stay in memory
         if self.hulls_off:
             self.hulls_off = False
-            for child in self.vm.ax.get_children():
-                if type(child) is LineCollection:
-                    child.remove()
+            HullArtist.remove_hulls(self.vm.ax)
             self.state.update_hulls()
 
+            selected_hulls = self.vm.list_manager.get_only_active()
             for hull_name in self.state.data['hulls_data']['hulls'].keys():
-                HullArtist.hull(self.vm.ax, hull_name)
+                artist: HullArtist = HullArtist.hull(self.vm.ax, hull_name)
+                if artist.id not in selected_hulls:
+                    artist.hide()
         else:
             self.hulls_off = True
             HullArtist.hide_hulls(self.vm.ax)
         plt.draw()
+        self.vm.list_manager.clusters_view_hull_off = self.hulls_off
 
 
 class ClusteringSubViewBase(View):

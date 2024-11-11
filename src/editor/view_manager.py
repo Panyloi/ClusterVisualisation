@@ -832,7 +832,7 @@ class ViewText(ViewElement):
         self.text_ref = Text(x, y, label)
         ax.add_artist(self.text_ref)
 
-    def remove(self):
+    def remove(self) -> None:
         super().remove()
         self.text_ref.remove()
 
@@ -858,7 +858,7 @@ class ViewRadioButtons(ViewElement):
         self.ref = RadioButtons(self.ax, labels=labels, active=active)
         self.ref.on_clicked(callback)
 
-    def remove(self):
+    def remove(self) -> None:
         super().remove()
         self.ref.disconnect_events()
         self.pv.vm.fig.delaxes(self.ax)
@@ -887,7 +887,7 @@ class ViewSlider(ViewElement):
         self.ref = Slider(ax=self.ax, label=label, valmin=valmin, valmax=valmax, valinit=2, initcolor=None)
         self.ref.on_changed(callback)
 
-    def remove(self):
+    def remove(self) -> None:
         super().remove()
         self.ref.disconnect_events()
         self.pv.vm.fig.delaxes(self.ax)
@@ -908,22 +908,35 @@ class ViewSlider(ViewElement):
 
 class CheckList(ViewElement):
     def __init__(self, vm, axes: list[float],
-                 labels: list[str], callback: Callable) -> None:
+                 labels: list[str]) -> None:
         super().__init__()
         self.ax = vm.fig.add_axes(axes, frameon=False)
         self.ref = CheckButtons(self.ax, labels)
-        self.callback = callback
-        self.ref.on_clicked(self.callback)
+        self.callback = None
         self.len = len(labels)
         self.check_all()
         self.shown = False
 
-    def check_all(self):
+    def set_callback(self, callback: Callable) -> None:
+        self.callback = callback
+        self.ref.on_clicked(callback)
+
+    def get_active_by_id(self, index: int) -> bool:
+        return self.ref.get_status()[index]
+
+    def get_active_by_name(self, name: str) -> bool:
+        return self.get_actives()[name]
+
+    def check_all(self) -> None:
         for i in range(self.len):
             self.ref.set_active(i)
 
+    def get_actives(self) -> dict[str: bool]:
+        labels = [label.get_text() for label in self.ref.labels]
+        return dict(zip(labels, self.ref.get_status()))
+
     def update(self, labels: list[str]) -> None:
-        label_to_actives = dict(zip(self.ref.labels, self.ref.get_status()))
+        label_to_actives = self.get_actives()
         new_actives = [label_to_actives[label] if label in label_to_actives.keys() else True for label in labels]
         self.remove()
         super().__init__() # added for logs
@@ -931,7 +944,7 @@ class CheckList(ViewElement):
         self.ref.on_clicked(self.callback)
         plt.draw() #not sure if draw should be called automatically or not
 
-    def remove(self):
+    def remove(self) -> None:
         super().remove()
         self.ref.disconnect_events()
         self.ax.clear() # keeps axes for reuse
@@ -955,17 +968,19 @@ class CheckList(ViewElement):
         self.shown = True
         plt.draw()
 
-    def toggle(self):
+    def toggle(self) -> None:
         if self.shown:
             self.hide()
         else:
             self.show()
 
 class CheckListManager(StateLinker):
-    def __init__(self, vm: ViewManager):
-        self.check_list = CheckList(
-            vm, [0.01, 0.14, 0.1, 0.78], sorted(list(self.state.get_all_clusters().keys())), lambda x: print(x)
-        )
+    def __init__(self, vm: ViewManager) -> None:
+        self.vm = vm
+        self.clusters_view_hull_off = False # a silly way to work with clusters toggle
+
+        self.check_list = CheckList(vm, [0.01, 0.14, 0.1, 0.78], sorted(list(self.state.get_all_clusters().keys())))
+        self.check_list.set_callback(self.show_hull)
         self.check_list.hide()
 
         self.button_ax = vm.fig.add_axes([0.832, 0.85, 0.15, 0.075], frameon=False)
@@ -975,12 +990,24 @@ class CheckListManager(StateLinker):
         # self.test_button = Button(vm.fig.add_axes([0.6, 0.05, 0.1, 0.075], frameon=False), "Test")
         # self.test_button.on_clicked(lambda x: self.check_list.update(["x", "y"]))
 
-    def hide_button(self):
+    def hide_button(self) -> None:
         self.button.active = False
         self.button_ax.set_visible(False)
         self.check_list.hide()
 
-    def show_button(self):
+    def show_button(self) -> None:
         self.button.active = True
         self.button_ax.set_visible(True)
         self.check_list.hide()
+
+    def show_hull(self, name: str) -> None:
+        artist = HullArtist.get_artist_by_id(name)
+        if artist and self.check_list.get_active_by_name(name) and not self.clusters_view_hull_off:
+            artist.show()
+        else:
+            artist.hide()
+        plt.draw()
+
+
+    def get_only_active(self) -> list[str]:
+        return [name for name, val in self.check_list.get_actives().items() if val]
