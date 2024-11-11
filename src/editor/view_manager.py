@@ -6,7 +6,7 @@ from typing import Callable
 from matplotlib.figure import Figure
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.axes._axes import Axes
-from matplotlib.widgets import RadioButtons, Slider, Button, TextBox
+from matplotlib.widgets import RadioButtons, Slider, Button, TextBox, CheckButtons
 
 from .artists import *
 
@@ -38,7 +38,8 @@ class ViewManager:
         self.fig = fig
         self.ax  = ax
         self.views: list[View] = []
-    
+        self.list_manager = CheckListManager(self)
+
     def register_views(self, views: list['View']) -> None:
         """
         Registers views with the manager.
@@ -99,12 +100,16 @@ class ViewElementManager:
         self.elements.append(el)
         return el
 
+    def remove(self, el: 'ViewElement') -> None:
+        el.remove()
+        self.elements.remove(el)
+
     def refresh_connect(self, fig: Figure) -> None:
         fig.canvas.mpl_connect('refresh_event', self.refresh)
 
     def refresh(self, *args, **kwargs) -> None:
         """
-        Refreshes all view elements.
+        Refreshes all view elements. Only needed for TextBox elements.
         """
         for view_element in self.elements:
             view_element.refresh()
@@ -820,6 +825,29 @@ class LimitedTextBox(ViewTextBox):
         return line
 
 
+class ViewText(ViewElement):
+
+    def __init__(self, ax: Axes, x: float, y: float, label: str) -> None:
+        super().__init__()
+        self.text_ref = Text(x, y, label)
+        ax.add_artist(self.text_ref)
+
+    def remove(self):
+        super().remove()
+        self.text_ref.remove()
+
+    def refresh(self) -> None:
+        return super().refresh()
+
+    def hide(self) -> None:
+        super().hide()
+        self.text_ref.set_visible(False)
+
+    def show(self) -> None:
+        super().show()
+        self.text_ref.set_visible(True)
+
+
 class ViewRadioButtons(ViewElement):
 
     def __init__(self, parent_view: View, axes: list[float],
@@ -876,3 +904,83 @@ class ViewSlider(ViewElement):
         super().show()
         self.ref.active = True
         self.ax.set_visible(True)
+
+
+class CheckList(ViewElement):
+    def __init__(self, vm, axes: list[float],
+                 labels: list[str], callback: Callable) -> None:
+        super().__init__()
+        self.ax = vm.fig.add_axes(axes, frameon=False)
+        self.ref = CheckButtons(self.ax, labels)
+        self.callback = callback
+        self.ref.on_clicked(self.callback)
+        self.len = len(labels)
+        self.check_all()
+        self.shown = False
+
+    def check_all(self):
+        for i in range(self.len):
+            self.ref.set_active(i)
+
+    def update(self, labels: list[str]) -> None:
+        label_to_actives = dict(zip(self.ref.labels, self.ref.get_status()))
+        new_actives = [label_to_actives[label] if label in label_to_actives.keys() else True for label in labels]
+        self.remove()
+        super().__init__() # added for logs
+        self.ref = CheckButtons(self.ax, labels, new_actives)
+        self.ref.on_clicked(self.callback)
+        plt.draw() #not sure if draw should be called automatically or not
+
+    def remove(self):
+        super().remove()
+        self.ref.disconnect_events()
+        self.ax.clear() # keeps axes for reuse
+
+    def refresh(self) -> None:
+        return super().refresh()
+
+    def hide(self) -> None:
+        super().hide()
+        plt.subplots_adjust(bottom=0.15, left=0.01, right=0.99, top=0.935)
+        self.ref.active = False
+        self.ax.set_visible(False)
+        self.shown = False
+        plt.draw()
+
+    def show(self) -> None:
+        super().show()
+        plt.subplots_adjust(bottom=0.15, left=0.25, right=0.99, top=0.935)
+        self.ref.active = True
+        self.ax.set_visible(True)
+        self.shown = True
+        plt.draw()
+
+    def toggle(self):
+        if self.shown:
+            self.hide()
+        else:
+            self.show()
+
+class CheckListManager(StateLinker):
+    def __init__(self, vm: ViewManager):
+        self.check_list = CheckList(
+            vm, [0.01, 0.14, 0.1, 0.78], sorted(list(self.state.get_all_clusters().keys())), lambda x: print(x)
+        )
+        self.check_list.hide()
+
+        self.button_ax = vm.fig.add_axes([0.832, 0.85, 0.15, 0.075], frameon=False)
+        self.button = Button(self.button_ax, "Toggle list")
+        self.button.on_clicked(lambda x: self.check_list.toggle())
+
+        # self.test_button = Button(vm.fig.add_axes([0.6, 0.05, 0.1, 0.075], frameon=False), "Test")
+        # self.test_button.on_clicked(lambda x: self.check_list.update(["x", "y"]))
+
+    def hide_button(self):
+        self.button.active = False
+        self.button_ax.set_visible(False)
+        self.check_list.hide()
+
+    def show_button(self):
+        self.button.active = True
+        self.button_ax.set_visible(True)
+        self.check_list.hide()

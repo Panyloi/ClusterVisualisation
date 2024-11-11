@@ -13,8 +13,8 @@ from mapel.core.objects.Experiment import Experiment
 from .generator.data_processing import parse_data, normalize, get_all_points
 from .generator.data_processing import editor_format, get_df_from_data, initialize_colors
 from .editor.view_manager import State, StateLinker
-from .editor.views import parse_solution_to_editor, Editor
-from .generator.labels_generator import calc
+from .editor.view_editor import Editor
+from .generator.labels_generator import calc, parse_solution_to_editor
 from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull, set_hull_parameters
 
 # disabling excessive Pillow logging

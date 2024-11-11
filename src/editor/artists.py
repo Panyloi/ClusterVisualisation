@@ -361,15 +361,15 @@ class LabelArtist(Text, StateLinker):
 
 class HullLineArtist(Line2D, StateLinker):
     """
-    Class wrapper for Line2D to implement additional getters, 
+    Class wrapper for Line2D to implement additional getters,
     setters and linking with HullArtist.
     """
 
-    def __init__(self, ax: Axes, sid: int, x1: float, y1: float, 
-                 x2: float, y2: float, 
+    def __init__(self, ax: Axes, sid: int, x1: float, y1: float,
+                 x2: float, y2: float,
                  parent_hull: 'HullArtist', val: str, **kwargs) -> None:
         """init
-        
+
         Parameters
         ----------
         ax: Axes
@@ -386,7 +386,7 @@ class HullLineArtist(Line2D, StateLinker):
             The anotation string
 
         """
-        
+
         # custom init
         self.ax            = ax
         self.id            = sid
@@ -399,125 +399,25 @@ class HullLineArtist(Line2D, StateLinker):
 
         s = self.state.get_hull_line_size()
 
-        super().__init__([x1, x2], [y1, y2], picker=True, 
+        super().__init__([x1, x2], [y1, y2], picker=True,
                          pickradius=5, zorder=70, color='black', linewidth=s, **kwargs)
-        
-    def set(self, *, x1: float | None = None, y1: float | None = None, 
-                 x2: float | None = None, y2: float | None = None,
-                 val: str | None = None):
-        """
-        Setter for all ArrowArtist attributes.
 
-        Parameters
-        ----------
-        x1, y1: float
-            ...
-        x2, y2: float
-            ...
-        val: str
-            The annotation string
-
-        """
-
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.val = val if val is not None else self.val
-
-        self._update_state()
-
-        return super().set(xdata=[self.x1, self.x2], ydata=[self.y1, self.y2])
-    
-    def set_sh_by_raw(self, rx: float, ry: float) -> None:
-        """set attachment shift by raw point on chart
-
-        Parameters
-        ----------
-        rx, ry: float
-            Coordinates of the chart point
-            
-        Notes
-        -----
-        This operation also snaps the shift to the closest outline of the label.
-        
-        """
-        
-        rbbx = self.parent_label.get_window_extent()
-        bbx = self.ax.transData.inverted().transform(rbbx)
-        x, y = rx, ry
-        if y < bbx[0][1]:
-            y = bbx[0][1]
-        if y > bbx[1][1]:
-            y = bbx[1][1]
-        if x < bbx[0][0]:
-            x = bbx[0][0]
-        if x > bbx[1][0]:
-            x = bbx[1][0]
-        
-        self.set(shx=x-self.x, shy=y-self.y)
-        
-    def get_shs(self) -> tuple[float, float]:
-        """shift point values getter"""
-        return self.shx, self.shy
-    
-    def get_rfs(self) -> tuple[float, float]:
-        """reference point values getter"""
-        return self.rfx, self.rfy
-    
-    def _update_state(self) -> None:
-        """update all arrow attributes to global state"""
-
-        self.state.set_hull_line_pos(self.parent_hull.id, self.id, 
-                                     self.x1, self.y1, self.x2, self.y2)
-        self.state.set_hull_line_val(self.parent_hull.id, self.id, self.val)
-
-    def _update_size(self, size: float) -> None:
-        """update arrow size"""
-        self.set_linewidth(size)
-        
     def remove(self) -> None:
         """remove line from chart and parent hull dict"""
         super().remove()
-        
+
         # delete hull line from parent hull
         self.parent_hull.lines.pop(self.id)
 
         # delete hull line from state
         self.state.delete_hull_line(self.parent_hull.id, self.id)
-        
+
     @staticmethod
     def hull_line(ax: Axes, *args, **kwargs) -> 'HullLineArtist':
-        """arrow creator
-        
-        Parameters
-        ----------
-
-        ax: Axes
-            Main chart ax
-        *args:
-            args passed to ArrowArtist __init__
-        **kwargs:
-            kwargs passed to ArrowArtist __init__
-
-        Return
-        ------
-        ArrowArtist:
-            The created arrow
-            
-        """
         la = HullLineArtist(ax, *args, **kwargs)
         ax.add_line(la)
         return la
-    
-    @staticmethod
-    def update_all_arrows_size(ax: Axes, size: float) -> None:
-        """update all arrows"""
-        for child in ax.get_children():
-            if isinstance(child, HullLineArtist):
-                child._update_size(size)
-        HullLineArtist.state.set_hull_line_size(size)
-    
+
     @staticmethod
     def get_by_id(ax: Axes, sid: int) -> 'None | HullLineArtist':
         """hull line getter by state id"""
@@ -527,9 +427,9 @@ class HullLineArtist(Line2D, StateLinker):
                 if child.id == sid:
                     return child
         return None
-    
+
     @staticmethod
-    def get_all_arrows(ax: Axes):
+    def get_all_hull_lines(ax: Axes):
         """hull line getter by state id"""
         children = ax.get_children()
         for child in children:
@@ -562,8 +462,6 @@ class HullArtist(StateLinker):
         else:
             self.polygon_cords = polygon
         self.polygon_lines = self.state.get_hull_lines_cords(self.id)
-
-
 
         # hull line artists
         if hull_view:
@@ -604,7 +502,7 @@ class HullArtist(StateLinker):
         h = HullArtist(ax, sid, hull_view=hull_view)
 
         if not hull_view:
-            h.line_collection = LineCollection(segments=h.polygon_lines, colors='black')
+            h.line_collection = LineCollection(segments=h.polygon_lines, colors='black', picker=True)
             HullArtist.state.save_hulls_artist(sid, h)
             ax.add_collection(h.line_collection)
     
@@ -613,7 +511,6 @@ class HullArtist(StateLinker):
         children = ax.get_children()
         for child in children:
             if isinstance(child, LineCollection):
-                # print(child)
                 hull_line_collection = HullArtist.state.get_hulls_artist(sid)
                 if child == hull_line_collection.line_collection:
                     return hull_line_collection
@@ -694,8 +591,8 @@ State.show_labels_and_hulls = show_labels_and_hulls
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
-    # clear ax
-    ax.clear()
+    # ax.clear() #maybe not needed, it removes info text
+
     # draw points
     self.data['clusters_data']['artists'] = []
     for point_id in self.data['clusters_data']['points'].index:
