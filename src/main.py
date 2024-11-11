@@ -147,7 +147,14 @@ def draw_maps(raw_data: Union[str, Experiment],
     # hulls generator
     state_dict['hulls_data']['render_name'] = 1
     state_dict["hulls_data"]["view_state"] = True
-    set_hull_parameters(state_dict, 0.1, 20, 20)
+    
+    set_hull_parameters(state=state_dict, 
+                        circle_radious=0.1,
+                        points_in_circle=20,
+                        segment_length=10,
+                        domain_expansion=1.5,
+                        closest_points_radius=2)
+    
     hulls = calc_hull(normalized_data, 0.1, 20, 20)
     state_dict = parse_solution_to_editor_hull(hulls, state_dict)
     state_dict["hulls_data"]['line_size'] = 1.0

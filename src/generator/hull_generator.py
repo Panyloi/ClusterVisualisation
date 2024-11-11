@@ -344,8 +344,6 @@ def greedy_selecting_1(points):
         current_point = last_point
 
         # if second_point in first_points_set:
-        if i_array >= num_of_sets + 2:
-            break
 
         if current_point in current_points_array:
             straight_points += 1
@@ -372,6 +370,8 @@ def greedy_selecting_1(points):
             second_next_points_array = points[i_array % len(points)]
 
         outline_points.append(current_point)
+        if i_array >= num_of_sets + 3:
+            break
 
     return outline_points
 
@@ -535,11 +535,16 @@ def join_closest_points_copy(points, circle_points_to_main, main_points_to_circl
 
             idxes = concave_hull_indexes(
                     points_transform,
-                    concavity=float("inf"),
+                    concavity=1000,
                     length_threshold=0,
                 )
             
             _idx_points = [points_transform[idxes[j]] for j in range(len(idxes))]
+            # _idx_points = make_dense_points(
+            #     _idx_points,
+            #     segment_length=segment_length,
+            # )
+
             new_points.append(_idx_points)
     
     return new_points
@@ -597,6 +602,7 @@ def calc_hull(
         )
 
         to_jarvis = join_closest_points(to_jarvis, circuit_points, main_points_of_circuit, 1, 0.1)
+        hulls[i]["gathering_radius"] = 1
 
         selected_points = greedy_selecting_1(to_jarvis)
 
@@ -631,16 +637,25 @@ def calc_hull(
 
 
 def set_hull_parameters(
-    state, circle_radious: float, points_in_circle: int, segment_length: int
+    state, circle_radious: float, points_in_circle: int, segment_length: float, domain_expansion: float, closest_points_radius: float
 ):
     state["hulls_data"]["parameters"] = {
         "circle_radious": circle_radious,
         "points_in_circle": points_in_circle,
         "segment_length": segment_length,
+        "domain_expansion": domain_expansion,
+        "closest_points_radius": closest_points_radius,
     }
 
 
-def calc_one_hull(hull_name, points, state):
+def calc_one_hull(hull_name, 
+                  points, 
+                  state, 
+                  circle_radious = None, 
+                  points_in_circle = None,
+                  segment_length = None,
+                  radius_domain_expansion = None,
+                  closest_points_radius = None):
     hulls = {}
 
     hulls[hull_name] = {}
@@ -650,7 +665,7 @@ def calc_one_hull(hull_name, points, state):
     # x = np.repeat(x, 2)
     # y = np.repeat(y, 2)
     hulls[hull_name]["cluster_points"] = {"x": x, "y": y}
-    print(f"HULL NAME {hull_name}")
+    # print(f"HULL NAME {hull_name}")
     points_transform = np.hstack(
         (
             x.reshape(-1, 1),
@@ -669,26 +684,37 @@ def calc_one_hull(hull_name, points, state):
     _idx_points = [points_transform[idxes[i]] for i in range(len(idxes))]
     _idx_points = sort_elements_in_concave_hull(_idx_points)
 
+    _num_of_points = state["hulls_data"]["parameters"]["points_in_circle"] if points_in_circle is None else points_in_circle
+    _circle_radious = state["hulls_data"]["parameters"]["circle_radious"] if circle_radious is None else circle_radious 
+
     points_transform, to_jarvis, circuit_points, main_points_of_circuit = convert_points(
         _idx_points,
-        state["hulls_data"]["parameters"]["circle_radious"],
-        num_of_points=state["hulls_data"]["parameters"]["points_in_circle"],
+        _circle_radious,
+        num_of_points=_num_of_points,
     )
 
-    to_jarvis = join_closest_points_copy(to_jarvis, circuit_points, main_points_of_circuit, 1, 0.1)
+
+    _closest_points_radius = state["hulls_data"]["parameters"]["closest_points_radius"] if closest_points_radius is None else closest_points_radius
+    to_jarvis = join_closest_points_copy(to_jarvis, circuit_points, main_points_of_circuit, _closest_points_radius, 0.1)
 
 
-    to_jarvis = handle_corners_points(to_jarvis, circuit_points,state["hulls_data"]["parameters"]["points_in_circle"])
+    hulls[hull_name]["gathering_radius"] = _closest_points_radius
+
+    # to_jarvis = handle_corners_points(to_jarvis, circuit_points,state["hulls_data"]["parameters"]["points_in_circle"])
 
     selected_points = greedy_selecting_1(to_jarvis)
 
+    _radius_domain_expansion = state["hulls_data"]["parameters"]["domain_expansion"] if radius_domain_expansion is None else radius_domain_expansion
+
     _idx_points = domain_expansion(
-            selected_points, circuit_points, drawing_point_radius=1.5, multiplier=1
+            selected_points, circuit_points, drawing_point_radius=_radius_domain_expansion, multiplier=1
         )
+
+    _segment_length = state["hulls_data"]["parameters"]["segment_length"] if segment_length is None else segment_length
 
     _idx_points = make_dense_points(
         _idx_points,
-        segment_length=state["hulls_data"]["parameters"]["segment_length"],
+        segment_length=_segment_length,
     )
 
     hulls[hull_name]["polygon_points"] = _idx_points
@@ -729,6 +755,7 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
             "cluster_points": hulls[i]["cluster_points"],
             "interpolate_points": hulls[i]["interpolate_points"],
             "hole_in_hulls": [],
+            "gathering_radius": hulls[i]["gathering_radius"],
             "artist": None
         }
         state["hulls_data"]["change"] = {}
@@ -744,6 +771,5 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
         #         'y2': line[1][1],
         #         'val': hulls[i]["name"]
         #     }
-
 
     return state
