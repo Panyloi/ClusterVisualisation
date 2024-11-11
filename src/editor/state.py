@@ -114,6 +114,9 @@ class State:
     def show_labels_and_hulls(self, ax: Axes):
         raise NotImplementedError
 
+    def show_labels(self, ax: Axes):
+        raise NotImplementedError
+
     # ---------------------------------- GETTERS --------------------------------- #
 
     @KeyErrorWrap("")
@@ -282,12 +285,11 @@ class State:
 
     def hull_remove_point(self, point_id) -> None:
         df = self.data['clusters_data']['points']
-        df = df.drop(point_id)
+        self.data['clusters_data']['points'] = df.drop(point_id)
 
         df_1 = self.data['clusters_data']['colors']
         if 'mine' in df_1.keys():
             del df_1['mine']
-        # df_1 = df_1.drop('mine')
 
     def set_hull_polygon_cords(self, hull_name: str, new_cords) -> None:
         self.data['hulls_data']['hulls'][hull_name]['cords'] = new_cords
