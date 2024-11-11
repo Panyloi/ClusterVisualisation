@@ -40,6 +40,7 @@ class HullView(View):
 
         self.state.hide_labels_and_hulls(self.vm.ax)
         HullArtist.show_hulls(self.vm.ax)
+        # self.state.show_labels(self.vm.ax)
         self.confirm_button.hide()
         self.cancel_button.hide()
 
@@ -49,6 +50,7 @@ class HullView(View):
 
         # remove current hulls
         for child in self.vm.ax.get_children():
+            print(child)
             if type(child) is LineCollection:
                 child.remove()
 
@@ -59,7 +61,7 @@ class HullView(View):
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_press_event', self.press_event))
-
+        self.vem.refresh()
         plt.draw()
 
     def switch_mode(self, mode_name):
@@ -117,7 +119,7 @@ class HullView(View):
             )
         elif self.mode == "remove":
             print("removing mode")
-            if self.remove_line_state <= 2:
+            if self.remove_line_state < 2:
                 self.remove_line_state += 1
 
                 self.points_to_add.append((event.xdata, event.ydata))
@@ -125,10 +127,7 @@ class HullView(View):
                 self.pointer_points.append(
                     PointArtist.point(self.vm.ax, -len(self.points_to_add), facecolor="red", edgecolor="red")
                 )
-            elif self.remove_line_state == 3:
-                self.remove_line_state = 0
-                self.is_adding_points = False
-                self.remove_line_from_hull()
+                
         elif self.mode == "main":
             return
 
@@ -138,11 +137,13 @@ class HullView(View):
         if self.mode == "add":
             self.calculate_new_hull()
             plt.draw()
-        elif self.mode == "remove":
-            self.remove_line_state = 1
+        elif self.mode == "remove" and self.remove_line_state == 2:
+            self.remove_line_state = 0
+            self.remove_line_from_hull()
+            plt.draw()
         self.switch_mode("main") # todo kinda stupid fix, gotta add a separate return button
 
-    def search_for_hull_name_in_hole(self, point: tuple[float, float], _hull_name: str = "") -> (str, tuple[float, float]):
+    def search_for_hull_name_in_hole(self, point: tuple[float, float], _hull_name: str = "") -> tuple[str, tuple[float, float]]:
         hulls_name = self.state.get_all_hulls_name()
         best_dist = float("inf")
         best_hull_name = ""
@@ -166,7 +167,7 @@ class HullView(View):
 
         return best_hull_name, best_cord
 
-    def find_closest_edge_point_in_hull(self, hull_name: str, point: tuple[float, float]) -> (tuple[float, float], int):
+    def find_closest_edge_point_in_hull(self, hull_name: str, point: tuple[float, float]) -> tuple[tuple[float, float], int]:
         hull_cords = self.state.get_hull_interpolated_cords(hull_name)
         best_cords = (0, 0)
         best_dist = float("inf")
@@ -219,7 +220,7 @@ class HullView(View):
 
             for i, pointer_point in enumerate(self.pointer_points):
                 pointer_point.remove()
-                self.state.hull_remove_point(i * (-1))
+                self.state.hull_remove_point((i + 1) * (-1))
 
             self.pointer_points = []
 
@@ -286,7 +287,7 @@ class HullView(View):
 
         for i, pointer_point in enumerate(self.pointer_points):
             pointer_point.remove()
-            self.state.hull_remove_point(i * (-1))
+            self.state.hull_remove_point((i + 1) * (-1))
 
         self.pointer_points = []
 
@@ -328,7 +329,7 @@ class HullView(View):
 
         for i, pointer_point in enumerate(self.pointer_points):
             pointer_point.remove()
-            self.state.hull_remove_point(i * (-1))
+            self.state.hull_remove_point((i + 1) * (-1))
 
         self.pointer_points = []
 
@@ -338,6 +339,7 @@ class HullView(View):
         if hull_name_1 == hull_name_2:
             self.exec_remove_line_from_hull(hull_name_1, cord_1, cord_2)
 
+        self.vem.refresh()
         plt.draw()
 
     def exec_remove_line_from_hull(self, hull_name, point1, point2):
@@ -384,6 +386,7 @@ class HullView(View):
         self.state.set_hull_lines_cords(hull_name, final_lines)
 
         HullArtist.hull(self.vm.ax, hull_name)
+        self.vem.refresh()
         plt.draw()
 
     def hide(self) -> None:

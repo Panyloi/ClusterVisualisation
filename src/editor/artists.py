@@ -597,6 +597,15 @@ def show_labels_and_hulls(self, ax: Axes):
 
 State.show_labels_and_hulls = show_labels_and_hulls
 
+
+def show_labels(self, ax: Axes):
+    for arrow in ArrowArtist.get_all_arrows(ax):
+        arrow.show()
+    for label in LabelArtist.get_all_labels(ax):
+        label.show()
+
+State.show_labels = show_labels
+
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
 def draw(self, ax: Axes) -> None:
