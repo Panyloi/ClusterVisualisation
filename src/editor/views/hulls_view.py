@@ -41,6 +41,7 @@ class HullView(View):
         self.state.hide_labels_and_hulls(self.vm.ax)
         HullArtist.show_hulls(self.vm.ax)
         self.confirm_button.hide()
+        self.cancel_button.hide()
 
         df = self.state.get_all_points()
         self.vm.ax.set_xlim(df['x'].min() - 10, df['x'].max() + 10)
@@ -62,14 +63,14 @@ class HullView(View):
         plt.draw()
 
     def switch_mode(self, mode_name):
-        """ Switch mode -> toggle buttons, change reset with cancel and vice versa"""
+        """ Switch mode -> toggle buttons"""
         self.mode = mode_name
         if self.mode == 'main':
             self.add_line_button.show()
             self.remove_line_button.show()
             self.reset_button.show()
             self.confirm_button.hide()
-            self.confirm_button.hide()
+            self.cancel_button.hide()
         else:
             self.add_line_button.hide()
             self.remove_line_button.hide()
@@ -139,6 +140,7 @@ class HullView(View):
             plt.draw()
         elif self.mode == "remove":
             self.remove_line_state = 1
+        self.switch_mode("main") # todo kinda stupid fix, gotta add a separate return button
 
     def search_for_hull_name_in_hole(self, point: tuple[float, float], _hull_name: str = "") -> (str, tuple[float, float]):
         hulls_name = self.state.get_all_hulls_name()

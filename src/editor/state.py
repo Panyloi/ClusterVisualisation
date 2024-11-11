@@ -165,7 +165,7 @@ class State:
     def get_hulls_view_state(self) -> bool:
         return self.data['hulls_data']['view_state']
 
-    def get_hull_line_points(self, hull_name: str, hull_line_id: int) -> tuple[Any, Any, Any, Any]:
+    def get_hull_line_points(self, hull_name: str, hull_line_id: int):
         return self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x1'],\
                self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['y1'],\
                self.data['hulls_data'][hull_name]['hull_line'][hull_line_id]['x2'],\
