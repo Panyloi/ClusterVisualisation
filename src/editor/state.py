@@ -203,11 +203,40 @@ class State:
                 'cluster_points': new_hull[hull_name]['cluster_points'],
                 "interpolate_points": new_hull[hull_name]["interpolate_points"],
                 "hole_in_hulls": [],
+                "gathering_radius": new_hull[hull_name]["gathering_radius"],
                 "artist": None
             }
 
         self.data['hulls_data']['undraw'] = set()
         self.data['hulls_data']['change'] = {}
+
+    def calc_and_add_one_hull(self,
+                              hull_name,
+                              points,
+                              circle_radious = None, 
+                              points_in_circle = None,
+                              segment_length = None,
+                              radius_domain_expansion = None,
+                              closest_points_radius = None):
+        
+        new_hull = calc_one_hull(hull_name=hull_name, 
+                                 points=points, 
+                                 state=self.data, 
+                                 circle_radious=circle_radious,
+                                 points_in_circle=points_in_circle,
+                                 segment_length=segment_length,
+                                 radius_domain_expansion=radius_domain_expansion,
+                                 closest_points_radius=closest_points_radius)
+        
+        self.data['hulls_data']['hulls'][hull_name] = {
+                'cords': new_hull[hull_name]['polygon_points'],
+                'line_cords': new_hull[hull_name]['polygon_lines'],
+                'cluster_points': new_hull[hull_name]['cluster_points'],
+                "interpolate_points": new_hull[hull_name]["interpolate_points"],
+                "hole_in_hulls": [],
+                "gathering_radius": new_hull[hull_name]["gathering_radius"],
+                "artist": None
+            }
 
     def redefine_hull(self, hull_name: str):
 
@@ -249,6 +278,9 @@ class State:
 
     def get_hulls_render_name(self) -> None:
         return self.data['hulls_data']['render_name'] + 1
+    
+    def get_hulls_closest_radius_param(self, hull_name):
+        return self.data['hulls_data']['hulls'][hull_name]['gathering_radius']
 
     # ------------------------------- HULLS SETTERS ------------------------------ #
 
@@ -308,6 +340,9 @@ class State:
 
     def remove_hole_in_hulls(self, hull_name: str, points: tuple[tuple[float, float], tuple[float, float]]) -> None:
         self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls'].remove(points)
+
+    def set_hulls_closest_radius_param(self, hull_name, new_gathering_radius):
+        self.data['hulls_data']['hulls'][hull_name]['gathering_radius'] = new_gathering_radius
 
 
 
