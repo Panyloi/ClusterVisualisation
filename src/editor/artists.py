@@ -4,6 +4,7 @@ from matplotlib.text import Text
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
+from matplotlib.backend_bases import ResizeEvent
 
 # from .hull_generator import calc_hull, parse_solution_to_editor_hull
 from ..generator.hull_generator import calc_hull, parse_solution_to_editor_hull
@@ -115,6 +116,10 @@ class ArrowArtist(Line2D, StateLinker):
             x = bbx[1][0]
         
         self.set(shx=x-self.x, shy=y-self.y)
+
+    def refresh_sh_by_self(self) -> None:
+        statex, statey = self.state.get_arrow_att_point(self.parent_label.id, self.id)
+        self.set_sh_by_raw(statex, statey)
         
     def get_shs(self) -> tuple[float, float]:
         """shift point values getter"""
@@ -187,6 +192,12 @@ class ArrowArtist(Line2D, StateLinker):
             if isinstance(child, ArrowArtist):
                 child._update_size(size)
         ArrowArtist.state.set_arrow_size(size)
+
+    @staticmethod
+    def update_all_arrows_att_point(ax: Axes) -> None:
+        for child in ax.get_children():
+            if isinstance(child, ArrowArtist):
+                child.refresh_sh_by_self()
     
     @staticmethod
     def get_by_id(ax: Axes, sid: int) -> 'None | ArrowArtist':

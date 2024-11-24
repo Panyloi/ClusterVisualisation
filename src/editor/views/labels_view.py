@@ -51,10 +51,13 @@ class LabelsView(View):
             self.pick_event(event)
 
         # events
+        self.cem.add(GlobalEvent('resize_event', 
+                                 lambda event, *args, **kwargs: \
+                                    ArrowArtist.update_all_arrows_att_point(self.vm.ax)))
+
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_release_event', self.release_event))
         self.cem.add(SharedEvent('key_press_event', self.key_press_event))
-        self.cem.add(SharedEvent('resize_event', self.resize_label_update))
 
         self.vem.refresh()
         plt.draw()
@@ -185,10 +188,6 @@ class LabelsView(View):
         self.vem.refresh()
         plt.draw()
 
-    def resize_label_update(self, event: ResizeEvent) -> None:
-        # print(self.vm.fig.get_window_extent())
-        ...
-
     def arrow_size_update(self) -> int:
         return self.state.get_arrow_size()
 
@@ -221,10 +220,6 @@ class LabelsView(View):
         ArrowArtist.update_all_arrows_size(self.vm.ax, size)
         self.vem.refresh()
         plt.draw()
-
-    def resize_arrow_update(self, event: ResizeEvent) -> None:
-        # print(self.vm.fig.get_window_extent())
-        ...
 
 
 class ArrowsView(View):
@@ -262,6 +257,10 @@ class ArrowsView(View):
         # get picked arrow if exists
         self.picked_item = kwargs.get('picked_item', None)
 
+        # events
+        self.cem.add(GlobalEvent('resize_event', 
+                                 lambda event, *args, **kwargs: \
+                                    ArrowArtist.update_all_arrows_att_point(self.vm.ax)))
         self.cem.add(SharedEvent('pick_event', self.pick_event))
 
         self.vem.refresh()
