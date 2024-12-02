@@ -39,7 +39,9 @@ class LabelsView(View):
     def draw(self, *args, **kwargs) -> None:
         super().draw()
 
-        self.state.show_labels_and_hulls(self.vm.ax)
+        # self.state.show_labels_and_hulls(self.vm.ax)
+        self.state.show_labels(self.vm.ax)
+        self.draw_hull()
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
 
@@ -58,6 +60,15 @@ class LabelsView(View):
 
         self.vem.refresh()
         plt.draw()
+
+    def draw_hull(self):
+        HullArtist.remove_hulls(self.vm.ax)
+
+        selected_hulls = self.vm.list_manager.get_only_active()
+        for hull_name in self.state.data['hulls_data']['hulls'].keys():
+            artist: HullArtist = HullArtist.hull(self.vm.ax, hull_name)
+            if artist.id not in selected_hulls:
+                artist.hide()
 
     def hide(self) -> None:
         super().hide()

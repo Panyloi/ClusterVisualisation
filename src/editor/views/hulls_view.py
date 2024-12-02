@@ -47,8 +47,6 @@ class HullView(View):
         super().draw()
 
         self.state.hide_labels_and_hulls(self.vm.ax)
-        HullArtist.show_hulls(self.vm.ax)
-        # self.state.show_labels(self.vm.ax)
         self.confirm_button.hide()
         self.cancel_button.hide()
         self.reset_button.hide()
@@ -57,9 +55,10 @@ class HullView(View):
         self.vm.ax.set_xlim(df['x'].min() - 10, df['x'].max() + 10)
         self.vm.ax.set_ylim(df['y'].min() - 10, df['y'].max() + 10)
 
+        not_visible_hull_names = set(self.state.data['hulls_data']['hulls'].keys()).difference(set(self.vm.list_manager.get_only_active()))
+        print(f"|not_visible_hull_names|: {not_visible_hull_names}")
         # remove current hulls
         for child in self.vm.ax.get_children():
-            print(child)
             if type(child) is LineCollection:
                 child.remove()
 
@@ -67,6 +66,10 @@ class HullView(View):
         for hull_name in self.state.data['hulls_data']['hulls'].keys():
             HullArtist.hull(self.vm.ax, hull_name)
 
+        for not_visible_hull_name in not_visible_hull_names:
+            artist = HullArtist.get_artist_by_id(not_visible_hull_name)
+            artist.hide()
+        
         # events
         self.cem.add(SharedEvent('pick_event', self.pick_event))
         self.cem.add(SharedEvent('button_press_event', self.press_event))
