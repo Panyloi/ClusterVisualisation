@@ -261,8 +261,16 @@ class State:
             "cluster_points": cluster_points,
             "interpolate_points": interpolate_points,
             "hole_in_hulls": [],
+            "gathering_radius": 1,
             "artist": None
         }
+
+    def add_self_made_hull(self, hull_name):
+        self.data['hulls_data']['self_drawn'].append(hull_name)
+
+    def remove_self_made_hull(self, hull_name):
+        if hull_name in self.data['hulls_data']['self_drawn']:
+            self.data['hulls_data']['self_drawn'].remove(hull_name)
 
     def get_hull_view_state(self) -> bool:
         return self.data["hulls_data"]["view_state"]
@@ -277,10 +285,14 @@ class State:
         return self.data['hulls_data']['hulls'][hull_name]['hole_in_hulls']
 
     def get_hulls_render_name(self) -> None:
-        return self.data['hulls_data']['render_name'] + 1
+        self.data['hulls_data']['render_name'] += 1
+        return self.data['hulls_data']['render_name']
     
     def get_hulls_closest_radius_param(self, hull_name):
         return self.data['hulls_data']['hulls'][hull_name]['gathering_radius']
+
+    def get_hulls_created_by_hand(self):
+        return self.data['hulls_data']['self_drawn']
 
     # ------------------------------- HULLS SETTERS ------------------------------ #
 
@@ -319,9 +331,9 @@ class State:
         df = self.data['clusters_data']['points']
         self.data['clusters_data']['points'] = df.drop(point_id)
 
-        df_1 = self.data['clusters_data']['colors']
-        if 'mine' in df_1.keys():
-            del df_1['mine']
+        
+        if 'mine' in self.data['clusters_data']['colors'].keys():
+            del self.data['clusters_data']['colors']['mine']
 
     def set_hull_polygon_cords(self, hull_name: str, new_cords) -> None:
         self.data['hulls_data']['hulls'][hull_name]['cords'] = new_cords

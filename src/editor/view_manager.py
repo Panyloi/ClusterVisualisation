@@ -941,6 +941,8 @@ class CheckList(ViewElement):
 
     def get_actives(self) -> dict[str: bool]:
         labels = [label.get_text() for label in self.ref.labels]
+        print("|LABELS|")
+        print(labels)
         return dict(zip(labels, self.ref.get_status()))
 
     def update(self, labels: list[str]) -> None:
