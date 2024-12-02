@@ -20,6 +20,11 @@ class Home(View):
         self.vm.ax.set_xlim(-190, 190)
         self.vm.ax.set_ylim(-150, 150)
 
+        # events
+        self.cem.add(GlobalEvent('resize_event',
+                                 lambda event, *args, **kwargs: \
+                                    ArrowArtist.update_all_arrows_att_point(self.vm.ax)))
+
         plt.draw()
 
     def draw_hull(self):
