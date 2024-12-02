@@ -951,7 +951,7 @@ class CheckList(ViewElement):
         self.ref = CheckButtons(self.ax, labels, new_actives)
         self.ref.on_clicked(self.callback)
         self.hide() # clear "exes" that still show
-        self.show()
+        # self.show()
 
     def remove(self) -> None:
         super().remove()
