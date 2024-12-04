@@ -742,6 +742,7 @@ def calc_one_hull(hull_name,
 
 def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
     state["hulls_data"]["hulls"] = {}
+    state["hulls_data"]['self_drawn'] = []
     for i in hulls.keys():
         # state['hulls_data'][i] = {
         #     'name': hulls[i]['name'],
