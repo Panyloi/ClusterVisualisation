@@ -18,6 +18,125 @@ editor:
     facecolor: white
     edgecolor: black
 
+  colors:
+    1D Uniform: lightskyblue
+    2D Uniform: lightskyblue
+    3D Uniform: lightskyblue
+    5D Uniform: lightskyblue
+    10D Uniform: lightskyblue
+    20D Uniform: lightskyblue
+    2D Sphere: gold
+    3D Sphere: gold
+    5D Sphere: gold
+    2g-IC 0.25: limegreen
+    2g-IC 0.5: forestgreen
+    1d: turquoise
+    2d: teal
+    10-Cube: navy
+    5-Cube: navy
+    AGH: black
+    AN: red
+    ANID: hotpink
+    ANUN: forestgreen
+    APA: purple
+    Breakfast: orange
+    BiMallows: silver
+    Circle: deeppink
+    Cities: olive
+    CH: red
+    Countries: blueviolet
+    condorcet: gold
+    Cube: blue
+    Cujae: goldenrod
+    Cycling: gold
+    double: darkorange
+    double 0.2: darkorange
+    double 0.4: sandybrown
+    Debian: deeppink
+    ERS: rosybrown
+    exp: hotpink
+    F1: silver
+    GS Balanced: olive
+    GS Caterpillar: olivedrab
+    Glasgow: darkblue
+    IC: magenta
+    ID: red
+    IDAN: gray
+    IDSTA: gray
+    Impartial Culture: dimgray
+    Interval: deepskyblue
+    Irish: forestgreen
+    Labour Party: firebrick
+    lin: turquoise
+    log: limegreen
+    MTurk Dots: teal
+    MTurk Puzzle: lightseagreen
+    MA: red
+    malasym 0.2: lightcoral
+    malasym 0.4: indianred
+    malasym 0.6: brown
+    maleuc: gold
+    Mallows: gray
+    Mallows-Urn: darkgray
+    MD: red
+    Minneapolis: greenyellow
+    mov: violet
+    Movehub: palevioletred
+    nauty-7: forestgreen
+    nauty-8: forestgreen
+    nauty-12: forestgreen
+    nba: dodgerblue
+    NSW: skyblue
+    Netflix: darkred
+    Norm-Mallows: plum
+    Norm-Mallows 0.2: plum
+    Norm-Mallows 0.4: violet
+    Norm-Mallows 0.6: darkviolet
+    Norm-Mallows 0.8: rebeccapurple
+    ordered: deeppink
+    o2rps: darkorange
+    PL linear: gold
+    PL square: khaki
+    PL exp e: darkkhaki
+    PL exp 2: wheat
+    pow2: red
+    polish-bridge: deeppink
+    radius 0.2: darkviolet
+    radius 0.4: indigo
+    rand: blueviolet
+    rps: red
+    rps2o: mediumvioletred
+    rock-paper-scissors: gold
+    Sezon 2022: indigo
+    Sezon 2021: darkviolet
+    Sezon 2020: purple
+    Sezon 2019: mediumvioletred
+    Sezon 2018: deeppink
+    Sezon 2017: hotpink
+    SP by Conitzer: limegreen
+    SP by Walsh: darkgreen
+    SPOC: mediumspringgreen
+    ST: red
+    STID: red
+    STUN: limegreen
+    Single-Crossing: darkseagreen
+    Skating: dodgerblue
+    Skiing: cyan
+    Sphere: darkviolet
+    Spotify: green
+    Square: royalblue
+    sqrt: springgreen
+    Sushi: salmon
+    Tshirt: crimson
+    UN: red
+    UNSTA: gray
+    Universities: chocolate
+    uniform: royalblue
+    Urn: orange
+    vec2: navy
+    vec5: royalblue
+    Web search: blue
+    Removed: black
 
 labels_generator:
 
