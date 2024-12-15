@@ -743,6 +743,8 @@ def calc_one_hull(hull_name,
 def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
     state["hulls_data"]["hulls"] = {}
     state["hulls_data"]['self_drawn'] = []
+    state["hulls_data"]["change"] = {}
+    state["hulls_data"]["undraw"] = set()
     for i in hulls.keys():
         # state['hulls_data'][i] = {
         #     'name': hulls[i]['name'],
@@ -759,8 +761,6 @@ def parse_solution_to_editor_hull(hulls: dict, state: dict) -> dict:
             "gathering_radius": hulls[i]["gathering_radius"],
             "artist": None
         }
-        state["hulls_data"]["change"] = {}
-        state["hulls_data"]["undraw"] = set()
         state["hulls_data"][hulls[i]["name"]] = dict()
         state["hulls_data"][hulls[i]["name"]]["hull_line"] = dict()
         

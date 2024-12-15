@@ -1,5 +1,5 @@
 global:
-  nothing: nothing
+  generate_hulls: True
 
 editor:
   # initial frame size (the data is normalized to -100, 100 on wider axis)
@@ -153,7 +153,7 @@ labels_generator:
       no_local_search: True
 
     global:
-      generate_greedy_x0: True
+      generate_greedy_x0: False
       maxiter: 1500
       visit: 4
       initial_temp: 7230

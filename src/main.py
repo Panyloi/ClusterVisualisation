@@ -157,7 +157,10 @@ def draw_maps(raw_data: Union[str, Experiment],
                         domain_expansion=1.5,
                         closest_points_radius=2)
     
-    hulls = calc_hull(normalized_data, 0.1, 20, 20)
+    if Configuration['global']['generate_hulls']:
+        hulls = calc_hull(normalized_data, 0.1, 20, 20)
+    else:
+        hulls = {}
     state_dict = parse_solution_to_editor_hull(hulls, state_dict)
     state_dict["hulls_data"]['line_size'] = 1.0
 
