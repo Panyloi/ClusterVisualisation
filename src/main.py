@@ -10,6 +10,7 @@ import os
 import matplotlib.pyplot as plt
 from mapel.core.objects.Experiment import Experiment
 
+from .configuration import Configuration
 from .generator.data_processing import parse_data, normalize, get_all_points
 from .generator.data_processing import editor_format, get_df_from_data, initialize_colors
 from .editor.view_manager import State, StateLinker
@@ -136,7 +137,8 @@ def draw_maps(raw_data: Union[str, Experiment],
 
     # cluster generation
     state_dict['clusters_data']['points'] = get_df_from_data(normalized_data)
-    state_dict['clusters_data']['colors'] = initialize_colors(normalized_data)
+    colors = Configuration["editor"]["colors"]
+    state_dict['clusters_data']['colors'] = colors
 
     # labels generation
     labels = calc(normalized_data, all_points, config_id)
