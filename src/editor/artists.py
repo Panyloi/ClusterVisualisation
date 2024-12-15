@@ -298,10 +298,10 @@ class LabelArtist(Text, StateLinker):
     def remove(self) -> None:
         """removes label and all attached arrows"""
         super().remove()
-        self.state.delete_label(self.id)
         dict_cpy = list(self.arrows.values()).copy()
         for arrow in dict_cpy:
             arrow.remove()
+        self.state.delete_label(self.id)
 
     def hide(self) -> None:
         self.set_visible(False)
