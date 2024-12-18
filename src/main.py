@@ -175,7 +175,7 @@ def draw_maps(raw_data: Union[str, Experiment],
 
     st = State(state_dict)
     StateLinker.link_state(st)
-    st.draw(ax)
+    st.draw(ax, True)
 
     bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
     
