@@ -76,7 +76,7 @@ class ClusterMainView(View):
         HullArtist.remove_hulls(self.vm.ax)
         self.state.update_hulls()
 
-        self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys())))
+        self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys()) + self.state.get_hulls_created_by_hand()))
         selected_hulls = self.vm.list_manager.get_only_active()
         for hull_name in self.state.get_normalised_clusters():
             artist = HullArtist.hull(self.vm.ax, hull_name)
@@ -142,7 +142,7 @@ class ClusterMainView(View):
             self.state.update_hulls()
             self.vm.list_manager.show_button()
 
-            self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys())))
+            self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys()) + self.state.get_hulls_created_by_hand()))
             selected_hulls = self.vm.list_manager.get_only_active()
             for hull_name in self.state.data['hulls_data']['hulls'].keys():
                 artist: HullArtist = HullArtist.hull(self.vm.ax, hull_name)

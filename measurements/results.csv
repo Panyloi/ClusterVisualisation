@@ -1,0 +1,11 @@
+source_data;config_id;out_data;time;sloss
+data/size-7/mds_ged_blp_2d.csv;divide_and_conquare;pngs/size-7/mds_ged_blp_2d_daq;10.569027185440063;44225.0901039249
+data/size-7/mds_katz_cen_2d.csv;iterative;pngs/size-7/mds_katz_cen_2d_iter;10.891525030136108;1640.6081881712632
+data/size-7/mds_ged_blp_2d.csv;iterative;pngs/size-7/mds_ged_blp_2d_iter;14.944351196289062;54.33682093010608
+data/size-25/mds_katz_cen_2d.csv;iterative;pngs/size-25/mds_katz_cen_2d_iter;31.9092378616333;160412.75197820537
+data/move-12/mds_katz_cen_2d.csv;iterative;pngs/move-12/mds_katz_cen_2d_iter;33.95089411735535;40409.671727726876
+data/size-12/mds_sphr_2d.csv;iterative;pngs/size-12/mds_sphr_2d_iter;34.43031311035156;193994.3606790919
+data/move-12/mds_ged_blp_2d.csv;iterative;pngs/move-12/mds_ged_blp_2d_iter;38.47973132133484;25864.372483450028
+data/size-12/mds_ged_blp_2d.csv;iterative;pngs/size-12/mds_ged_blp_2d_iter;40.76906204223633;90470.83767885168
+data/size-12/mds_katz_cen_2d.csv;iterative;pngs/size-12/mds_katz_cen_2d_iter;42.61363935470581;90657.55800888794
+data/ordinal-8/mds_ged_blp_2d.csv;iterative;pngs/ordinal-8/mds_ged_blp_2d_iter;43.55151104927063;291928.75235189265

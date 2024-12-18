@@ -10,6 +10,7 @@ import os
 import matplotlib.pyplot as plt
 from mapel.core.objects.Experiment import Experiment
 
+from .configuration import Configuration
 from .generator.data_processing import parse_data, normalize, get_all_points
 from .generator.data_processing import editor_format, get_df_from_data, initialize_colors
 from .editor.view_manager import State, StateLinker
@@ -136,7 +137,8 @@ def draw_maps(raw_data: Union[str, Experiment],
 
     # cluster generation
     state_dict['clusters_data']['points'] = get_df_from_data(normalized_data)
-    state_dict['clusters_data']['colors'] = initialize_colors(normalized_data)
+    colors = Configuration["editor"]["colors"]
+    state_dict['clusters_data']['colors'] = colors
 
     # labels generation
     labels = calc(normalized_data, all_points, config_id)
@@ -155,7 +157,10 @@ def draw_maps(raw_data: Union[str, Experiment],
                         domain_expansion=1.5,
                         closest_points_radius=2)
     
-    hulls = calc_hull(normalized_data, 0.1, 20, 20)
+    if Configuration['global']['generate_hulls']:
+        hulls = calc_hull(normalized_data, 0.1, 20, 20)
+    else:
+        hulls = {}
     state_dict = parse_solution_to_editor_hull(hulls, state_dict)
     state_dict["hulls_data"]['line_size'] = 1.0
 
@@ -170,7 +175,7 @@ def draw_maps(raw_data: Union[str, Experiment],
 
     st = State(state_dict)
     StateLinker.link_state(st)
-    st.draw(ax)
+    st.draw(ax, True)
 
     bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
     

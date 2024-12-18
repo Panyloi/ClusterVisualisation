@@ -269,16 +269,20 @@ class HullView(View):
 
             next_name = self.state.get_hulls_render_name()
             _name = f'hull_{next_name}'
-            print(_name)
-            self.state.set_hulls_render_name = next_name
 
             self.state.add_hull(hull_name=_name, line_cords=final_lines, interpolate_points=final_cords)
 
             HullArtist.hull(self.vm.ax, _name)
+            
+            # selected_hulls = self.vm.list_manager.get_only_active()
 
             for i, pointer_point in enumerate(self.pointer_points):
                 pointer_point.remove()
                 self.state.hull_remove_point((i + 1) * (-1))
+
+            self.state.add_self_made_hull(_name)
+            # self.vm.list_manager.check_list.update(['_name'])
+            self.vm.list_manager.check_list.update(sorted(list(self.state.get_all_clusters().keys()) + self.state.get_hulls_created_by_hand()))
 
             self.pointer_points = []
 
