@@ -5,6 +5,7 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from typing import List, Tuple
 from matplotlib.backend_bases import ResizeEvent
+from matplotlib.pyplot import setp
 
 # from .hull_generator import calc_hull, parse_solution_to_editor_hull
 from ..generator.hull_generator import calc_hull, parse_solution_to_editor_hull
@@ -298,10 +299,10 @@ class LabelArtist(Text, StateLinker):
     def remove(self) -> None:
         """removes label and all attached arrows"""
         super().remove()
-        self.state.delete_label(self.id)
         dict_cpy = list(self.arrows.values()).copy()
         for arrow in dict_cpy:
             arrow.remove()
+        self.state.delete_label(self.id)
 
     def hide(self) -> None:
         self.set_visible(False)
@@ -619,7 +620,7 @@ State.show_labels = show_labels
 
 # ------------------------------ DRAW DEFINITION ----------------------------- #
 
-def draw(self, ax: Axes) -> None:
+def draw(self, ax: Axes, auto_generation: bool = False) -> None:
     # ax.clear() #maybe not needed, it removes info text
 
     # draw points
@@ -662,6 +663,9 @@ def draw(self, ax: Axes) -> None:
 
     ax.set_xlim(-190, 190)
     ax.set_ylim(-150, 150)
+
+    if auto_generation:
+        setp(ax, frame_on=False)
 
     plt.draw()
     logging.info(f"State redraw")
