@@ -18,15 +18,14 @@ class ViewsEnum(Enum):
     """
     Enumeration of different views in the application.
     """
-    HOME   = 0
-    LABELS = 1
-    ARROWS = 2
-    HULLS = 3
-    CLUSTER = 4
-    AGGLOMERATIVE = 5
-    DBSCAN  = 6
-    CREATEHULL = 7
-    REMOVELINE = 8
+    HOME            = 0
+    LABELS          = 1
+    ARROWS          = 2
+    HULLS           = 3
+    CLUSTER         = 4
+    AGGLOMERATIVE   = 5
+    DBSCAN          = 6
+    MERGE           = 7
 
 
 class ViewManager:

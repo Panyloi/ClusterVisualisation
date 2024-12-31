@@ -21,7 +21,8 @@ class ClusterMainView(View):
         self.vem.add(ChangeViewButton(self, [0.75, self.change_button_y, self.change_button_length, self.change_button_height], "Agglo", ViewsEnum.AGGLOMERATIVE))
         self.vem.add(ChangeViewButton(self, [0.85, self.change_button_y, self.change_button_length, self.change_button_height], "DBSCAN", ViewsEnum.DBSCAN))
         self.vem.add(NormalButton(self, [0.05, 0.05, 0.1, 0.075], "Remove", self.remove_point))
-        self.vem.add(NormalButton(self, [0.17, 0.05, 0.15, 0.075], "Toggle hulls", self.draw_hull))
+        self.vem.add(NormalButton(self, [0.17, 0.05, 0.1, 0.075], "Merge", lambda: self.change_view(ViewsEnum.MERGE)))
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.15, 0.075], "Toggle hulls", self.draw_hull))
         reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
         self.info = self.vem.add(ViewText(self.vm.ax, 0, 0, "Info"))
 
@@ -155,6 +156,111 @@ class ClusterMainView(View):
             self.vm.list_manager.hide_button()
         plt.draw()
         self.vm.list_manager.clusters_view_hull_off = self.hulls_off
+
+class MergeView(View):
+    def __init__(self, view_manager: ViewManager) -> None:
+        super().__init__(view_manager)
+        self.cluster_name_right = None
+        self.cluster_name_left = None
+        self.cluster_names_left = None
+        self.cluster_names_right = None
+        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
+        self.vem.add(NormalButton(self, [0.4, 0.05, 0.15, 0.075], "Submit", self.merge))
+        reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
+        reset_b.button_ax.set_facecolor("lightcoral")
+        reset_b.button_ref.color = "lightcoral"
+        reset_b.button_ref.hovercolor = "crimson"
+        self.vem.hide()
+
+    def draw(self, *args, **kwargs) -> None:
+        super().draw()
+        self.state.hide_labels_and_hulls(self.vm.ax)
+        self.vm.list_manager.hide_button()
+
+        # make points more transparent
+        for artist in self.state.data['clusters_data']['artists']:
+            artist.set_alpha(0.3)
+
+        self.cluster_names_left = self.vem.add(ViewRadioButtons(self, [0, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())), self.update_left, 0))
+        self.cluster_name_left = self.cluster_names_left.ref.value_selected
+        self.highlight_cluster(self.cluster_name_left, "green")
+        self.cluster_names_right = self.vem.add(ViewRadioButtons(self, [0.7, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())), self.update_right, 1))
+        self.cluster_name_right = self.cluster_names_right.ref.value_selected
+        self.highlight_cluster(self.cluster_name_right, "red")
+
+    def merge(self):
+        self.dehighlight_cluster(self.cluster_name_left)
+        self.dehighlight_cluster(self.cluster_name_right)
+
+        name = self.cluster_name_right+"_"+self.cluster_name_left
+        points = self.state.get_cluster(self.cluster_name_right).index.tolist()
+        points.extend(self.state.get_cluster(self.cluster_name_left).index.tolist())
+        self.state.set_cluster(name, points)
+        self.hide() #clear and redraw
+        self.draw()
+        self.dehighlight_cluster(self.cluster_name_left)
+        self.dehighlight_cluster(self.cluster_name_right)
+        self.cluster_name_right = name
+        self.cluster_name_left = name
+        self.highlight_cluster(name, "black")
+        plt.draw()
+
+    def reset_clusters(self):
+        self.dehighlight_cluster(self.cluster_name_left)
+        self.dehighlight_cluster(self.cluster_name_right)
+        self.state.reset_clusters()
+        for artist in self.state.data['clusters_data']['artists']:
+            artist.set_color(self.state.get_point_color(artist.id))
+        self.hide()
+        self.draw()
+        plt.draw()
+
+    def update_left(self, _):
+        self.dehighlight_cluster(self.cluster_name_left)
+        if self.cluster_name_left == self.cluster_name_right:
+            self.highlight_cluster(self.cluster_name_right, "red") #fix for when same cluster is chosen
+        self.cluster_name_left = self.cluster_names_left.ref.value_selected
+        self.highlight_cluster(self.cluster_name_left, "green")
+        plt.draw()
+
+    def update_right(self, _):
+        self.dehighlight_cluster(self.cluster_name_right)
+        if self.cluster_name_left == self.cluster_name_right:
+            self.highlight_cluster(self.cluster_name_left, "green") #for for when same clusteris chosen
+        self.cluster_name_right = self.cluster_names_right.ref.value_selected
+        self.highlight_cluster(self.cluster_name_right, "red")
+        plt.draw()
+
+    def highlight_cluster(self, cluster_name, color):
+        """Makes currently picked cluster points more visible"""
+        idx = 0
+        for point_id in self.state.get_cluster(cluster_name).index:
+            artist = self.state.data['clusters_data']['artists'][point_id]
+            artist.set_color(color)
+            artist.set_alpha(1)
+            artist.set_radius(2.5)
+            artist.set_zorder(10)
+            idx += 1
+
+    def dehighlight_cluster(self, cluster_name):
+        """Resets currently picked cluster points to their original look"""
+        for point_id in self.state.get_cluster(cluster_name).index:
+            artist = self.state.data['clusters_data']['artists'][point_id]
+            artist.set_color(self.state.get_point_color(point_id))
+            artist.set_alpha(0.3)
+            artist.set_radius(1.5)
+            artist.set_zorder(1)
+
+    def hide(self) -> None:
+        super().hide()
+        self.vem.remove(self.cluster_names_left)
+        self.vem.remove(self.cluster_names_right)
+        self.dehighlight_cluster(self.cluster_name_left)
+        self.dehighlight_cluster(self.cluster_name_right)
+        for artist in self.state.data['clusters_data']['artists']:
+            artist.set_alpha(1)
 
 
 class ClusteringSubViewBase(View):
