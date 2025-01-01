@@ -3,9 +3,7 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Callable
 
-from matplotlib.figure import Figure
 from matplotlib.backend_bases import FigureCanvasBase
-from matplotlib.axes._axes import Axes
 from matplotlib.widgets import RadioButtons, Slider, Button, TextBox, CheckButtons
 
 from .artists import *
@@ -875,6 +873,24 @@ class ViewRadioButtons(ViewElement):
         self.ref.active = True
         self.ax.set_visible(True)
 
+    def get_index(self, label_name):
+        # gpt told me to use next, never seen that before
+        return next((i for i, text in enumerate(self.ref.labels) if text.get_text() == label_name), 0)
+
+    def highlight_label(self, label_name, color):
+        index = self.get_index(label_name)
+        self.ref.labels[index].set_color(color)
+        self.ref.labels[index].set_weight("heavy")
+        self.ref.labels[index].set_alpha(1)
+
+    def dehighlight_label(self, label_name):
+        index = self.get_index(label_name)
+        self.ref.labels[index].set_color("black")
+        self.ref.labels[index].set_weight("normal")
+        self.ref.labels[index].set_alpha(0.5)
+
+    def hide_props(self):
+        self.ref._buttons.set_alpha(0)
 
 class ViewSlider(ViewElement):
 

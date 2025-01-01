@@ -160,6 +160,7 @@ class ClusterMainView(View):
 class MergeView(View):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
+        self.submitted = False
         self.cluster_name_right = None
         self.cluster_name_left = None
         self.cluster_names_left = None
@@ -181,33 +182,59 @@ class MergeView(View):
         for artist in self.state.data['clusters_data']['artists']:
             artist.set_alpha(0.3)
 
-        self.cluster_names_left = self.vem.add(ViewRadioButtons(self, [0, 0.15, 0.3, 0.75],
+        self.cluster_names_left = self.vem.add(ViewRadioButtons(self, [-0.05, 0.15, 0.3, 0.75],
             sorted(list(self.state.get_all_clusters().keys())), self.update_left, 0))
+        self.cluster_names_left.ref.set_label_props(dict(alpha=[0.5]))
+        self.cluster_names_left.hide_props()
+
+        self.cluster_names_right = self.vem.add(ViewRadioButtons(self, [0.72, 0.15, 0.3, 0.75],
+            sorted(list(self.state.get_all_clusters().keys())), self.update_right, 1))
+        self.cluster_names_right.ref.set_label_props(dict(alpha=[0.5]))
+        self.cluster_names_right.hide_props()
+
+        if not self.submitted:
+            self.starting_look()
+
+        plt.draw()
+
+    def starting_look(self):
         self.cluster_name_left = self.cluster_names_left.ref.value_selected
         self.highlight_cluster(self.cluster_name_left, "green")
-        self.cluster_names_right = self.vem.add(ViewRadioButtons(self, [0.7, 0.15, 0.3, 0.75],
-            sorted(list(self.state.get_all_clusters().keys())), self.update_right, 1))
+        self.cluster_names_left.highlight_label(self.cluster_name_left, "darkgreen")
+
         self.cluster_name_right = self.cluster_names_right.ref.value_selected
         self.highlight_cluster(self.cluster_name_right, "red")
+        self.cluster_names_right.highlight_label(self.cluster_name_right, "red")
 
     def merge(self):
-        self.dehighlight_cluster(self.cluster_name_left)
-        self.dehighlight_cluster(self.cluster_name_right)
+        if self.cluster_name_right == self.cluster_name_left or self.submitted:
+            return
+        self.submitted = True
 
-        name = self.cluster_name_right+"_"+self.cluster_name_left
+        # dehighlight since changing state will make those names meaningless
+        self.dehighlight_cluster(self.cluster_name_right)
+        self.dehighlight_cluster(self.cluster_name_left)
+
+        name = self.cluster_name_right + "_" + self.cluster_name_left
         points = self.state.get_cluster(self.cluster_name_right).index.tolist()
         points.extend(self.state.get_cluster(self.cluster_name_left).index.tolist())
         self.state.set_cluster(name, points)
-        self.hide() #clear and redraw
+
+        # redrawing since recreating those widgets takes many lines of code
+        self.hide()
         self.draw()
-        self.dehighlight_cluster(self.cluster_name_left)
-        self.dehighlight_cluster(self.cluster_name_right)
+
+        # setting names so that update works as supposed
         self.cluster_name_right = name
         self.cluster_name_left = name
+        self.cluster_names_left.highlight_label(self.cluster_name_left, "darkgreen")
+        self.cluster_names_right.highlight_label(self.cluster_name_right, "red")
         self.highlight_cluster(name, "black")
+
         plt.draw()
 
     def reset_clusters(self):
+        self.submitted = False
         self.dehighlight_cluster(self.cluster_name_left)
         self.dehighlight_cluster(self.cluster_name_right)
         self.state.reset_clusters()
@@ -218,19 +245,31 @@ class MergeView(View):
         plt.draw()
 
     def update_left(self, _):
+        self.submitted = False
         self.dehighlight_cluster(self.cluster_name_left)
+        self.cluster_names_left.dehighlight_label(self.cluster_name_left)
+
+        # when the same cluster was chosen, leave the other color highlight
         if self.cluster_name_left == self.cluster_name_right:
-            self.highlight_cluster(self.cluster_name_right, "red") #fix for when same cluster is chosen
+            self.highlight_cluster(self.cluster_name_right, "red")
+
         self.cluster_name_left = self.cluster_names_left.ref.value_selected
         self.highlight_cluster(self.cluster_name_left, "green")
+        self.cluster_names_left.highlight_label(self.cluster_name_left, "darkgreen")
         plt.draw()
 
     def update_right(self, _):
+        self.submitted = False
         self.dehighlight_cluster(self.cluster_name_right)
+        self.cluster_names_right.dehighlight_label(self.cluster_name_right)
+
+        # when the same cluster was chosen, leave the other color highlight
         if self.cluster_name_left == self.cluster_name_right:
-            self.highlight_cluster(self.cluster_name_left, "green") #for for when same clusteris chosen
+            self.highlight_cluster(self.cluster_name_left, "green")
+
         self.cluster_name_right = self.cluster_names_right.ref.value_selected
         self.highlight_cluster(self.cluster_name_right, "red")
+        self.cluster_names_right.highlight_label(self.cluster_name_right, "red")
         plt.draw()
 
     def highlight_cluster(self, cluster_name, color):
