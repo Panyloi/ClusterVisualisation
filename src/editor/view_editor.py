@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from .backend_customs import SaveLoadPltLinker, custom_buttons_setup
 from .state import State, StateLinker
 from .view_manager import Event, ViewManager
-from .views.clusters_view import ClusterMainView, AgglomerativeView, DBSCANView, MergeView
+from .views.clusters_view import ClusterMainView, AgglomerativeView, DBSCANView, MergeView, AddView
 from .views.home_view import Home
 from .views.hulls_view import HullView
 from .views.labels_view import LabelsView, ArrowsView
@@ -36,7 +36,8 @@ class Editor:
                            ClusterMainView(vm),
                            AgglomerativeView(vm),
                            DBSCANView(vm),
-                           MergeView(vm)])  # must be the same as ViewsEnum
+                           MergeView(vm),
+                           AddView(vm)])  # must be the same as ViewsEnum
         vm.run()
 
         # display

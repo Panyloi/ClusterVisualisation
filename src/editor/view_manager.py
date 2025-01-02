@@ -24,6 +24,7 @@ class ViewsEnum(Enum):
     AGGLOMERATIVE   = 5
     DBSCAN          = 6
     MERGE           = 7
+    ADD             = 8
 
 
 class ViewManager:
