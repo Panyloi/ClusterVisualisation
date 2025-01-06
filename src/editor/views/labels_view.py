@@ -13,7 +13,7 @@ class LabelsView(View):
 
         # buttons
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         view_button = self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(NormalButton(self, [0.075, 0.05, 0.05, 0.075], "+", self.add_label))
@@ -241,7 +241,7 @@ class ArrowsView(View):
 
         # buttons
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         view_button = self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(NormalButton(self, [0.8, 0.05, 0.1, 0.075], "Delete", self.delete_arrow))

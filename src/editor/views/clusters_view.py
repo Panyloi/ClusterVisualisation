@@ -15,7 +15,7 @@ class ClusterMainView(View):
 
         # buttons
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         self.vem.add(ChangeViewButton(self, [0.75, self.change_button_y, self.change_button_length, self.change_button_height], "Agglo", ViewsEnum.AGGLOMERATIVE))
@@ -162,9 +162,10 @@ class AddView(View):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
         view_button.highlight()
 
         self.submitted = False
@@ -172,12 +173,13 @@ class AddView(View):
         self.point_artists = {}
         self.cluster_name = None
         self.widget = None
-        self.vem.add(NormalButton(self, [0.43, 0.05, 0.1, 0.075], "Back", lambda: self.change_view(ViewsEnum.CLUSTER)))
-        self.vem.add(NormalButton(self, [0.55, 0.05, 0.15, 0.075], "Submit", self.submit))
-        reset_b = self.vem.add(NormalButton(self, [0.72, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
+
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.15, 0.075], "Submit", self.submit))
+        reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
         reset_b.button_ax.set_facecolor("lightcoral")
         reset_b.button_ref.color = "lightcoral"
         reset_b.button_ref.hovercolor = "crimson"
+
         self.vem.hide()
 
     def draw(self, *args, **kwargs) -> None:
@@ -293,9 +295,10 @@ class MergeView(View):
     def __init__(self, view_manager: ViewManager) -> None:
         super().__init__(view_manager)
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
-        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        view_button = self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
+        self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
         view_button.highlight()
 
         self.submitted = False
@@ -303,10 +306,9 @@ class MergeView(View):
         self.cluster_name_left = None
         self.widget_right = None
         self.widget_left = None
-        self.vem.add(NormalButton(self, [0.28, 0.05, 0.1, 0.075], "Back", lambda: self.change_view(ViewsEnum.CLUSTER)))
-        self.vem.add(NormalButton(self, [0.4, 0.05, 0.15, 0.075], "Submit", self.merge))
 
-        reset_b = self.vem.add(NormalButton(self, [0.57, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.15, 0.075], "Submit", self.merge))
+        reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset_clusters))
         reset_b.button_ax.set_facecolor("lightcoral")
         reset_b.button_ref.color = "lightcoral"
         reset_b.button_ref.hovercolor = "crimson"
@@ -453,10 +455,10 @@ class ClusteringSubViewBase(View):
 
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
         self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
         self.vem.add(ChangeViewButton(self, [0.85, 0.936, 0.1, 0.06], "Back", ViewsEnum.CLUSTER))
-        self.vem.add(NormalButton(self, [0.05, 0.05, 0.15, 0.075], "Save cluster", self.save_cluster))
+        self.vem.add(NormalButton(self, [0.68, 0.05, 0.15, 0.075], "Submit", self.save_cluster))
         reset_b = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset))
         self.info = self.vem.add(ViewText(self.vm.ax, 0, 0, ""))
 
@@ -614,7 +616,7 @@ class DBSCANView(ClusteringSubViewBase):
         super().__init__(view_manager)
 
         self.widget_scalar = self.vem.add(
-            ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self.update_plot)
+            ViewSlider(self, [0.47, 0.19, 0.3, 0.05], "", 0.01, 2.5, self.update_plot)
         )
         self.vem.hide()
 

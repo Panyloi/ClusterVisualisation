@@ -20,26 +20,20 @@ class HullView(View):
         self.vem.add(ChangeViewButton(self, self.home_ax, "Home", ViewsEnum.HOME))
         self.vem.add(ChangeViewButton(self, self.labels_ax, "Labels", ViewsEnum.LABELS))
         view_button = self.vem.add(ChangeViewButton(self, self.hulls_ax, "Hulls", ViewsEnum.HULLS))
-        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Cluster", ViewsEnum.CLUSTER))
+        view_button.highlight()
+        self.vem.add(ChangeViewButton(self, self.clusters_ax, "Clusters", ViewsEnum.CLUSTER))
 
         self.add_line_button: NormalButton = self.vem.add(NormalButton(self, [0.05, 0.05, 0.2, 0.075],
                                                                        "Add line", lambda: self.switch_mode('add')))
         self.remove_line_button: NormalButton = self.vem.add(NormalButton(self, [0.25, 0.05, 0.2, 0.075],
                                                                           "Remove line", lambda: self.switch_mode('remove')))
-        self.confirm_button: NormalButton = self.vem.add(NormalButton(self, [0.74, 0.05, 0.1, 0.075], "Confirm", self.confirm))
-        self.reset_button: NormalButton = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Reset", self.reset))
+        self.confirm_button: NormalButton = self.vem.add(NormalButton(self, [0.74, 0.05, 0.1, 0.075], "Submit", self.confirm))
         self.cancel_button: NormalButton = self.vem.add(NormalButton(self, [0.85, 0.05, 0.1, 0.075], "Cancel", self.cancel))
 
         self.hull_name_box = self.vem.add(ShiftingTextBox(self, [0.5, 0.05, 0.25, 0.075],
                                                           self.hull_name_update, self.hull_name_submit))
         self.hull_parameter_set_box = self.vem.add(LimitedTextBox(self, [0.8, 0.05, 0.10, 0.075],
                                                                   self.spread_size_update, self.spread_size_submit))
-
-
-        view_button.highlight()
-        self.reset_button.button_ax.set_facecolor("lightcoral")
-        self.reset_button.button_ref.color = "lightcoral"
-        self.reset_button.button_ref.hovercolor = "crimson"
 
         self.vem.hide()
 
@@ -49,7 +43,6 @@ class HullView(View):
         self.state.hide_labels_and_hulls(self.vm.ax)
         self.confirm_button.hide()
         self.cancel_button.hide()
-        self.reset_button.hide()
 
         df = self.state.get_all_points()
         self.vm.ax.set_xlim(df['x'].min() - 10, df['x'].max() + 10)
@@ -83,13 +76,11 @@ class HullView(View):
             self.remove_line_button.show()
             self.hull_name_box.show()
             self.hull_parameter_set_box.show()
-            self.reset_button.hide()
             self.confirm_button.hide()
             self.cancel_button.hide()
         else:
             self.add_line_button.hide()
             self.remove_line_button.hide()
-            self.reset_button.hide()
             self.confirm_button.show()
             self.cancel_button.show()
             self.hull_parameter_set_box.hide()

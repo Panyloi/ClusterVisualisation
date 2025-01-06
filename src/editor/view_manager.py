@@ -930,7 +930,7 @@ class CheckList(ViewElement):
         self.ref = CheckButtons(self.ax, labels)
         self.callback = None
         self.len = len(labels)
-        self.check_all()
+        # self.check_all()
         self.shown = False
 
     def set_callback(self, callback: Callable) -> None:
