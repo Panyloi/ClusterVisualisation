@@ -770,9 +770,6 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
 
-        # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset, curr_config['generate_greedy_x0']),
-        #                      x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
-        #                      restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         res = dual_annealing(mixed_square_loss, bounds=labels_bounds, args=(ll, [], mset, curr_config['generate_greedy_x0']),
                              x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
                              restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)

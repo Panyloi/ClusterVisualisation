@@ -4,4 +4,4 @@ from src.main import draw_maps, draw_maps_editor
 draw_maps_editor("data/size-7/mds_katz_cen_2d.csv")
 
 # generate .png of mds_katz_cen_2d.csv dataset with iterative label generation method
-draw_maps("data/size-7/mds_katz_cen_2d.csv", "mds_katz_cen_2d_daq", config_id='iterative')
+draw_maps("data/size-7/mds_katz_cen_2d.csv", "./mds_katz_cen_2d_daq", config_id='iterative')

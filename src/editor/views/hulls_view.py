@@ -56,7 +56,6 @@ class HullView(View):
         self.vm.ax.set_ylim(df['y'].min() - 10, df['y'].max() + 10)
 
         not_visible_hull_names = set(self.state.data['hulls_data']['hulls'].keys()).difference(set(self.vm.list_manager.get_only_active()))
-        print(f"|not_visible_hull_names|: {not_visible_hull_names}")
         # remove current hulls
         for child in self.vm.ax.get_children():
             if type(child) is LineCollection:
@@ -141,7 +140,6 @@ class HullView(View):
 
     def press_event(self, event: MouseEvent) -> None:
         logging.info(f"""{self.__class__} POS: {event.xdata}, {event.ydata}""")
-        print(event)
         if event.inaxes != self.vm.ax:
             return
 
@@ -199,7 +197,6 @@ class HullView(View):
 
         for hull_name in hulls_name:
             cords = self.state.get_hole_in_hulls(hull_name)
-            print(f"CORDS: {cords}")
             if _hull_name != "" and _hull_name != hull_name:
                 continue
             for cord in cords:
@@ -245,7 +242,6 @@ class HullView(View):
             try:
                 interpolated_points = interpolate_points(self.points_to_add + [self.points_to_add[0]])
             except TypeError as e:
-                print(f"|ERROR| {e}")
 
                 for i, pointer_point in enumerate(self.pointer_points):
                     pointer_point.remove()
@@ -300,12 +296,9 @@ class HullView(View):
         line_start_index = -1
         line_end_index = -1
 
-        print(point_1, point_2)
-        print(f"IDX: {idx_1} {idx_2}")
         try:
             interpolated_points = interpolate_points(self.points_to_add[1:-1])
         except TypeError as e:
-            print(f"|ERROR| {e}")
 
             for i, pointer_point in enumerate(self.pointer_points):
                 pointer_point.remove()
@@ -502,7 +495,6 @@ class HullView(View):
         if self.picked_item is None:
             return
         if nname != "":
-            print(f"nname: {nname}")
             plt.draw()
 
     def spread_size_update(self) -> int:
