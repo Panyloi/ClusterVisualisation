@@ -155,7 +155,7 @@ def draw_maps(raw_data: Union[str, Experiment],
                         points_in_circle=20,
                         segment_length=10,
                         domain_expansion=1.5,
-                        closest_points_radius=2)
+                        closest_points_radius=1)
     
     if Configuration['global']['generate_hulls']:
         hulls = calc_hull(normalized_data, 0.1, 20, 20)

@@ -330,7 +330,6 @@ class HullView(View):
         if idx_1 < idx_2:
             first_part_hull_points = hull_interpolated_points[:idx_1 + 1]
             second_part_hull_points = hull_interpolated_points[idx_2:]
-
             line_first_part_hull_points = lines[:line_start_index + 1]
             line_second_part_hull_points = lines[line_end_index:]
 
@@ -342,14 +341,33 @@ class HullView(View):
                 for j in range(len(interpolated_points) - 1)
             ]
 
-            print(polygon_lines)
-
             final_cords = first_part_hull_points + interpolated_points + second_part_hull_points
             final_lines = (line_first_part_hull_points
-                           + [((line_first_part_hull_points[-1][1]), (polygon_lines[0][0]))]
-                           + polygon_lines
-                           + [((polygon_lines[-1][1]), (line_second_part_hull_points[0][0]))]
-                           + line_second_part_hull_points)
+                            + [((line_first_part_hull_points[-1][1]), (polygon_lines[0][0]))]
+                            + polygon_lines
+                            + [((polygon_lines[-1][1]), (line_second_part_hull_points[0][0]))]
+                            + line_second_part_hull_points)
+
+        else:
+            part_hull_points = hull_interpolated_points[idx_2:idx_1 + 1]
+            line_part_hull_points = lines[line_end_index:line_start_index + 1]
+
+            polygon_lines = [
+                (
+                    interpolated_points[j % len(interpolated_points)],
+                    interpolated_points[(j + 1) % len(interpolated_points)],
+                )
+                for j in range(len(interpolated_points) - 1)
+            ]
+
+            final_cords = part_hull_points + interpolated_points
+            final_lines = (line_part_hull_points
+                            + [((line_part_hull_points[-1][1]), (polygon_lines[0][0]))]
+                            + polygon_lines
+                            + [((polygon_lines[-1][1]), (line_part_hull_points[0][0]))]
+                          )
+
+
 
         hull_artist = HullArtist.get_line_by_id(hull_name)
         hull_artist.remove()
