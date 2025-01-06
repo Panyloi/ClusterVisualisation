@@ -7,6 +7,7 @@ import matplotlib as mpl
 import tkinter
 
 from .state import *
+from ..configuration import Configuration
 
 
 class RefreshEvent(Event):
@@ -173,7 +174,7 @@ def new_save_figure(self, *args):
     try:
         pax, pfig = SaveLoadPltLinker.get_ax_fig()
         bbox = pax.get_tightbbox().transformed(pfig.dpi_scale_trans.inverted())
-        self.canvas.figure.savefig(fname, bbox_inches=bbox, pad_inches=0)
+        self.canvas.figure.savefig(fname, bbox_inches=bbox, pad_inches=0, dpi=Configuration['global']['dpi'])
     except Exception as e:
         tkinter.messagebox.showerror("Error saving file", str(e))
 

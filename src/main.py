@@ -22,17 +22,18 @@ from .generator.hull_generator import calc_hull, parse_solution_to_editor_hull, 
 logging.getLogger('PIL').setLevel(logging.WARNING)
 
 
-def draw_maps(raw_data: Union[str, Experiment],
-              out_path: str | None, delim=';',
+def draw_maps(raw_data: str,
+              out_path: str | None,
+              delim=';',
               config_id: str = 'divide_and_conquare') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
     ----------
-    raw_data: str or Experiment
-        Either string with path to the csv file or an instance of mapel...Experiment
+    raw_data: str
+        String with path to the csv file
     out_path: str or None
-        Path for the .jpg image to be saved to. If None raw drawer data is returned
+        Path for the .png image to be saved to. If None raw drawer data is returned
         for the editor drawer operations
     delim: str
         If raw_data is a csv file the delim is used as input delimiter.
@@ -46,88 +47,6 @@ def draw_maps(raw_data: Union[str, Experiment],
         If out_path is None. Dict has raw data needed for interactive editor.
     None:
         Otherwise.
-
-    Notes
-    -----
-    Output format for the editor:
-    {
-        data: 
-        {
-            "culture_name":
-            {
-                'x': np.array(), 
-                'y': np.array()
-            },
-            "second_culture_name":
-            ...
-        }
-
-        cluster_data: 
-        {
-            "cluster_name": 
-            {
-                'x': np.array(), 
-                'y': np.array(), 
-                // TODO: additional cluster data?
-                'org': list("original_culture_name", ...)
-            },
-            "second_cluster_name":
-            ...
-        }
-
-        hulls_data: 
-        {
-            hulls:
-            {
-                hull_name
-                {
-                    cords': list[tuple[float, float]] 
-                        // coordinates of hull points
-                    'line_cords': list[tuple[tuple[float, float], tuple[float, float]]] 
-                        // hull's lines
-                    'cluster_points':
-                    {
-                        'x': np.array()
-                        'y': np.array()
-                    }
-                }
-            },
-
-            change:
-            {
-                'hull_name':
-                pd.Series('x', 'y', 'type') 
-            },
-            
-            undraw: set(hull_name)
-        }
-
-        'labels_data':
-        {
-            label_id: int:
-            {
-                'text': str
-                'x': float
-                'y': float
-                'arrows':
-                {
-                    arrow_id: int:
-                    {
-                        'ref_x': float
-                        'ref_y': float
-                        'att_x': float
-                        'att_y': float
-                        'val': str
-                    }
-                }
-            },
-            second_label_id: int:
-            ...
-            'size': float 10.0
-            'arrow_size': float 1.0
-        }
-    }
-
     """
 
     parsed_data = parse_data(raw_data, delim)
@@ -180,12 +99,12 @@ def draw_maps(raw_data: Union[str, Experiment],
     bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
     
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, bbox_inches=bbox, pad_inches=0)
+    fig.savefig(out_path, bbox_inches=bbox, pad_inches=0, dpi=Configuration['global']['dpi'])
 
     return None
 
 
-def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
+def draw_maps_editor(raw_data: str, delim=';', config_id='iterative') -> None:
     """ Interactive matplotlib editor for creating maps
     
     Parameters
@@ -194,13 +113,15 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
         Either string with path to the csv file or an instance of mapel...Experiment
     delim: str
         If raw_data is a csv file the delim is used as input delimiter.
-    
+    config_id: str
+        String id specifying a group of parameters in the Configuration class which 
+        affect auto generation
     """
 
-    state = draw_maps(raw_data, None, delim)
-    assert state is not None # editor needs init state for now (might use default cache later)
+    state = draw_maps(raw_data, None, delim, config_id=config_id)
+    assert state is not None # editor needs init state
 
     format_string = '%(asctime)s %(filename)s %(funcName)s %(lineno)d %(message)s'
-    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, format=format_string)
+    logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL, format=format_string) # change level for debugging information
     editor = Editor(state)
     editor.run()
