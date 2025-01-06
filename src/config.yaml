@@ -1,5 +1,6 @@
 global:
   generate_hulls: True
+  dpi: 300
 
 editor:
   # initial frame size (the data is normalized to -100, 100 on wider axis)

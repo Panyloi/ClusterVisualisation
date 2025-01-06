@@ -150,10 +150,11 @@ class Label:
         return self.rp_x + self.r*np.cos(self.a), self.rp_y + self.r*np.sin(self.a)
     
     def get_err(self, include_x0: bool = False) -> float:
+        p = self.get_point()
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
                     + np.sqrt((self.x0_x - self.t_point[0])**2 + (self.x0_y - self.t_point[1])**2)/self.x0_error_loss_parameter_denominator
-        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
+        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + np.sqrt((self.rp_x-p[0])**2 + (self.rp_y-p[1])**2)
     
     def get_mpoint(self) -> CPoint:
         x, y = self.get_point()
@@ -794,9 +795,6 @@ def calc(idata: InData,
         daql = divide_and_conquare(ll)
         res_ll = [group[0] for group in daql if len(group) == 1]
         for group in daql:
-
-            if len(group) == 1:
-                continue
             
             labels_bounds = [(0, 190), (0, np.pi*2)]*len(group)
             labels_bounds.extend([(0, 4)]*len(group))
@@ -931,23 +929,3 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         plt.plot(raw_points[:,0], raw_points[:,1])
         plt.plot([tp[0], rp[0]], [tp[1], rp[1]])
     plt.show()
-
-
-#TODO:
-# [x] try polar coordinates
-# [x] iterative approach
-# [x] hull swelling
-# [x] divide and conquare solution (by initial x0)
-# [x] divide and conquare solution (by initial x0)
-# [ ] iterative x0
-# [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)
-
-# IMPORTANT
-
-# consider the fact that the label itself is in the label set while querying for other labels in global optimization
-# think of solution to it. This might be very bad for the optimization as it will always wiggle
-
-# IMPORTANT
-
-# consider the fact that the label itself is in the label set while querying for other labels in global optimization
-# think of solution to it. This might be very bad for the optimization as it will always wiggle

@@ -180,12 +180,12 @@ def draw_maps(raw_data: Union[str, Experiment],
     bbox = ax.get_tightbbox().transformed(fig.dpi_scale_trans.inverted())
     
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    fig.savefig(out_path, bbox_inches=bbox, pad_inches=0)
+    fig.savefig(out_path, bbox_inches=bbox, pad_inches=0, dpi=Configuration['global']['dpi'])
 
     return None
 
 
-def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
+def draw_maps_editor(raw_data: Union[str, Experiment], delim=';', config_id='iterative') -> None:
     """ Interactive matplotlib editor for creating maps
     
     Parameters
@@ -197,7 +197,7 @@ def draw_maps_editor(raw_data: Union[str, Experiment], delim=';') -> None:
     
     """
 
-    state = draw_maps(raw_data, None, delim)
+    state = draw_maps(raw_data, None, delim, config_id=config_id)
     assert state is not None # editor needs init state for now (might use default cache later)
 
     format_string = '%(asctime)s %(filename)s %(funcName)s %(lineno)d %(message)s'
