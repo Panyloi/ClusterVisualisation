@@ -214,12 +214,23 @@ class AddView(View):
         self.submitted = True
         self.dehighlight_cluster(self.cluster_name)
 
+        # saving cluster names since points change the type when assigned to a new cluster
+        clusters_to_change = []
+        for point in self.picked_points:
+            p = self.state.get_point(point)
+            clusters_to_change.append(p["type"])
+
         points = self.state.get_cluster(self.cluster_name).index.tolist()
         points.extend(self.picked_points)
         self.state.set_cluster(self.cluster_name, points)
 
+        self.state.set_hull_to_change(self.cluster_name, self.state.get_cluster(self.cluster_name))
+        for cluster_name in clusters_to_change:
+            self.state.set_hull_to_change(cluster_name, self.state.get_cluster(cluster_name))
+
         self.remove_artists()
         self.highlight_cluster(self.cluster_name, "black")
+
         plt.draw()
 
     def update(self, _):
@@ -282,6 +293,7 @@ class AddView(View):
 
     def hide(self) -> None:
         super().hide()
+        self.vm.list_manager.show_button()
         self.vem.remove(self.widget)
         self.remove_artists()
         self.dehighlight_cluster(self.cluster_name)
@@ -373,6 +385,8 @@ class MergeView(View):
         self.widget_right.highlight_label(self.cluster_name_right, "red")
         self.highlight_cluster(name, "black")
 
+        self.state.calc_and_add_one_hull(name, self.state.get_cluster(name))
+
         plt.draw()
 
     def reset_clusters(self):
@@ -436,6 +450,7 @@ class MergeView(View):
 
     def hide(self) -> None:
         super().hide()
+        self.vm.list_manager.show_button()
         self.vem.remove(self.widget_left)
         self.vem.remove(self.widget_right)
         self.dehighlight_cluster(self.cluster_name_left)
@@ -637,7 +652,7 @@ class AgglomerativeView(ClusteringSubViewBase):
         )
 
         self.widget_scalar = self.vem.add(
-            ViewSlider(self, [0.55, 0.17, 0.3, 0.05],"", 0.01, 2.5, self.update_plot)
+            ViewSlider(self, [0.55, 0.17, 0.3, 0.05], "", 0.01, 2.5, self.update_plot)
         )
 
         self.vem.hide()
