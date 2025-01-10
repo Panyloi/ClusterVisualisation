@@ -88,14 +88,6 @@ class ClusterMainView(View):
                 artist.hide()
         if self.hulls_off:
             self.vm.list_manager.check_list.hide()
-        # todo doesnt work cause dunno how to use Hull Artist
-        # the problem is that I remove only LineCollections, but when using algorithm I use
-        # self.state.set_hull_to_undraw(cluster_name)
-        # self.state.set_hull_to_change(new_cluster_name, self.state.get_cluster(new_cluster_name))
-        # which presumably smites the original hulls from existance, after which HullArtist.hull doesnt work
-
-        # what I would want is to be able to remove all hull artist when reseting and recalulate them again
-        # unless it takes too much time ofc
 
     def remove_point(self):
         if self.picked_item:

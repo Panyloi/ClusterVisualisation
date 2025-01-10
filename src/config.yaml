@@ -1,5 +1,6 @@
 global:
   generate_hulls: True
+  dpi: 300
 
 editor:
   # initial frame size (the data is normalized to -100, 100 on wider axis)
@@ -161,7 +162,7 @@ labels_generator:
       accept: -5
       no_local_search: True
 
-    divide_and_conquare:
+    divide_and_conquer:
       maxiter: 700
       visit: 4
       initial_temp: 7230

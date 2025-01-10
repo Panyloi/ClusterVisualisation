@@ -63,7 +63,7 @@ def choose_reference_point(xs, ys, swelled_hull):
 
     return hull_points[min_line_len_point_idx]
 
-def divide_and_conquare(ll: LabelList) -> MergedLabelList:
+def divide_and_conquer(ll: LabelList) -> MergedLabelList:
     merged_ll = []
     for label in ll:
         intersections_i = []
@@ -150,10 +150,11 @@ class Label:
         return self.rp_x + self.r*np.cos(self.a), self.rp_y + self.r*np.sin(self.a)
     
     def get_err(self, include_x0: bool = False) -> float:
+        p = self.get_point()
         if include_x0:
             return (np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)) \
                     + np.sqrt((self.x0_x - self.t_point[0])**2 + (self.x0_y - self.t_point[1])**2)/self.x0_error_loss_parameter_denominator
-        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2)
+        return np.sqrt((self.rp_x-self.t_point[0])**2 + (self.rp_y-self.t_point[1])**2) + np.sqrt((self.rp_x-p[0])**2 + (self.rp_y-p[1])**2)
     
     def get_mpoint(self) -> CPoint:
         x, y = self.get_point()
@@ -769,16 +770,13 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
 
-        # res = dual_annealing(loss, bounds=labels_bounds, args=(ll, mset, curr_config['generate_greedy_x0']),
-        #                      x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
-        #                      restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         res = dual_annealing(mixed_square_loss, bounds=labels_bounds, args=(ll, [], mset, curr_config['generate_greedy_x0']),
                              x0=x0, maxiter=maxiter, visit=visit, initial_temp=initial_temp, 
                              restart_temp_ratio=restart_temp_ratio, accept=accept, no_local_search=no_local_search)
         x = res.x
         
         
-    elif config_id == 'divide_and_conquare':
+    elif config_id == 'divide_and_conquer':
         
         curr_config = Configuration['labels_generator']['configurations'][config_id]
         x0 = greedy((0, 0), ll, mset)
@@ -791,12 +789,9 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
         
-        daql = divide_and_conquare(ll)
+        daql = divide_and_conquer(ll)
         res_ll = [group[0] for group in daql if len(group) == 1]
         for group in daql:
-
-            if len(group) == 1:
-                continue
             
             labels_bounds = [(0, 190), (0, np.pi*2)]*len(group)
             labels_bounds.extend([(0, 4)]*len(group))
@@ -931,23 +926,3 @@ def _debug_draw(ll: List[Label], points: np.ndarray):
         plt.plot(raw_points[:,0], raw_points[:,1])
         plt.plot([tp[0], rp[0]], [tp[1], rp[1]])
     plt.show()
-
-
-#TODO:
-# [x] try polar coordinates
-# [x] iterative approach
-# [x] hull swelling
-# [x] divide and conquare solution (by initial x0)
-# [x] divide and conquare solution (by initial x0)
-# [ ] iterative x0
-# [ ] divide and conquare solution (after initial iterative solution, using final lines intersections)
-
-# IMPORTANT
-
-# consider the fact that the label itself is in the label set while querying for other labels in global optimization
-# think of solution to it. This might be very bad for the optimization as it will always wiggle
-
-# IMPORTANT
-
-# consider the fact that the label itself is in the label set while querying for other labels in global optimization
-# think of solution to it. This might be very bad for the optimization as it will always wiggle

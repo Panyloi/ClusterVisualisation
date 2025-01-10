@@ -477,7 +477,6 @@ class HullArtist(StateLinker):
 
         # hull line artists
         if hull_view:
-            print("JAK")
             self.hull_lines: dict[int, HullLineArtist] = {}
             for hull_line_id in self.state.get_hull_hull_line(self.id):
                 x1, y1, x2, y2 = self.state.get_hull_line_points(self.id, hull_line_id)

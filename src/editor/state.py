@@ -243,7 +243,6 @@ class State:
         hull_resources = self.data['hulls_data']['hulls'][hull_name]
         del self.data['hulls_data']['hulls'][hull_name]
 
-        print(hull_resources['artist'])
         self.data['hulls_data']['hulls'][hull_name] = {
             "cords": hull_resources["polygon_points"],
             "line_cords": hull_resources["polygon_lines"],
