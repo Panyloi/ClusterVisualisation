@@ -63,7 +63,7 @@ def choose_reference_point(xs, ys, swelled_hull):
 
     return hull_points[min_line_len_point_idx]
 
-def divide_and_conquare(ll: LabelList) -> MergedLabelList:
+def divide_and_conquer(ll: LabelList) -> MergedLabelList:
     merged_ll = []
     for label in ll:
         intersections_i = []
@@ -776,7 +776,7 @@ def calc(idata: InData,
         x = res.x
         
         
-    elif config_id == 'divide_and_conquare':
+    elif config_id == 'divide_and_conquer':
         
         curr_config = Configuration['labels_generator']['configurations'][config_id]
         x0 = greedy((0, 0), ll, mset)
@@ -789,7 +789,7 @@ def calc(idata: InData,
         accept = curr_config['accept']
         no_local_search = curr_config['no_local_search']
         
-        daql = divide_and_conquare(ll)
+        daql = divide_and_conquer(ll)
         res_ll = [group[0] for group in daql if len(group) == 1]
         for group in daql:
             

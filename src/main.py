@@ -25,7 +25,7 @@ logging.getLogger('PIL').setLevel(logging.WARNING)
 def draw_maps(raw_data: str,
               out_path: str | None,
               delim=';',
-              config_id: str = 'divide_and_conquare') -> Optional[State]:
+              config_id: str = 'divide_and_conquer') -> Optional[State]:
     """ Automatic map creator
     
     Parameters
